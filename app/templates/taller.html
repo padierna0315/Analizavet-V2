@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+{% block title %}Taller — {{ patient.name }} | Analizavet V2{% endblock %}
+
+{% block extra_head %}
+<!-- HTMX will be added in Phase 11 -->
+{% endblock %}
+
+{% block navbar_info %}
+<div class="patient-badge">
+    <span class="patient-name">{{ patient.name }}</span>
+    <span class="patient-species">{{ patient.species }}</span>
+    <span class="patient-sex">{{ patient.sex }}</span>
+    {% if patient.age_display %}
+    <span class="patient-age">{{ patient.age_display }}</span>
+    {% endif %}
+    <span class="patient-owner">Tutor: {{ patient.owner_name }}</span>
+</div>
+<div class="test-badge">
+    <span>{{ test_result.test_type }}</span>
+    <span class="test-date">{{ test_result.received_at[:10] }}</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="taller-layout">
+
+    <!-- LEFT PANEL: Data entry -->
+    <div class="taller-left">
+        <div class="panel-header">
+            <h2>Resultados del Laboratorio</h2>
+            <div class="flag-summary">
+                <span class="badge badge-alto">ALTO: {{ summary.ALTO }}</span>
+                <span class="badge badge-normal">NORMAL: {{ summary.NORMAL }}</span>
+                <span class="badge badge-bajo">BAJO: {{ summary.BAJO }}</span>
+            </div>
+        </div>
+
+        <!-- Lab Values Table -->
+            <form id="taller-form"
+                  hx-post="/taller/preview/{{ test_result.id }}"
+                  hx-trigger="input changed delay:300ms"
+                  hx-target="#preview-panel"
+                  hx-swap="innerHTML">
+
+                <div class="field-group">
+                  <label>👨‍⚕️ Médico responsable</label>
+                  <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <select name="doctor_name" id="doctor-select"
+                            hx-get="/taller/doctors"
+                            hx-trigger="load"
+                            hx-swap="innerHTML">
+                      <option value="">-- Seleccionar médico --</option>
+                      {% for doctor in doctors %}
+                        <option value="{{ doctor.name }}" {% if test_result.doctor_name == doctor.name %}selected{% endif %}>
+                          {{ doctor.name }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <button type="button"
+                            hx-get="/taller/doctors/form-add"
+                            hx-target="#doctor-modal"
+                            hx-swap="innerHTML"
+                            hx-indicator="#doctor-modal"
+                            hx-disabled-elt="this">
+                      ➕
+                    </button>
+                    <button type="button"
+                            hx-delete="/taller/doctors/{{ test_result.doctor_id }}"
+                            hx-target="#doctor-select"
+                            hx-swap="outerHTML"
+                            hx-indicator="#doctor-modal"
+                            hx-disabled-elt="this"
+                            hx-confirm="¿Eliminar este médico?">
+                      🗑️
+                    </button>
+                  </div>
+                  <div id="doctor-modal"></div>
+                </div>
+
+                <!-- Camops Coprológico -->
+                {% if test_result.test_type_code == "COPROSC" %}
+                <div class="field-group copro-fields">
+                  <h4>🔬 Características físicas</h4>
+                  <div class="fields-row">
+                    <div>
+                      <label>Color</label>
+                      <select name="copro_color">
+                        <option value="">-- Seleccionar --</option>
+                        {% for color in ["Café", "Café oscuro", "Negro", "Amarillo", "Verde", "Rojo", "Naranja", "Gris", "Blanco"] %}
+                          <option value="{{ color }}" {% if test_result.copro_color == color %}selected{% endif %}>{{ color }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Consistencia</label>
+                      <select name="copro_consistencia">
+                        <option value="">-- Seleccionar --</option>
+                        {% for cons in ["Formada", "Blanda", "Semilíquida", "Líquida", "Dura", "Pastosa"] %}
+                          <option value="{{ cons }}" {% if test_result.copro_consistencia == cons %}selected{% endif %}>{{ cons }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Olor</label>
+                      <select name="copro_olor">
+                        <option value="">-- Seleccionar --</option>
+                        {% for olor in ["Característico", "Fétido", "Ácido", "Rancio", "Sin olor"] %}
+                          <option value="{{ olor }}" {% if test_result.copro_olor == olor %}selected{% endif %}>{{ olor }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Moco</label>
+                      <select name="copro_moco">
+                        <option value="">-- Seleccionar --</option>
+                        <option value="true" {% if test_result.copro_moco == True %}selected{% endif %}>Presente</option>
+                        <option value="false" {% if test_result.copro_moco == False %}selected{% endif %}>Ausente</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+
+                <!-- Campos Citoquímico -->
+                {% if test_result.test_type_code in ["CITO", "CSF", "FLUID", "CYTOLOGY"] %}
+                <div class="field-group cito-fields">
+                  <h4>🧪 Características físicas del líquido</h4>
+                  <div class="fields-row">
+                    <div>
+                      <label>Color</label>
+                      <select name="cito_color">
+                        <option value="">-- Seleccionar --</option>
+                        {% for color in ["Incoloro", "Amarillo pálido", "Amarillo", "Amarillo turbio", "Rojo", "Rosado", "Naranja", "Verde", "Café", "Blanco lechoso"] %}
+                          <option value="{{ color }}" {% if test_result.cito_color == color %}selected{% endif %}>{{ color }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Turbidez</label>
+                      <select name="cito_turbidez">
+                        <option value="">-- Seleccionar --</option>
+                        {% for turb in ["Transparente", "Ligeramente turbio", "Turbio", "Muy turbio", "Opaco"] %}
+                          <option value="{{ turb }}" {% if test_result.cito_turbidez == turb %}selected{% endif %}>{{ turb }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Aspecto</label>
+                      <select name="cito_aspecto">
+                        <option value="">-- Seleccionar --</option>
+                        {% for asp in ["Seroso", "Serosanguinolento", "Hemorrágico", "Quiloso", "Purulento", "Mucoso"] %}
+                          <option value="{{ asp }}" {% if test_result.cito_aspecto == asp %}selected{% endif %}>{{ asp }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+
+                <table class="lab-table">
+                <thead>
+                    <tr>
+                        <th>Parámetro</th>
+                        <th>Valor</th>
+                        <th>Unidad</th>
+                        <th>Referencia</th>
+                        <th>Flag</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lv in lab_values %}
+                    <tr class="lab-row flag-{{ lv.flag | lower }}">
+                        <td class="param-name">{{ lv.parameter_name_es }}</td>
+                        <td>
+                            <input type="text"
+                                   name="value_{{ lv.parameter_code }}"
+                                   value="{{ lv.raw_value }}"
+                                   class="value-input">
+                        </td>
+                        <td class="unit">{{ lv.unit }}</td>
+                        <td class="reference">{{ lv.reference_range }}</td>
+                        <td class="flag-cell flag-{{ lv.flag | lower }}">
+                            <strong>{{ lv.flag }}</strong>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        </form>
+
+        <!-- Action Buttons -->
+        <div class="action-bar">
+            <button class="btn btn-secondary"
+                    hx-post="/taller/algorithms/{{ test_result.id }}"
+                    hx-target="#preview-panel"
+                    hx-swap="innerHTML">
+                Aplicar Algoritmos
+            </button>
+            <button class="btn btn-primary"
+                    hx-post="/taller/save-metadata/{{ test_result.id }}"
+                    hx-trigger="click"
+                    hx-target="#save-status"
+                    hx-swap="innerHTML"
+                    hx-indicator="#save-indicator">
+                Guardar Cambios
+            </button>
+            <span id="save-status"></span>
+            <span id="save-indicator" class="htmx-indicator">Guardando...</span>
+            <button type="button"
+               class="btn btn-primary"
+               hx-post="/taller/save-and-pdf/{{ test_result.id }}"
+               hx-include="#metadata-form"
+               hx-indicator="#pdf-indicator">
+                📄 Generar PDF
+            </button>
+            <span id="pdf-indicator" class="htmx-indicator">Generando...</span>
+            <a href="/patients/{{ patient.id }}"
+               class="btn btn-secondary">
+                Ver Historial
+            </a>
+        </div>
+
+        <!-- Image Gallery -->
+        {% if images %}
+        <div class="panel-header" style="margin-top: 2rem;">
+            <h2>Galería de Imágenes</h2>
+        </div>
+        <div class="image-gallery" style="padding:1rem;display:grid;
+             grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:1rem;">
+            {% for img in images %}
+            <div class="gallery-item"
+                 style="border:1px solid #e5e7eb;padding:0.5rem;
+                        text-align:center;border-radius:0.25rem;">
+                <img src="/{{ img.file_path }}" reload="true"
+                     style="width:100%;height:auto;display:block;margin-bottom:0.5rem;">
+                <p style="font-size:0.75rem;color:#6b7280;margin-bottom:0.5rem;">
+                    {{ img.parameter_name_es }} de {{ patient.name }} ({{ img.image_type }})</p>
+                <label style="font-size:0.75rem;display:flex;
+                             align-items:center;justify-content:center;gap:0.25rem;">
+                    <input type="checkbox"
+                           hx-patch="/taller/images/{{ img.id }}/toggle"
+                           hx-swap="outerHTML"
+                           {% if img.is_included_in_report %}checked{% endif %}>
+                    Incluir
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- RIGHT PANEL: Live preview -->
+    <div id="preview-panel" class="taller-right"
+         hx-get="/taller/preview/{{ test_result.id }}"
+         hx-trigger="updatePreview from:body">
+        <div class="panel-header">
+            <h2>Vista Previa del Reporte</h2>
+            <div class="htmx-indicator" id="preview-loading">
+                <span>Actualizando...</span>
+            </div>
+        </div>
+        <div class="preview-panel">
+            <div class="preview-container">
+                <div class="preview-header">
+                    <h3>{{ patient.name }} ({{ patient.species }}, {{ patient.sex }})</h3>
+                    <p>Tutor: {{ patient.owner_name }} | {{ test_result.test_type }} | {{ test_result.received_at[:10] }}</p>
+                </div>
+                <div class="preview-summary">
+                    <span class="flag-alto">ALTO: {{ summary.ALTO }}</span>
+                    <span class="flag-normal">NORMAL: {{ summary.NORMAL }}</span>
+                    <span class="flag-bajo">BAJO: {{ summary.BAJO }}</span>
+                </div>
+                <table class="preview-table">
+                    <thead>
+                        <tr><th>Parámetro</th><th>Valor</th><th>Referencia</th><th>Flag</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for lv in lab_values %}
+                        <tr class="flag-{{ lv.flag | lower }}">
+                            <td>{{ lv.parameter_name_es }}</td>
+                            <td>{{ lv.raw_value }} {{ lv.unit }}</td>
+                            <td>{{ lv.reference_range }}</td>
+                            <td><strong>{{ lv.flag }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diagnóstico del Motor — updated via HTMX OOB swap -->
+    <div id="diagnostico-motor"></div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+<!-- app/templates/recepcion/patient_row.html -->
+<!-- HTML fragment for a single patient row (for OOB swap) -->
+<tr class="patient-row" id="patient-row-{{ patient_data.patient.id }}">
+    <td>{{ patient_data.patient.name }}</td>
+    <td>{{ patient_data.patient.species }}</td>
+    <td>{{ patient_data.patient.owner_name }}</td>
+    <td>
+        {% for test_result in patient_data.test_results %}
+        <div class="test-result-badge">
+            {{ test_result.test_type }} ({{ test_result.received_at.strftime('%Y-%m-%d %H:%M') }})
+        </div>
+        {% endfor %}
+    </td>
+    <td>
+        {% for test_result in patient_data.test_results %}
+        <form hx-post="/reception/procesar/{{ test_result.id }}"
+              hx-target="#patient-row-{{ patient_data.patient.id }}"
+              hx-swap="outerHTML">
+            <button type="submit"
+                    class="btn btn-secondary"
+                    hx-indicator="#spinner-{{ patient_data.patient.id }}"
+                    hx-disabled-elt="this">
+                Procesar
+            </button>
+            <span id="spinner-{{ patient_data.patient.id }}" class="htmx-indicator">⏳</span>
+        </form>
+        {% endfor %}
+    </td>
+</tr>

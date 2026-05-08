@@ -1,0 +1,20 @@
+[default]
+DATABASE_URL = "sqlite+aiosqlite:///./analizavet.db"
+IMAGES_DIR = "./images"
+LOG_LEVEL = "INFO"
+OZELLE_PORT = 6000
+FUJIFILM_PORT = 6001
+PDF_THEME = "huellas_lab"
+MLLP_ENABLED = false
+LOGFIRE_ENABLED = false
+
+[development]
+# Inherits from default
+# Override any settings here for local development
+
+[production]
+# In production, use asyncpg for PostgreSQL
+# DATABASE_URL should be set via environment variable: ANALIZAVET_DATABASE_URL
+# Example: "postgresql+asyncpg://user:pass@localhost:5432/analizavet"
+DATABASE_URL = "@format {env[DATABASE_URL]}"
+LOG_LEVEL = "WARNING"

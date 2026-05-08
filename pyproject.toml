@@ -1,0 +1,88 @@
+[project]
+name = "analizavet-v2"
+version = "2.0.0"
+description = "Analizavet V2 - Veterinary Lab System with Modern Python Stack"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    {name = "Santiago", email = "santiago@huellaslab.com"},
+]
+license = {text = "MIT"}
+
+dependencies = [
+    # Core FastAPI
+    "fastapi==0.109.0",
+    "uvicorn[standard]==0.27.0",
+    # Data Validation & Serialization
+    "pydantic==2.5.3",
+    "pydantic-settings==2.1.0",
+    # ORM & Database
+    "sqlmodel==0.0.14",
+    "sqlalchemy==2.0.23",
+    "alembic==1.13.1",
+    "aiosqlite==0.20.0",  # SQLite async driver for development
+    # Configuration Management
+    "dynaconf==3.2.5",
+    # Background Tasks
+    "dramatiq[redis]==1.15.0",
+    "redis>=5.0.0",
+    # PDF Generation
+    "weasyprint==68.1",
+    # Jinja2 Templates
+    "jinja2==3.1.2",
+    # Utilities
+    "python-dateutil==2.8.2",
+    "pytz==2023.3",
+    "python-dotenv==1.0.0",
+    # Logging & OpenTelemetry
+    "logfire[fastapi]>=0.0.1",
+    # SSE Support
+    "sse-starlette>=1.6.0",
+    "python-multipart>=0.0.27",
+    "babel==2.18.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==7.4.3",
+    "pytest-asyncio==0.21.1",
+    "pytest-cov==4.1.0",
+    "black==23.12.1",
+    "ruff==0.1.11",
+    "mypy==1.7.1",
+    "httpx==0.25.2",
+    "pytest-playwright==0.4.3", # Add pytest-playwright for e2e tests
+]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.uv.pip]
+python-version = "3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --cov=app --cov-report=term-missing -p pytest_playwright"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]  # Line too long (handled by black)
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+
+[tool.setuptools]
+packages = ["app"]

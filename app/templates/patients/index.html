@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Pacientes | Analizavet V2{% endblock %}
+
+{% block extra_head %}
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+{% endblock %}
+
+{% block content %}
+<div class="patients-container">
+    <div class="panel-header">
+        <h2>Directorio de Pacientes</h2>
+    </div>
+
+    <div class="search-bar">
+        <input type="text"
+               name="search"
+               placeholder="Buscar por nombre de paciente o tutor..."
+               class="value-input search-input"
+               hx-get="/patients"
+               hx-trigger="input changed delay:500ms, search"
+               hx-target="#patients-list"
+               hx-indicator=".htmx-indicator">
+        <span class="htmx-indicator">Buscando...</span>
+    </div>
+
+    <table class="lab-table">
+        <thead>
+            <tr>
+                <th>Paciente</th>
+                <th>Especie</th>
+                <th>Tutor</th>
+                <th>Última Visita</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody id="patients-list">
+            {% include "patients/list_fragment.html" %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

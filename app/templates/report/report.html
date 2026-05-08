@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    color: #1a1a1a;
+    padding: 20px 28px;
+  }
+
+  /* ── Header ─────────────────────────────────────────────────── */
+  .header {
+    text-align: center;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #333;
+    margin-bottom: 14px;
+  }
+  .header h1 {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1a1a1a;
+    letter-spacing: 0.3px;
+  }
+  .header .address {
+    font-size: 10px;
+    color: #666;
+    margin-top: 3px;
+  }
+
+  /* ── Patient info ────────────────────────────────────────────── */
+  .patient-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px 32px;
+    margin-bottom: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid #ddd;
+    font-size: 11px;
+  }
+  .patient-field { display: flex; gap: 4px; }
+  .patient-label { color: #1a1a1a; white-space: nowrap; }
+  .patient-value { color: #1a1a1a; }
+
+  /* ── Exam title ──────────────────────────────────────────────── */
+  .exam-title {
+    text-align: center;
+    font-weight: bold;
+    font-size: 12px;
+    border: 1.5px solid #1a1a1a;
+    padding: 6px 10px;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Physical characteristics ────────────────────────────────── */
+  .physical-section {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 11px;
+  }
+  .physical-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #333;
+  }
+  .physical-row { display: flex; gap: 24px; flex-wrap: wrap; }
+  .physical-item .p-label { color: #666; font-size: 10px; text-transform: uppercase; }
+  .physical-item .p-value { color: #1a1a1a; }
+
+  /* ── Table ───────────────────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+    font-size: 11px;
+  }
+
+  /* Column widths */
+  .col-examen { width: 52%; }
+  .col-result { width: 22%; }
+  .col-ref    { width: 26%; text-align: right; }
+
+  /* Column headers row */
+  .col-headers th {
+    font-size: 9px;
+    color: #888;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 4px 0;
+    border-bottom: 1px solid #ccc;
+    letter-spacing: 0.8px;
+  }
+  .col-headers th.col-ref { text-align: right; }
+
+  /* Group header row */
+  .group-header td {
+    background-color: #1a3a6b;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+
+  /* Parameter rows */
+  .param-row td {
+    padding: 4px 2px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+  }
+  .param-row.even td { background: #f9f9f9; }
+
+  /* Result values */
+  .val-normal { font-weight: bold; color: #1a1a1a; }
+  .val-alto   { font-weight: bold; color: #1565c0; }
+  .val-bajo   { font-weight: bold; color: #1565c0; }
+
+  /* Reference */
+  .ref-cell {
+    text-align: right;
+    color: #666;
+    font-size: 10px;
+  }
+
+  /* ── Footer ──────────────────────────────────────────────────── */
+  .footer {
+    text-align: center;
+    font-size: 10px;
+    color: #888;
+    border-top: 1px solid #ccc;
+    padding-top: 6px;
+    margin-top: 14px;
+  }
+
+  @page {
+    margin: 1.2cm 1.5cm;
+  }
+  @page :footer {
+    content: "Cra.70 #34-13  Tel: 3147596552 - Itagüí";
+    font-size: 9px;
+    color: #aaa;
+    text-align: center;
+  }
+  {{ theme_css }}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────────────── -->
+<div class="header">
+  <h1>Laboratorio Veterinario Huellas Lab 🐾</h1>
+  <div class="address">Cra.70 #34-13&nbsp;&nbsp;Tel: 3147596552 - Itagüí</div>
+</div>
+
+<!-- ── DATOS DEL PACIENTE ──────────────────────────────────────── -->
+<div class="patient-grid">
+  <div class="patient-field">
+    <span class="patient-label">Fecha:&nbsp;</span>
+    <span class="patient-value">{{ fecha_es }}</span>
+  </div>
+  <div class="patient-field">
+    <span class="patient-label">Especie:&nbsp;</span>
+    <span class="patient-value">{{ patient.species | upper }}</span>
+  </div>
+
+  <div class="patient-field">
+    <span class="patient-label">Paciente:&nbsp;</span>
+    <span class="patient-value">{{ patient.name }}</span>
+  </div>
+  <div class="patient-field">
+    <span class="patient-label">Raza:&nbsp;</span>
+    <span class="patient-value">{{ patient.breed or 'Mestizo' }}</span>
+  </div>
+
+  <div class="patient-field">
+    <span class="patient-label">Tutor:&nbsp;</span>
+    <span class="patient-value">{{ patient.owner_name }}</span>
+  </div>
+  <div class="patient-field">
+    <span class="patient-label">Edad:&nbsp;</span>
+    <span class="patient-value">{{ patient.age_display or 'N/D' }}</span>
+  </div>
+
+  <div class="patient-field">
+    <span class="patient-label">Profesional:&nbsp;</span>
+    <span class="patient-value">{{ test_result.doctor_name or 'N/D' }}</span>
+  </div>
+  <div class="patient-field">
+    <span class="patient-label">Sexo:&nbsp;</span>
+    <span class="patient-value">{{ patient.sex | upper }}</span>
+  </div>
+</div>
+
+<!-- ── TÍTULO EXAMEN ───────────────────────────────────────────── -->
+<div class="exam-title">{{ test_result.test_type | upper }}</div>
+
+<!-- ── CARACTERÍSTICAS FÍSICAS: COPROLÓGICO ───────────────────── -->
+{% if test_result.copro_color or test_result.copro_consistencia or test_result.copro_olor or test_result.copro_moco is not none %}
+<div class="physical-section">
+  <div class="physical-title">🔬 Características físicas de la muestra</div>
+  <div class="physical-row">
+    {% if test_result.copro_color %}
+    <div class="physical-item">
+      <div class="p-label">Color</div>
+      <div class="p-value">{{ test_result.copro_color }}</div>
+    </div>
+    {% endif %}
+    {% if test_result.copro_consistencia %}
+    <div class="physical-item">
+      <div class="p-label">Consistencia</div>
+      <div class="p-value">{{ test_result.copro_consistencia }}</div>
+    </div>
+    {% endif %}
+    {% if test_result.copro_olor %}
+    <div class="physical-item">
+      <div class="p-label">Olor</div>
+      <div class="p-value">{{ test_result.copro_olor }}</div>
+    </div>
+    {% endif %}
+    {% if test_result.copro_moco is not none %}
+    <div class="physical-item">
+      <div class="p-label">Moco</div>
+      <div class="p-value">{{ 'Presente' if test_result.copro_moco else 'Ausente' }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── CARACTERÍSTICAS FÍSICAS: CITOQUÍMICO ───────────────────── -->
+{% if test_result.cito_color or test_result.cito_turbidez or test_result.cito_aspecto %}
+<div class="physical-section">
+  <div class="physical-title">🧪 Características físicas del líquido</div>
+  <div class="physical-row">
+    {% if test_result.cito_color %}
+    <div class="physical-item">
+      <div class="p-label">Color</div>
+      <div class="p-value">{{ test_result.cito_color }}</div>
+    </div>
+    {% endif %}
+    {% if test_result.cito_turbidez %}
+    <div class="physical-item">
+      <div class="p-label">Turbidez</div>
+      <div class="p-value">{{ test_result.cito_turbidez }}</div>
+    </div>
+    {% endif %}
+    {% if test_result.cito_aspecto %}
+    <div class="physical-item">
+      <div class="p-label">Aspecto</div>
+      <div class="p-value">{{ test_result.cito_aspecto }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── TABLA DE PARÁMETROS ─────────────────────────────────────── -->
+{% include "report/partials/lab_table.html" %}
+
+<!-- ── FOOTER ─────────────────────────────────────────────────── -->
+<div class="footer">
+  Cra.70 #34-13&nbsp;&nbsp;Tel: 3147596552 - Itagüí
+</div>
+
+</body>
+</html>

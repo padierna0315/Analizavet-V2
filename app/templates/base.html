@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Analizavet V2{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    {% block extra_head %}
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <span class="brand-name">Analizavet</span>
+            <span class="brand-version">V2</span>
+        </div>
+        <div class="navbar-info">
+            {% block navbar_info %}{% endblock %}
+            <div
+                hx-get="/api/mllp/button"
+                hx-trigger="load"
+                hx-swap="outerHTML"
+            >
+                <!-- Initial loading state or placeholder -->
+                <button class="mllp-button mllp-button-loading">Cargando estado...</button>
+            </div>
+        </div>
+    </nav>
+<main class="main-content">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- Altavoz del Edificio - Notification Container -->
+    <div id="notification-container">
+    </div>
+    <div id="modal-container"></div>
+</body>
+</html>

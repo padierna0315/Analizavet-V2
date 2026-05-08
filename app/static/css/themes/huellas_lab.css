@@ -1,0 +1,164 @@
+/* app/static/css/themes/huellas_lab.css */
+/* This CSS complements the inline styles in report.html and is primarily for WeasyPrint rendering. */
+/* Colors and fonts are derived from V1's reportlab implementation */
+
+@font-face {
+    font-family: 'Helvetica';
+    src: url('../../fonts/Helvetica.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Helvetica-Bold';
+    src: url('../../fonts/Helvetica-Bold.ttf') format('truetype');
+    font-weight: bold;
+}
+@font-face {
+    font-family: 'Helvetica-Oblique';
+    src: url('../../fonts/Helvetica-Oblique.ttf') format('truetype');
+    font-style: italic;
+}
+/* NotoEmoji is typically a system font. WeasyPrint should pick it up. */
+/* If not, a fallback font or explicit @font-face with a local path would be needed. */
+@font-face {
+    font-family: 'NotoEmoji';
+    src: local('Noto Color Emoji'), local('Segoe UI Emoji'), local('Apple Color Emoji'), local('EmojiOne Color');
+}
+
+
+body {
+    font-family: 'Helvetica', sans-serif;
+    color: #333; /* Slightly softer black for general text */
+    line-height: 1.2;
+}
+
+/* Header styles */
+.header h1 {
+    font-family: 'Helvetica-Bold', sans-serif;
+    font-size: 12pt;
+    font-weight: bold;
+    color: #333;
+    display: inline-block; /* To align emoji next to it */
+}
+.header .emoji {
+    font-family: 'NotoEmoji', sans-serif;
+    font-size: 12pt;
+    display: inline-block;
+    position: relative;
+    top: 2px; /* Adjust vertical alignment if needed */
+    left: 2px;
+}
+.header .address {
+    font-size: 9pt;
+    color: #555; /* A bit lighter for address */
+}
+.header .separator {
+    border-bottom: 0.5pt solid black;
+    margin-top: 0.2cm;
+    margin-bottom: 0.2cm;
+}
+
+/* Patient Data styles */
+.patient-data {
+    font-size: 9pt;
+    /* Already handled by flexbox in HTML */
+}
+.patient-data b {
+    font-weight: bold;
+}
+
+/* Section Title (e.g., HEMOGRAMA COMPLETO) */
+.section-title {
+    font-family: 'Helvetica-Bold', sans-serif; /* Ensuring bold font */
+    font-size: 11pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    border: 1px solid black;
+    padding: 5px;
+    background-color: white; /* Ensure it stands out against potential background */
+    display: block; /* To apply border correctly */
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+/* Table styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+th {
+    font-family: 'Helvetica-Bold', sans-serif;
+    font-size: 8pt;
+    font-weight: bold;
+    color: gray;
+    text-transform: uppercase;
+    padding: 5px 0; /* from V1, but added horizontal padding for readability */
+    border-bottom: 0.5pt solid lightgray; /* Lighter than V1's implicit line */
+    background-color: #f9f9f9; /* Subtle background for headers */
+    vertical-align: middle;
+}
+td {
+    padding: 3pt 0; /* from V1 code, added horizontal padding */
+    vertical-align: middle;
+    border-bottom: 0.2pt solid #eee; /* Light separator for rows */
+}
+
+/* Column specific widths and alignments for table */
+/* These are applied in the HTML, but including here for reference */
+.col-examen { text-align: left; }
+.col-resultado { text-align: center; }
+.col-referencia { text-align: right; color: gray; font-size: 8pt; }
+
+
+/* Group rows - (although omitted in HTML, keeping styles here for completeness if they are added later) */
+.group-row {
+    font-family: 'Helvetica-Bold', sans-serif;
+    font-size: 10pt;
+    font-weight: bold;
+    background-color: #1a3a6b; /* Dark blue from prompt */
+    color: white;
+    padding: 6pt 5px;
+    vertical-align: middle;
+    text-align: left;
+}
+
+/* Result value styling */
+.result-value {
+    font-family: 'Helvetica-Bold', sans-serif; /* Ensure bold font */
+    font-size: 9pt;
+    font-weight: bold;
+}
+.flag-alto, .flag-bajo {
+    color: #1565c0; /* Blue as per prompt for ALTO/BAJO */
+}
+.flag-normal {
+    color: black;
+}
+.alt-row {
+    background-color: #f3f4f6; /* Light gray from V1 code */
+}
+
+/* Physical characteristics section */
+.copro-cito-section h3 {
+    font-family: 'Helvetica-Bold', sans-serif;
+    font-size: 10pt;
+    font-weight: bold;
+    color: #1a3a6b; /* Dark blue for section titles */
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}
+.copro-cito-item {
+    font-size: 9pt;
+}
+.copro-cito-item b {
+    font-weight: bold;
+}
+
+/* Specific styling for V1 footnotes/disclaimers if needed */
+.disclaimer-text {
+    font-family: 'Helvetica-Oblique', sans-serif;
+    font-size: 7pt;
+    color: black;
+}
+.footer-text {
+    font-family: 'Helvetica', sans-serif;
+    font-size: 8pt;
+    color: black;
+}

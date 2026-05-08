@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Historial - {{ patient.name }} | Analizavet V2{% endblock %}
+
+{% block content %}
+<div class="patients-container">
+    <div class="action-bar" style="margin-bottom: 1rem;">
+        <a href="/patients" class="btn btn-secondary">&larr; Volver al Directorio</a>
+    </div>
+
+    <div class="taller-left" style="margin-bottom: 2rem;">
+        <div class="panel-header">
+            <h2>Datos del Paciente</h2>
+        </div>
+        <div style="padding: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.875rem;">
+            <div>
+                <p><strong>Nombre:</strong> {{ patient.name }}</p>
+                <p><strong>Especie:</strong> {{ patient.species }}</p>
+                <p><strong>Sexo:</strong> {{ patient.sex }}</p>
+            </div>
+            <div>
+                <p><strong>Tutor:</strong> {{ patient.owner_name }}</p>
+                <p><strong>Edad:</strong> {{ patient.age_display or 'N/A' }}</p>
+                <p><strong>Registrado:</strong> {{ patient.created_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="taller-left">
+        <div class="panel-header">
+            <h2>Historial de Exámenes</h2>
+        </div>
+        <table class="lab-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Tipo de Prueba</th>
+                    <th>Origen</th>
+                    <th>Estado</th>
+                    <th>Resumen (Alto / Normal / Bajo)</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tr in test_results %}
+                <tr>
+                    <td><strong>{{ tr.received_at.strftime('%Y-%m-%d %H:%M') }}</strong></td>
+                    <td>{{ tr.test_type }}</td>
+                    <td>{{ tr.source }}</td>
+                    <td>
+                        {% if tr.status == 'listo' %}
+                            <span style="color: #059669; font-weight: bold;">Listo</span>
+                        {% else %}
+                            <span style="color: #d97706; font-weight: bold;">{{ tr.status | capitalize }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="flag-alto">{{ tr.flag_alto_count }}</span> /
+                        <span class="flag-normal">{{ tr.flag_normal_count }}</span> /
+                        <span class="flag-bajo">{{ tr.flag_bajo_count }}</span>
+                    </td>
+                    <td>
+                        <a href="/taller/{{ tr.id }}" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Abrir Taller</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: #64748b; padding: 2rem;">No hay exámenes registrados para este paciente.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

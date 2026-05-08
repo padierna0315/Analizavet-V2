@@ -1,0 +1,13 @@
+<div class="patient-row-processed" id="patient-row-{{ test_result.id }}">
+    <td>{{ test_result.patient.name }}</td>
+    <td>{{ test_result.patient.species }}</td>
+    <td>{{ test_result.patient.owner_name }}</td>
+    <td>
+        <div class="test-result-badge">
+            {{ test_result.test_type }} ({{ test_result.received_at.strftime('%Y-%m-%d %H:%M') }})
+        </div>
+    </td>
+    <td>
+        <span class="badge badge-success">Procesado</span>
+    </td>
+</div>

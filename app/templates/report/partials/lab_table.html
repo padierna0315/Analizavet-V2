@@ -1,0 +1,38 @@
+{% set ns = namespace(current_group="__NONE__", row_index=0) %}
+<table>
+  <tbody>
+    {% for lv in lab_values %}
+      {# ── Nuevo grupo: header azul + sub-header de columnas ── #}
+      {% if lv.group != ns.current_group %}
+        {% set ns.current_group = lv.group %}
+        {% set ns.row_index = 0 %}
+        {# Sub-header de columnas #}
+        <tr class="col-headers">
+          <th class="col-examen">Examen</th>
+          <th class="col-result">RESULTADO</th>
+          <th class="col-ref">REFERENCIA</th>
+        </tr>
+        {# Header del grupo #}
+        <tr class="group-header">
+          <td colspan="3">{{ lv.group }}</td>
+        </tr>
+      {% endif %}
+
+      {# ── Fila de parámetro ── #}
+      {% set ns.row_index = ns.row_index + 1 %}
+      <tr class="param-row {% if ns.row_index % 2 == 0 %}even{% endif %}">
+        <td class="col-examen">{{ lv.parameter_name_es }}</td>
+        <td class="col-result">
+          {% if lv.flag == 'ALTO' %}
+            <span class="val-alto">{{ lv.raw_value }} ↑</span>
+          {% elif lv.flag == 'BAJO' %}
+            <span class="val-bajo">{{ lv.raw_value }} ↓</span>
+          {% else %}
+            <span class="val-normal">{{ lv.raw_value }}</span>
+          {% endif %}
+        </td>
+        <td class="col-ref ref-cell">{{ lv.reference_range }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

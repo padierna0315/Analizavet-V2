@@ -1,0 +1,16 @@
+<div id="delete-confirmation-modal" class="modal-overlay" data-testid="confirmation-dialog">
+    <div class="modal-content">
+        <h2>Confirmar Eliminación</h2>
+        <p>¿Estás seguro que quieres eliminar a <strong>{{ patient.name }}</strong> (ID: {{ patient.id }})? Esta acción no se puede deshacer.</p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary"
+                    data-testid="cancel-delete-button">
+                Cancelar
+            </button>
+            <button class="btn btn-danger"
+                    data-testid="confirm-delete-button">
+                Confirmar
+            </button>
+        </div>
+    </div>
+</div>

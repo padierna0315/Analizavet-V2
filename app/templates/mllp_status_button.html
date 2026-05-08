@@ -1,0 +1,26 @@
+<div
+    id="mllp-status-button-container"
+    hx-get="/api/mllp/button"
+    hx-trigger="every 10s"
+    hx-swap="outerHTML"
+>
+    {% if mllp_running %}
+    <button
+        hx-post="/api/mllp/stop"
+        hx-target="#mllp-status-button-container"
+        hx-swap="outerHTML"
+        class="mllp-button mllp-button-running"
+    >
+        🟢 Máquinas conectadas
+    </button>
+    {% else %}
+    <button
+        hx-post="/api/mllp/start"
+        hx-target="#mllp-status-button-container"
+        hx-swap="outerHTML"
+        class="mllp-button mllp-button-stopped"
+    >
+        🔴 Máquinas desconectadas
+    </button>
+    {% endif %}
+</div>

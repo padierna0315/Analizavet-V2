@@ -1,0 +1,639 @@
+{% extends "base.html" %}
+
+{% block title %}Huellas Lab — Analizavet{% endblock %}
+
+{% block extra_head %}
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+<style>
+/* ── Dashboard Header ──────────────────────────────────────────────────────── */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--color-header-bg);
+  color: var(--color-header-text);
+  border-bottom: 1px solid #334155;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.header-subtitle {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin-left: 0.5rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-header {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: opacity 0.2s;
+}
+
+.btn-header:hover {
+  opacity: 0.9;
+}
+
+.btn-generate-pdf {
+  background: #059669;
+  color: white;
+}
+
+.btn-upload-lis {
+  background: #3b82f6;
+  color: white;
+}
+
+/* ── Status Bar (Adapters) ──────────────────────────────────────────────────── */
+.status-bar {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.adapter-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  min-width: 180px;
+}
+
+.adapter-icon {
+  font-size: 1.25rem;
+}
+
+.adapter-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.adapter-status {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.adapter-status.active {
+  background: #10b981;
+}
+
+.adapter-status.inactive {
+  background: #dc2626;
+  animation: none;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+/* ── Reception Section ─────────────────────────────────────────────────────── */
+.reception-section {
+  margin: 1rem 1.5rem;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.reception-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--color-panel-bg);
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+.reception-header:hover {
+  background: #f1f5f9;
+}
+
+.reception-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.reception-badge {
+  background: #dc2626;
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+.reception-content {
+  padding: 1rem;
+}
+
+.reception-status-msg {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-style: italic;
+  padding: 1rem;
+  text-align: center;
+}
+
+.pending-patients-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pending-patient-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pending-patient-item:hover {
+  background: #f1f5f9;
+}
+
+.pending-patient-info {
+  flex: 1;
+}
+
+.pending-patient-name {
+  font-weight: 600;
+  color: #374151;
+}
+
+.pending-patient-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.pending-patient-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-delete-patient {
+  background: transparent;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: background 0.2s;
+}
+
+.btn-delete-patient:hover {
+  background: #fef2f2;
+}
+
+/* ── Dashboard Grid Layout ─────────────────────────────────────────────────── */
+.dashboard-grid {
+  display: grid;
+  grid-template-areas:
+    "encabezado encabezado"
+    "recepcion recepcion"
+    "editor visor";
+  grid-template-columns: 60fr 40fr;
+  grid-template-rows: auto auto 1fr;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  min-height: calc(100vh - 60px);
+}
+
+.dashboard-header {
+  grid-area: encabezado;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--color-header-bg);
+  color: var(--color-header-text);
+  border-bottom: 1px solid #334155;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.status-bar {
+  grid-area: encabezado;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0 0 0;
+  width: 100%;
+  order: 3;
+  background: transparent;
+  border-bottom: none;
+}
+
+.reception-section {
+  grid-area: recepcion;
+  margin: 0;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Keep original gap only for reception */
+.reception-section + * {
+  margin-top: 1rem;
+}
+
+.taller-workspace {
+  display: contents;
+}
+
+.workspace-left {
+  grid-area: editor;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.workspace-right {
+  grid-area: visor;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+
+
+.workspace-header {
+  padding: 0.75rem 1rem;
+  background: var(--color-panel-bg);
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.workspace-content {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+/* ── Patient Form ────────────────────────────────────────────────────────────── */
+.patient-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-group input,
+.form-group select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* ── Lab Values Table ────────────────────────────────────────────────────────── */
+.lab-values-section {
+  margin-top: 1.5rem;
+}
+
+.lab-values-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.lab-values-table th {
+  background: var(--color-panel-bg);
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.lab-values-table td {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lab-values-table tr:hover {
+  background: #f8fafc;
+}
+
+.value-input-sm {
+  width: 5rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.value-input-sm:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* ── PDF Preview ─────────────────────────────────────────────────────────────── */
+.pdf-preview-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-preview-frame {
+  flex: 1;
+  border: none;
+  width: 100%;
+  min-height: 400px;
+  background: #f8fafc;
+}
+
+.pdf-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  padding: 2rem;
+  text-align: center;
+}
+
+.pdf-placeholder-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+/* ── Loading States ──────────────────────────────────────────────────────────── */
+.htmx-indicator {
+  display: none;
+}
+
+.htmx-request .htmx-indicator {
+  display: inline;
+}
+
+/* ── Modal de confirmación de eliminación ─────────────────────────────────── */
+#modal-container:not(:empty) .modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.modal-box {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  min-width: 340px;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  text-align: center;
+}
+.modal-box h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.25rem;
+  color: #1a1a1a;
+}
+.modal-box p {
+  margin: 0 0 1.5rem 0;
+  color: #555;
+  line-height: 1.5;
+}
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+.btn-cancel {
+  padding: 0.55rem 1.3rem;
+  border: 2px solid #d1d5db;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #374151;
+  font-weight: 500;
+}
+.btn-cancel:hover { border-color: #9ca3af; background: #f9fafb; }
+.btn-delete {
+  padding: 0.55rem 1.3rem;
+  border: none;
+  background: #dc2626;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.btn-delete:hover { background: #b91c1c; }
+.btn-delete:disabled { opacity: 0.55; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block navbar_info %}
+<!-- Dashboard has its own header -->
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid">
+  <!-- Header + Status Bar combined -->
+  <div class="dashboard-header">
+    <div class="header-left">
+      <span class="header-logo">🐾 Huellas Lab</span>
+      <span class="header-subtitle">— Analizavet</span>
+    </div>
+     <div class="header-actions">
+
+       <div style="position: relative;">
+        <button class="btn-header btn-upload-lis" onclick="document.getElementById('upload-form-popup').style.display = 'block'">
+          ⬆️ Subir Datos
+        </button>
+        <div id="upload-form-popup" style="display: none; position: absolute; top: 100%; right: 0; background-color: white; border: 1px solid #ccc; padding: 1rem; border-radius: 0.5rem; z-index: 100; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+          <form id="upload-form"
+                hx-post="/reception/upload"
+                hx-encoding="multipart/form-data"
+                hx-target="#upload-status-container"
+                hx-swap="innerHTML"
+                hx-indicator="#upload-spinner"
+                hx-on::after-request="document.getElementById('upload-form').reset(); document.getElementById('upload-form-popup').style.display='none'">
+            <label for="file_type_select">Tipo de archivo:</label>
+            <select name="file_type" id="file_type_select" required>
+              <option value="ozelle">Ozelle</option>
+              <option value="fujifilm">Fujifilm</option>
+              <option value="json">JSON (Bautizo)</option>
+            </select>
+            <input type="file" name="file" required onchange="htmx.trigger('#upload-form', 'submit')">
+            <span id="upload-spinner" class="htmx-indicator">⏳</span>
+          </form>
+          <div id="upload-status-container"></div>
+        </div>
+       </div>
+     </div>
+    <!-- Status Bar within header area -->
+    <div class="status-bar"
+      id="adapters-status"
+      hx-get="/api/adapters/status"
+      hx-trigger="load, every 5s"
+      hx-swap="innerHTML">
+      <!-- Placeholder for adapter status -->
+    </div>
+  </div>
+
+  <!-- Reception Section -->
+  <div class="reception-section">
+      <div class="reception-header" onclick="document.getElementById('reception-content').style.display = document.getElementById('reception-content').style.display === 'none' ? 'block' : 'none';">
+          <div class="reception-title">
+              <span>📥</span>
+              <span>Recepción de Pacientes</span>
+          </div>
+          <span id="reception-toggle-icon">▼</span>
+      </div>
+      <div class="reception-content" id="reception-content"
+           hx-get="/reception/taller/reception"
+           hx-trigger="load, every 5s [document.getElementById('modal-container').innerHTML.trim() === ''], refreshReceptionGrid from:body"
+           hx-swap="innerHTML">
+          <div class="reception-status-msg">Cargando pacientes...</div>
+      </div>
+  </div>
+
+<!-- Workspace: Editor + Viewer -->
+<div class="taller-workspace" id="workshop-view">
+  <!-- Editor: Patient Form -->
+  <div class="workspace-left workspace-editor">
+    <div class="workspace-header">
+      📝 Datos del Paciente y Resultados
+    </div>
+    <div class="workspace-content" id="workspace-editor-content">
+      <div class="pdf-placeholder">
+        <div class="pdf-placeholder-icon">📝</div>
+        <p>Selecciona un paciente de la recepción</p>
+        <p style="font-size: 0.875rem; margin-top: 0.5rem;">
+          Los datos y parámetros se cargarán automáticamente
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Viewer: PDF Preview -->
+  <div class="workspace-right workspace-viewer">
+    <div class="workspace-header">
+      📄 Vista Previa del Informe
+    </div>
+    <div class="workspace-content">
+      <div class="pdf-preview-container" id="pdf-preview">
+        <div class="pdf-placeholder">
+          <div class="pdf-placeholder-icon">📋</div>
+          <p>El PDF se generará automáticamente</p>
+          <p style="font-size: 0.875rem; margin-top: 0.5rem;">
+            Completa los datos del paciente para ver la vista previa
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// Close upload popup if clicking outside
+document.addEventListener('click', function(event) {
+  const popup = document.getElementById('upload-form-popup');
+  const button = document.getElementById('upload-btn');
+  if (popup && button && !popup.contains(event.target) && !button.contains(event.target)) {
+    popup.style.display = 'none';
+  }
+});
+</script>
+{% endblock %}

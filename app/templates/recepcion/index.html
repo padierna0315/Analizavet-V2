@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Recepción | Analizavet V2{% endblock %}
+
+{% block extra_head %}
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+{% endblock %}
+
+{% block content %}
+<div class="recepcion-layout">
+    <div class="panel-header">
+        <h1>Recepción - Pacientes Recibidos</h1>
+    </div>
+
+    {% if patients %}
+    <div class="patient-queue" hx-get="/recepcion" hx-trigger="every 5s" hx-swap="outerHTML">
+        <table class="patient-table">
+            <thead>
+                <tr>
+                    <th>Paciente</th>
+                    <th>Especie</th>
+                    <th>Tutor</th>
+                    <th>Pruebas</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for patient_data in patients %}
+                {% include "recepcion/patient_row.html" %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No hay pacientes recibidos en este momento.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

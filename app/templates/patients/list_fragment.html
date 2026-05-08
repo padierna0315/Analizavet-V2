@@ -1,0 +1,28 @@
+{% for p in patients %}
+<tr>
+    <td><strong>{{ p.name }}</strong></td>
+    <td>{{ p.species }} ({{ p.sex }})</td>
+    <td>{{ p.owner_name }}</td>
+    <td>{{ p.updated_at.strftime('%Y-%m-%d') if p.updated_at else '—' }}</td>
+    <td>
+        <a href="/patients/{{ p.id }}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Ver Historial</a>
+    </td>
+</tr>
+{% else %}
+<tr>
+    <td colspan="5" style="text-align: center; color: #64748b; padding: 2rem;">No se encontraron pacientes.</td>
+</tr>
+{% endfor %}
+
+{% if next_page %}
+<tr id="load-more-row">
+    <td colspan="5" style="text-align: center;">
+        <button class="btn btn-secondary"
+                hx-get="/patients?page={{ next_page }}&search={{ search }}"
+                hx-target="#load-more-row"
+                hx-swap="outerHTML">
+            Cargar más...
+        </button>
+    </td>
+</tr>
+{% endif %}

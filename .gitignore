@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+*.log.*
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Test coverage
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+
+# Images (uploads)
+images/
+
+!images/.gitkeep
+
+# Byte-compiled / optimized / DLL files
+*.pyd
+*.pkl
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.pytype/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pytest
+pytest.ini
+
+# Ruff
+.ruff_cache/
+
+# Local settings (no subir secretos locales)
+settings.local.toml
+.secrets.local.toml
+
+# Secrets file - NUNCA subir
+.secrets.toml
+
+# Log files
+log_*.txt

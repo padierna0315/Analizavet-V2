@@ -1,0 +1,22 @@
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal-box">
+    <h3>⚠️ Confirmar eliminación</h3>
+    <p>¿Estás seguro de que quieres eliminar a <strong>{{ patient_name }}</strong>? Esta acción no se puede deshacer.</p>
+    <div class="modal-actions">
+      <button class="btn-cancel"
+              hx-get="/reception/close-modal"
+              hx-target="#modal-container"
+              hx-swap="innerHTML">
+        Cancelar
+      </button>
+      <button class="btn-delete"
+              hx-delete="/reception/patient/{{ patient_id }}"
+              hx-target="#patient-card-{{ patient_id }}"
+              hx-swap="outerHTML"
+              hx-indicator="#modal-container"
+              hx-disabled-elt="this">
+        Eliminar
+      </button>
+    </div>
+  </div>
+</div>
