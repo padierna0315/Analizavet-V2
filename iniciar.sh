@@ -74,7 +74,16 @@ uv run playwright install chromium
 
 # 4.3 Inicializar/Actualizar Base de Datos
 echo "🗄️ Actualizando esquema de base de datos..."
-uv run alembic upgrade head
+DB_FILE="analizavet.db"
+if [ ! -f "$DB_FILE" ]; then
+    echo "🌱 Base de datos no encontrada. Creándola desde cero..."
+    uv run python -c "import asyncio; import app.main; from app.database import create_db_and_tables; asyncio.run(create_db_and_tables())"
+    echo "✅ Base de datos creada. Marcando migraciones como completadas..."
+    uv run alembic stamp head
+else
+    echo "🔄 Base de datos existente encontrada. Ejecutando migraciones..."
+    uv run alembic upgrade head
+fi
 
 # 5. Verificar que existe la carpeta static (CRITICAL per skill-santiago Leccion #1)
 if [ ! -d "app/static" ]; then

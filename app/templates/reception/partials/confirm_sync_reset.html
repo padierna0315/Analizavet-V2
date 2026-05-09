@@ -1,0 +1,35 @@
+<div class="modal-overlay">
+    <div class="modal-box">
+        <h3>🔄 Sincronización AppSheet</h3>
+        <p>
+            Hay pacientes activos en la recepción. ¿Quieres <strong>limpiar la lista</strong> y empezar de cero con los datos de AppSheet, o solo <strong>agregar los nuevos</strong> sin borrar nada?
+        </p>
+        
+        <div class="modal-actions" style="flex-direction: column; gap: 0.5rem;">
+            <button class="btn-delete" 
+                    hx-post="/reception/appsheet/sync?reset=true" 
+                    hx-target="#sync-status"
+                    hx-swap="innerHTML"
+                    hx-indicator="#sync-spinner"
+                    hx-on::after-request="document.getElementById('modal-container').innerHTML = ''">
+                🗑️ Limpiar Recepción y Sincronizar
+            </button>
+
+            <button class="btn-header btn-upload-lis" style="justify-content: center;"
+                    hx-post="/reception/appsheet/sync?reset=false" 
+                    hx-target="#sync-status"
+                    hx-swap="innerHTML"
+                    hx-indicator="#sync-spinner"
+                    hx-on::after-request="document.getElementById('modal-container').innerHTML = ''">
+                ➕ Solo agregar pacientes nuevos
+            </button>
+
+            <button class="btn-cancel" 
+                    hx-get="/reception/close-modal" 
+                    hx-target="#modal-container"
+                    hx-swap="innerHTML">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>

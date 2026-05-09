@@ -4,12 +4,16 @@ Source: Estandarización de Parámetros Veterinarios Máquinas.md
 """
 
 from typing import Dict, Any, Optional
+import json
+import os
+from pathlib import Path
+from copy import deepcopy
 
 import unicodedata
 import re
 
-# Master Registry of Veterinary Standards
-VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
+# Master Registry of Veterinary Standards (Factory Defaults)
+_DEFAULT_VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
     # ============================================================
     # LÍNEA ROJA (Red Blood Cell Series)
     # ============================================================
@@ -733,7 +737,7 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
     },
 
     # ============================================================
-    # EXAMEN DE HECES — Coprológicos
+    # COPROLÓGICOS
     # ============================================================
     'ALE#': {
         'name': 'Huevos de Nematodos',
@@ -832,7 +836,7 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
             'canine': {'min': 0.0, 'max': 0.0},
             'feline': {'min': 0.0, 'max': 0.0}
         },
-        'short_name': 'Coccidia_Estadio_0'
+        'short_name': 'Coccidia'
     },
     'COD1#': {
         'name': 'Coccidia spp. estadio 1',
@@ -841,7 +845,7 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
             'canine': {'min': 0.0, 'max': 0.0},
             'feline': {'min': 0.0, 'max': 0.0}
         },
-        'short_name': 'Coccidia_Estadio_1'
+        'short_name': 'Coccidia'
     },
     'COD2#': {
         'name': 'Coccidia spp. estadio 2',
@@ -850,7 +854,7 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
             'canine': {'min': 0.0, 'max': 0.0},
             'feline': {'min': 0.0, 'max': 0.0}
         },
-        'short_name': 'Coccidia_Estadio_2'
+        'short_name': 'Coccidia'
     },
     'Tg#': {
         'name': 'Toxoplasma gondii',
@@ -859,18 +863,18 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
             'canine': {'min': 0.0, 'max': 0.0},
             'feline': {'min': 0.0, 'max': 0.0}
         },
-        'short_name': 'Toxoplasma_gondii'
+        'short_name': 'Toxoplasma'
     },
 
     # ============================================================
-    # EXAMEN DE HECES — Microbiota
+    # MICROBIOTA
     # ============================================================
     'COS#': {
         'name': 'Cocos',
         'unit': '',
         'ranges': {
-            'canine': {'min': 20.00, 'max': 120.00},
-            'feline': {'min': 20.00, 'max': 120.00}
+            'canine': {'min': 20.0, 'max': 120.0},
+            'feline': {'min': 20.0, 'max': 120.0}
         },
         'short_name': 'Cocos'
     },
@@ -878,8 +882,8 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
         'name': 'Bacilos',
         'unit': '',
         'ranges': {
-            'canine': {'min': 80.00, 'max': 2200.00},
-            'feline': {'min': 80.00, 'max': 2200.00}
+            'canine': {'min': 80.0, 'max': 2200.0},
+            'feline': {'min': 80.0, 'max': 2200.0}
         },
         'short_name': 'Bacilos'
     },
@@ -890,7 +894,7 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
             'canine': {'min': 0.01, 'max': 0.15},
             'feline': {'min': 0.01, 'max': 0.15}
         },
-        'short_name': 'Coco_bacilo'
+        'short_name': 'Coco/bacilo'
     },
     'CAM#': {
         'name': 'Campylobacter spp.',
@@ -905,8 +909,8 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
         'name': 'Bacterias',
         'unit': '',
         'ranges': {
-            'canine': {'min': 0.00, 'max': 6.00},
-            'feline': {'min': 0.00, 'max': 6.00}
+            'canine': {'min': 0.0, 'max': 6.0},
+            'feline': {'min': 0.0, 'max': 6.0}
         },
         'short_name': 'Bacterias'
     },
@@ -917,7 +921,7 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
             'canine': {'min': 0.0, 'max': 0.0},
             'feline': {'min': 0.0, 'max': 0.0}
         },
-        'short_name': 'Salmonella_1'
+        'short_name': 'Salmonella'
     },
     'SS2#': {
         'name': 'Salmonella spp. tipo 2',
@@ -926,20 +930,20 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
             'canine': {'min': 0.0, 'max': 0.0},
             'feline': {'min': 0.0, 'max': 0.0}
         },
-        'short_name': 'Salmonella_2'
+        'short_name': 'Salmonella'
     },
     'YEA#': {
         'name': 'Levaduras',
         'unit': '',
         'ranges': {
-            'canine': {'min': 0.00, 'max': 10.00},
-            'feline': {'min': 0.00, 'max': 10.00}
+            'canine': {'min': 0.0, 'max': 10.0},
+            'feline': {'min': 0.0, 'max': 10.0}
         },
         'short_name': 'Levaduras'
     },
 
     # ============================================================
-    # EXAMEN DE HECES — Células y Sangre
+    # CÉLULAS Y SANGRE
     # ============================================================
     'RBC#': {
         'name': 'Eritrocitos',
@@ -948,7 +952,7 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
             'canine': {'min': 0.0, 'max': 0.0},
             'feline': {'min': 0.0, 'max': 0.0}
         },
-        'short_name': 'Eritrocitos_Heces'
+        'short_name': 'Eritrocitos'
     },
     'WBC#': {
         'name': 'Leucocitos',
@@ -957,54 +961,54 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
             'canine': {'min': 0.0, 'max': 0.0},
             'feline': {'min': 0.0, 'max': 0.0}
         },
-        'short_name': 'Leucocitos_Heces'
+        'short_name': 'Leucocitos'
     },
     'EPC#': {
-        'name': 'Células Epiteliales',
+        'name': 'Celulas Epiteliales',
         'unit': '',
         'ranges': {
             'canine': {'min': 0.0, 'max': 0.0},
             'feline': {'min': 0.0, 'max': 0.0}
         },
-        'short_name': 'Celulas_Epiteliales_Heces'
+        'short_name': 'Celulas'
     },
 
     # ============================================================
-    # EXAMEN DE HECES — Digestibilidad
+    # DIGESTIBILIDAD
     # ============================================================
     'STA#': {
         'name': 'Almidón no digerido',
         'unit': '',
         'ranges': {
-            'canine': {'min': 0.00, 'max': 2.00},
-            'feline': {'min': 0.00, 'max': 2.00}
+            'canine': {'min': 0.0, 'max': 2.0},
+            'feline': {'min': 0.0, 'max': 2.0}
         },
-        'short_name': 'Almidon_no_digerido'
+        'short_name': 'Almidon'
     },
     'LFAT#': {
         'name': 'Grasa ligera',
         'unit': '',
         'ranges': {
-            'canine': {'min': 0.00, 'max': 0.20},
-            'feline': {'min': 0.00, 'max': 0.20}
+            'canine': {'min': 0.0, 'max': 0.2},
+            'feline': {'min': 0.0, 'max': 0.2}
         },
-        'short_name': 'Grasa_ligera'
+        'short_name': 'Grasa'
     },
     'PLA#': {
         'name': 'Fibra vegetal',
         'unit': '',
         'ranges': {
-            'canine': {'min': 0.00, 'max': 0.10},
-            'feline': {'min': 0.00, 'max': 0.10}
+            'canine': {'min': 0.0, 'max': 0.1},
+            'feline': {'min': 0.0, 'max': 0.1}
         },
-        'short_name': 'Fibra_vegetal'
+        'short_name': 'Fibra'
     },
     'AF#': {
         'name': 'Grasa',
         'unit': '',
         'ranges': {
-            'canine': {'min': 0.00, 'max': 0.10},
-            'feline': {'min': 0.00, 'max': 0.10}
+            'canine': {'min': 0.0, 'max': 0.1},
+            'feline': {'min': 0.0, 'max': 0.1}
         },
         'short_name': 'Grasa'
     },
@@ -1296,10 +1300,13 @@ VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
     },
 }
 
+# Dynamic standards storage
+VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {}
+JSON_PATH = Path("data/clinical_standards.json")
+
 # Mapping of alternative abbreviations to standard keys
 STANDARDS_MAPPING: Dict[str, str] = {
     # Red Series aliases
-    'RBC#': 'RBC',
     'HGB#': 'HGB',
     'HCT#': 'HCT',
 
@@ -1357,6 +1364,8 @@ STANDARDS_MAPPING: Dict[str, str] = {
     'FWBC#': 'WBC#',
     'FRBC#': 'RBC#',
     'COS': 'COS#',
+    'C/B': 'C/B#',
+    'c/b': 'C/B#',
 
     # Urine crystal alias (renamed from COD# to avoid collision)
     'COD#_urine': 'CODC#',
@@ -1414,11 +1423,17 @@ PARAMETER_GROUPS = {
         "APLT#", "P-LCC", "P-LCR",
         "PLT-I", "PLT-O", "PLT-F", "IPF",
     ],
-    "EXAMEN DE HECES": [
+    "COPROLÓGICOS": [
         "ALE#", "ANE#", "TRE#", "DIP#", "SPI#", "TtE#", "CEE#",
         "TRI#", "FLA#", "COD#", "COD0#", "COD1#", "COD2#", "Tg#",
+    ],
+    "MICROBIOTA": [
         "COS#", "BACI#", "C/B#", "CAM#", "BAC#", "SS1#", "SS2#", "YEA#",
+    ],
+    "CÉLULAS Y SANGRE": [
         "RBC#", "WBC#", "EPC#",
+    ],
+    "DIGESTIBILIDAD": [
         "STA#", "LFAT#", "PLA#", "AF#",
     ],
 }
@@ -1477,3 +1492,34 @@ def get_parameter_group(parameter_code: str) -> str:
         if parameter_code in codes:
             return group_name
     return "OTROS"
+
+
+def load_standards_from_json():
+    """Load clinical standards from JSON file into VETERINARY_STANDARDS dict."""
+    JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    if not JSON_PATH.exists():
+        with open(JSON_PATH, "w", encoding="utf-8") as f:
+            json.dump(_DEFAULT_VETERINARY_STANDARDS, f, indent=4, ensure_ascii=False)
+
+    try:
+        with open(JSON_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            VETERINARY_STANDARDS.clear()
+            VETERINARY_STANDARDS.update(data)
+    except (json.JSONDecodeError, IOError):
+        # Fallback to defaults if file is corrupted
+        VETERINARY_STANDARDS.clear()
+        VETERINARY_STANDARDS.update(deepcopy(_DEFAULT_VETERINARY_STANDARDS))
+
+
+def reset_to_defaults():
+    """Overwrite JSON with factory defaults and reload."""
+    JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(JSON_PATH, "w", encoding="utf-8") as f:
+        json.dump(_DEFAULT_VETERINARY_STANDARDS, f, indent=4, ensure_ascii=False)
+    load_standards_from_json()
+
+
+# Initial load
+load_standards_from_json()

@@ -25,8 +25,8 @@ def parse_patient_string(raw: str, source: PatientSource) -> NormalizedPatient:
 def _parse_from_string(raw: str, source: PatientSource) -> NormalizedPatient:
     tokens = raw.split()
 
-    if len(tokens) < 3:
-        raise ValueError("Formato inválido. Mínimo: nombre especie [edad] tutor")
+    if len(tokens) < 2:
+        raise ValueError("Formato inválido. Mínimo: nombre especie")
 
     name = tokens[0].capitalize()
     species_token = tokens[1].lower()
@@ -59,9 +59,9 @@ def _parse_from_string(raw: str, source: PatientSource) -> NormalizedPatient:
         has_age = False
 
     if not owner_tokens:
-        raise ValueError("Formato inválido. Mínimo: nombre especie [edad] tutor")
-
-    owner_name = " ".join(t.capitalize() for t in owner_tokens)
+        owner_name = "Sin Tutor"
+    else:
+        owner_name = " ".join(t.capitalize() for t in owner_tokens)
 
     return NormalizedPatient(
         name=name,

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, field_validator, model_validator
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, Optional
 from enum import Enum
 
 
@@ -9,6 +9,7 @@ class PatientSource(str, Enum):
     LIS_FILE = "LIS_FILE"           # .txt subido manualmente (mismo formato Ozelle)
     LIS_FUJIFILM = "LIS_FUJIFILM"   # TCP automático, puerto 6001 (futuro)
     MANUAL = "MANUAL"               # Formulario manual en pantalla
+    APPSHEET = "APPSHEET"           # Sincronización desde Google AppSheet
 
 
 class RawPatientInput(BaseModel):
@@ -16,6 +17,7 @@ class RawPatientInput(BaseModel):
     Example: 'kitty felina 2a Laura Cepeda'
     """
     raw_string: str
+    session_code: Optional[str] = None # New optional field
     source: PatientSource
     received_at: datetime  # UTC
 

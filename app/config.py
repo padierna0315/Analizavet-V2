@@ -14,4 +14,8 @@ settings = Dynaconf(
     environments=True,
     env_switcher="ANALIZAVET_ENV",
     default_env="default",
+    # AppSheet Integration Defaults
+    APPSHEET_API_KEY=None,
+    APPSHEET_APP_ID=None,
+    APPSHEET_TABLE_NAME="Muestras_Activas",
 )

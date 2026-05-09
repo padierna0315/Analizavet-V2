@@ -107,8 +107,23 @@ def test_empty_string_raises():
 
 def test_too_short_raises():
     with pytest.raises(ValueError) as excinfo:
-        parse_patient_string("kitty felina", PatientSource.LIS_OZELLE)
-    assert "Formato inválido. Mínimo: nombre especie [edad] tutor" in str(excinfo.value)
+        parse_patient_string("kitty", PatientSource.LIS_OZELLE)
+    assert "Formato inválido. Mínimo: nombre especie" in str(excinfo.value)
+
+
+def test_missing_tutor_assigned_default():
+    result = parse_patient_string("kira canina 1a", PatientSource.LIS_OZELLE)
+    assert result.name == "Kira"
+    assert result.species == "Canino"
+    assert result.sex == "Hembra"
+    assert result.age_value == 1
+    assert result.owner_name == "Sin Tutor"
+
+def test_missing_tutor_no_age():
+    result = parse_patient_string("kitty felina", PatientSource.LIS_OZELLE)
+    assert result.name == "Kitty"
+    assert result.has_age is False
+    assert result.owner_name == "Sin Tutor"
 
 
 def test_source_carried_through():

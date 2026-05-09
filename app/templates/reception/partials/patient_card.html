@@ -1,4 +1,4 @@
-<div class="patient-card" id="patient-card-{{ patient.id }}" style="border: 1px solid #ccc; padding: 1em; margin: 1em; display: inline-block; width: 30%;">
+<div class="patient-card" id="patient-card-{{ patient.id }}" style="background: white; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative;">
     <div id="loading-indicator" class="htmx-indicator" style="display:none;">
       ⏳ Cargando...
     </div>
@@ -32,5 +32,4 @@
             <p><strong>{% if patient.session_code %}{{ patient.session_code }}{% endif %}</strong></p>
         {% endif %}
     </div>
-</div>
 </div>

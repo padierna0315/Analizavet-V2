@@ -9,6 +9,7 @@ from app.domains.patients.models import Patient
 from app.shared.models.test_result import TestResult
 from app.domains.reception.service import ReceptionService
 from app.tasks.hl7_processor import get_upload_status
+from app.services.appsheet import AppSheetService
 import uuid
 import json
 from datetime import datetime, timezone
@@ -21,6 +22,55 @@ templates = Jinja2Templates(directory="app/templates")
 
 router = APIRouter(prefix="/reception", tags=["Recepción"])
 _service = ReceptionService()
+
+
+@router.get("/appsheet/check-sync", response_class=HTMLResponse)
+async def check_sync_appsheet(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    """Verifica si hay pacientes en recepción antes de sincronizar."""
+    query = select(func.count(Patient.id)).where(Patient.waiting_room_status == "active")
+    result = await session.execute(query)
+    patient_count = result.scalar() or 0
+    
+    if patient_count == 0:
+        # Si no hay pacientes, sincronizar directamente (paso 1 de 1)
+        # Usamos hx-post para disparar el proceso real
+        return HTMLResponse(
+            content=f'<div hx-post="/reception/appsheet/sync" hx-trigger="load">Sincronizando...</div>'
+        )
+    
+    # Si hay pacientes, mostrar el modal de confirmación
+    return templates.TemplateResponse(
+        "reception/partials/confirm_sync_reset.html",
+        {"request": request}
+    )
+
+
+@router.post("/appsheet/sync", response_class=HTMLResponse)
+async def sync_appsheet(
+    reset: bool = Query(default=False),
+    session: AsyncSession = Depends(get_session),
+):
+    """Sincroniza pacientes desde Google AppSheet."""
+    try:
+        service = AppSheetService()
+        patients = await service.fetch_active_patients()
+        
+        count = await _service.sync_from_appsheet(patients, session, reset=reset)
+        
+        # Retornar mensaje de éxito con trigger para refrescar la grilla
+        return HTMLResponse(
+            content=f'<div class="sync-success">✅ {count} paciente(s) sincronizado(s)</div>',
+            headers={"HX-Trigger": "refreshReceptionGrid"}
+        )
+    except Exception as e:
+        logfire.error(f"Error sincronizando con AppSheet: {e}")
+        return HTMLResponse(
+            content=f'<div class="sync-error">❌ Error: {str(e)}</div>',
+            status_code=500
+        )
 
 
 @router.post("/receive", response_model=BaulResult)

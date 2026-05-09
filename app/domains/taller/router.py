@@ -18,7 +18,8 @@ from app.domains.taller.schemas import (
     ImageUploadResult, RawLabValueInput,
 )
 from app.domains.taller.service import TallerService
-from app.shared.algorithms.engine import ClinicalAlgorithmsEngine
+from app.domains.reports.filters import format_ref_range
+
 from app.domains.taller.doctors_router import router as doctors_router
 
 router = APIRouter(prefix="/taller", tags=["Taller"])
@@ -96,6 +97,7 @@ async def taller_dashboard(
         loader=jinja2.FileSystemLoader("app/templates"),
         autoescape=jinja2.select_autoescape(),
     )
+    taller_env.filters["format_ref_range"] = format_ref_range
     template = taller_env.get_template("taller/dashboard.html")
     html = template.render(
         request=request,
@@ -273,104 +275,17 @@ async def get_preview_post(
         await session.commit()
         await session.refresh(tr_obj)
         tr = tr_obj.model_dump() if hasattr(tr_obj, "model_dump") else tr
-    updated_values = []
+    # 3. Guardar los valores de laboratorio en la BD (El taller es la verdad absoluta)
+    await _service.update_lab_values_from_form(result_id, form_data, session)
 
-    for lv in lab_values_from_db:
-        form_key = f"value_{lv['parameter_code']}"
-        if form_key in form_data:
-            raw_value = form_data[form_key]
-            try:
-                numeric_value = float(raw_value) if str(raw_value).strip() else None
-            except (ValueError, TypeError):
-                numeric_value = None
-
-            updated_values.append(
-                RawLabValueInput(
-                    parameter_code=lv["parameter_code"],
-                    parameter_name_es=lv["parameter_name_es"],
-                    raw_value=str(raw_value),
-                    numeric_value=numeric_value,
-                    unit=lv["unit"],
-                    reference_range=lv["reference_range"],
-                    machine_flag=lv.get("machine_flag"),
-                )
-            )
-        else:
-            # Parameter not in form — keep original
-            updated_values.append(
-                RawLabValueInput(
-                    parameter_code=lv["parameter_code"],
-                    parameter_name_es=lv["parameter_name_es"],
-                    raw_value=lv["raw_value"],
-                    numeric_value=lv["numeric_value"],
-                    unit=lv["unit"],
-                    reference_range=lv["reference_range"],
-                    machine_flag=lv.get("machine_flag"),
-                )
-            )
-
-    # 3. Recalculate flags using the engine (no DB commit — read-only preview)
-    flag_request = FlagBatchRequest(
-        test_result_id=result_id,
-        species=patient.get("species", "Canino"),
-        values=updated_values,
-    )
-    # Use a minimal flag call that doesn't persist — we just need the flag results
-    from app.domains.taller.flagging import ClinicalFlaggingService
-    flagging = ClinicalFlaggingService()
-    flagged_list = []
-    for raw in updated_values:
-        if raw.numeric_value is None:
-            from app.domains.taller.schemas_flagging import FlagResult as FR
-            flag_result = FR(
-                parameter=raw.parameter_code,
-                value=0.0,
-                unit=raw.unit,
-                flag="NORMAL",
-                reference_range=raw.reference_range,
-            )
-        else:
-            flag_result = flagging.flag_value(
-                parameter=raw.parameter_code,
-                value=raw.numeric_value,
-                unit=raw.unit,
-                species=patient.get("species", "Canino"),
-            )
-        flagged_list.append(flag_result)
-
-    # 4. Build updated lab_values with new flags
-    flagged_dict = {fr.parameter: fr for fr in flagged_list}
-    updated_lab_values = []
-    for lv in lab_values_from_db:
-        new_lv = dict(lv)
-        code = lv["parameter_code"]
-        if code in flagged_dict:
-            new_lv["flag"] = flagged_dict[code].flag
-            # Use raw_value from form, not from flagging.flag_value which only returns numeric
-            new_lv["raw_value"] = next((v.raw_value for v in updated_values if v.parameter_code == code), lv["raw_value"]) 
-        updated_lab_values.append(new_lv)
-
-    # Reconstruct data to pass to _render_preview_html
-    data["lab_values"] = updated_lab_values
-    data["patient"] = patient # Update patient data after potential changes
-    data["test_result"] = tr # Update test_result data after potential changes
+    # 4. Refetch all updated data to guarantee exact match with DB
+    data = await _service.get_test_result_full(result_id, session)
 
     # 5. Render preview HTML using the unified function
     return HTMLResponse(content=_render_preview_html(data, request))
 
 
 
-@router.post("/save-metadata/{result_id}", response_class=HTMLResponse)
-async def save_test_result_metadata(
-    request: Request,
-    result_id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    """HTMX endpoint: saves metadata fields from the taller form."""
-    form_data = await request.form()
-    await _service.update_test_result_metadata(result_id, form_data, session)
-    return HTMLResponse(content="<span class='text-green-500'>Guardado!</span>",
-                        headers={"HX-Trigger": "updatePreview"}) # Trigger a preview update after save
 
 
 @router.post("/images", response_model=ImageUploadResult)
@@ -418,6 +333,7 @@ def _render_preview_html(data: dict, request: Request) -> str:
         loader=jinja2.FileSystemLoader("app/templates"),
         autoescape=jinja2.select_autoescape(),
     )
+    taller_env.filters["format_ref_range"] = format_ref_range
     
     # Format date for 'fecha_es'
     test_result = data["test_result"]
@@ -437,59 +353,6 @@ def _render_preview_html(data: dict, request: Request) -> str:
     template = taller_env.get_template("report/report.html")
     return template.render(**data)
 
-
-@router.post("/save-and-pdf/{result_id}", response_class=HTMLResponse)
-async def save_and_generate_pdf(
-    result_id: int,
-    request: Request,
-    session: AsyncSession = Depends(get_session)
-):
-    # Save the form data
-    form_data = await request.form()
-    await _service.update_lab_values_from_form(result_id, form_data, session)
-    await _service.update_test_result_metadata(result_id, form_data, session)
-    
-    # Generate JS to open PDF in a new tab
-    js_response = f"""
-    <script>
-      window.open('/reports/{result_id}/pdf', '_blank');
-    </script>
-    """
-    return HTMLResponse(content=js_response)
-
-@router.post("/algorithms/{result_id}", response_class=HTMLResponse)
-async def apply_algorithms(
-    request: Request,
-    result_id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    """Run clinical algorithms and return updated preview + errors panel.
-
-    HTMX response swaps the preview panel (innerHTML) and includes the
-    'Diagnóstico del Motor' panel as an out-of-band (OOB) swap.
-    """
-    engine = ClinicalAlgorithmsEngine()
-    try:
-        result = await engine.apply_algorithms(result_id, session)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-
-    data = await _service.get_test_result_full(result_id, session)
-    if not data:
-        raise HTTPException(status_code=404, detail="Resultado no encontrado")
-
-    # Inject interpretations from algorithm result into data
-    data["interpretations"] = result["interpretations"]
-
-    preview_html = _render_preview_html(data, request)
-    errors_html = _render_algorithm_errors(result["errors"])
-
-    # OOB swap for the Diagnóstico del Motor panel
-    diagnostico_html = (
-        f'<div id="diagnostico-motor" hx-swap-oob="true">{errors_html}</div>'
-    )
-    full_html = preview_html + diagnostico_html
-    return HTMLResponse(content=full_html)
 
 
 @router.patch("/images/{image_id}/toggle", response_class=HTMLResponse)
@@ -632,10 +495,6 @@ async def load_patient_workspace(
   <td>{e(lv['parameter_name_es'])}</td>
   <td><input type="text" name="value_{e(lv['parameter_code'])}"
     value="{e(str(lv['raw_value']))}" class="value-input-sm"
-    hx-post="/taller/preview/{result_id}"
-    hx-trigger="input delay:300ms"
-    hx-target="#pdf-preview"
-    hx-swap="innerHTML"
     hx-indicator="#spinner-{lv['parameter_code']}"></td>
   <td>{e(lv['unit'])}</td>
   <td>{e(lv['reference_range'])}</td>
@@ -683,15 +542,15 @@ async def load_patient_workspace(
     📝 Datos del Paciente y Resultados
   </div>
   <div class="workspace-content">
-    <form class="patient-form" id="patient-form-{result_id}">
+    <form class="patient-form" id="patient-form-{result_id}"
+          hx-post="/taller/preview/{result_id}"
+          hx-trigger="input changed delay:250ms, change"
+          hx-target="#pdf-preview"
+          hx-swap="innerHTML">
       <div class="form-row">
         <div class="form-group">
           <label>Nombre del Paciente</label>
           <input type="text" name="patient_name" value="{p_name}"
-            hx-post="/taller/preview/{result_id}"
-            hx-trigger="change"
-            hx-target="#pdf-preview"
-            hx-swap="innerHTML"
             style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
         </div>
         <div class="form-group">
@@ -707,10 +566,6 @@ async def load_patient_workspace(
         <div class="form-group">
           <label>Edad</label>
           <input type="text" name="age_display" value="{p_age}"
-            hx-post="/taller/preview/{result_id}"
-            hx-trigger="change"
-            hx-target="#pdf-preview"
-            hx-swap="innerHTML"
             style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
         </div>
       </div>
@@ -718,19 +573,11 @@ async def load_patient_workspace(
         <div class="form-group">
           <label>Tutor</label>
           <input type="text" name="owner_name" value="{p_owner}"
-            hx-post="/taller/preview/{result_id}"
-            hx-trigger="change"
-            hx-target="#pdf-preview"
-            hx-swap="innerHTML"
             style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
         </div>
         <div class="form-group">
           <label>Raza</label>
           <input type="text" name="breed" value="{p_breed}"
-            hx-post="/taller/preview/{result_id}"
-            hx-trigger="change"
-            hx-target="#pdf-preview"
-            hx-swap="innerHTML"
             style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
         </div>
       </div>
@@ -796,31 +643,3 @@ async def delete_pending_patient(
     # In a real implementation, this would update the queue
     # For now, we just return an empty response which removes the element
     return HTMLResponse(content="")
-
-
-@router.get("/{result_id}", response_class=HTMLResponse)
-async def taller_page(
-    request: Request,
-    result_id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    """Render the full Taller split-screen page for a test result."""
-    data = await _service.get_test_result_full(result_id, session)
-    if not data:
-        raise HTTPException(status_code=404, detail=f"Resultado {result_id} no encontrado")
-
-    taller_env = jinja2.Environment(
-        loader=jinja2.FileSystemLoader("app/templates"),
-        autoescape=jinja2.select_autoescape(),
-    )
-    template = taller_env.get_template("taller.html")
-    html = template.render(
-        request=request,
-        patient=data["patient"],
-        test_result=data["test_result"],
-        lab_values=data["lab_values"],
-        images=data.get("images", []),
-        summary=data["summary"],
-        interpretations=data.get("interpretations", []),
-    )
-    return HTMLResponse(content=html)

@@ -67,6 +67,27 @@
   color: white;
 }
 
+.btn-history {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+.btn-history:hover {
+  background: #e2e8f0;
+}
+
+.sync-success {
+  color: #10b981;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sync-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 /* ── Status Bar (Adapters) ──────────────────────────────────────────────────── */
 .status-bar {
   display: flex;
@@ -535,7 +556,19 @@
       <span class="header-subtitle">— Analizavet</span>
     </div>
      <div class="header-actions">
+       <button class="btn-header btn-history"
+               hx-get="/reception/appsheet/check-sync"
+               hx-target="#modal-container"
+               hx-swap="innerHTML"
+               hx-indicator="#sync-spinner">
+         🔄 Sincronizar Pacientes
+       </button>
+       <span id="sync-spinner" class="htmx-indicator">⏳</span>
+       <div id="sync-status" style="margin-right: 1rem;"></div>
 
+       <a href="/patients" class="btn-header btn-history">
+         📂 Historial de Pacientes
+       </a>
        <div style="position: relative;">
         <button class="btn-header btn-upload-lis" onclick="document.getElementById('upload-form-popup').style.display = 'block'">
           ⬆️ Subir Datos

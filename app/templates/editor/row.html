@@ -1,0 +1,27 @@
+<tr id="row-{{ code }}" style="border-bottom: 1px solid #f3f4f6;">
+    <td style="padding: 1rem; font-weight: 600; color: #4b5563;">{{ code }}</td>
+    <td style="padding: 1rem;">{{ param.name }}</td>
+    <td style="padding: 1rem;">{{ param.unit }}</td>
+    <td style="padding: 1rem;">
+        {% if param.ranges.canine %}
+            {{ param.ranges.canine.min or 'N/D' }} - {{ param.ranges.canine.max or 'N/D' }}
+        {% else %}
+            N/D
+        {% endif %}
+    </td>
+    <td style="padding: 1rem;">
+        {% if param.ranges.feline %}
+            {{ param.ranges.feline.min or 'N/D' }} - {{ param.ranges.feline.max or 'N/D' }}
+        {% else %}
+            N/D
+        {% endif %}
+    </td>
+    <td style="padding: 1rem;">
+        <button hx-get="/modoeditor/form/{{ code }}" 
+                hx-target="#row-{{ code }}" 
+                hx-swap="outerHTML"
+                style="background: #3b82f6; color: white; border: none; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.875rem;">
+            Editar
+        </button>
+    </td>
+</tr>

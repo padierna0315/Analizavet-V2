@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domains.taller.service import TallerService
 from datetime import datetime
 from app.config import settings
+from app.domains.reports.filters import format_ref_range
 
 _MESES_ES = {
     1: "enero", 2: "febrero", 3: "marzo", 4: "abril",
@@ -43,6 +44,7 @@ class ReportService:
         # Setup Jinja2 explicitly for WeasyPrint
         template_dir = Path("app/templates")
         self._jinja_env = Environment(loader=FileSystemLoader(template_dir))
+        self._jinja_env.filters["format_ref_range"] = format_ref_range
 
     async def generate_pdf(self, test_result_id: int, session: AsyncSession) -> bytes | None:
         """Fetch data, render HTML, and convert to PDF bytes."""

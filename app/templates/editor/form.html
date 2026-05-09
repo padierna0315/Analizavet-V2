@@ -1,0 +1,46 @@
+<tr id="row-{{ code }}" style="background: #f0f9ff;">
+    <td colspan="6" style="padding: 1rem;">
+        <form hx-post="/modoeditor/save/{{ code }}" hx-target="#row-{{ code }}" hx-swap="outerHTML" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px;">
+                <label style="display: block; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">Nombre</label>
+                <input type="text" name="name" value="{{ param.name }}" style="width: 100%; padding: 0.4rem; border: 1px solid #93c5fd; border-radius: 4px;">
+            </div>
+            <div style="width: 100px;">
+                <label style="display: block; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">Unidad</label>
+                <input type="text" name="unit" value="{{ param.unit }}" style="width: 100%; padding: 0.4rem; border: 1px solid #93c5fd; border-radius: 4px;">
+            </div>
+            
+            <div style="display: flex; gap: 0.5rem;">
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">Min (Can)</label>
+                    <input type="number" step="any" name="canine_min" value="{{ param.ranges.canine.min if param.ranges.canine else '' }}" style="width: 70px; padding: 0.4rem; border: 1px solid #93c5fd; border-radius: 4px;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">Max (Can)</label>
+                    <input type="number" step="any" name="canine_max" value="{{ param.ranges.canine.max if param.ranges.canine else '' }}" style="width: 70px; padding: 0.4rem; border: 1px solid #93c5fd; border-radius: 4px;">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem;">
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">Min (Fel)</label>
+                    <input type="number" step="any" name="feline_min" value="{{ param.ranges.feline.min if param.ranges.feline else '' }}" style="width: 70px; padding: 0.4rem; border: 1px solid #93c5fd; border-radius: 4px;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">Max (Fel)</label>
+                    <input type="number" step="any" name="feline_max" value="{{ param.ranges.feline.max if param.ranges.feline else '' }}" style="width: 70px; padding: 0.4rem; border: 1px solid #93c5fd; border-radius: 4px;">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="submit" style="background: #059669; color: white; border: none; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-weight: 600;">Guardar</button>
+                <button type="button" 
+                        hx-get="/modoeditor/row/{{ code }}" 
+                        hx-target="#row-{{ code }}" 
+                        hx-swap="outerHTML"
+                        hx-confirm="¿Descartar cambios?"
+                        style="background: #9ca3af; color: white; border: none; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer;">Cancelar</button>
+            </div>
+        </form>
+    </td>
+</tr>

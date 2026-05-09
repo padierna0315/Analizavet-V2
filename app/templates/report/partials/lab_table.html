@@ -23,15 +23,16 @@
       <tr class="param-row {% if ns.row_index % 2 == 0 %}even{% endif %}">
         <td class="col-examen">{{ lv.parameter_name_es }}</td>
         <td class="col-result">
+          {% set display_val = (lv.raw_value | string) + "%" if lv.unit == "%" else lv.raw_value %}
           {% if lv.flag == 'ALTO' %}
-            <span class="val-alto">{{ lv.raw_value }} ↑</span>
+            <span class="val-alto">{{ display_val }} ↑</span>
           {% elif lv.flag == 'BAJO' %}
-            <span class="val-bajo">{{ lv.raw_value }} ↓</span>
+            <span class="val-bajo">{{ display_val }} ↓</span>
           {% else %}
-            <span class="val-normal">{{ lv.raw_value }}</span>
+            <span class="val-normal">{{ display_val }}</span>
           {% endif %}
         </td>
-        <td class="col-ref ref-cell">{{ lv.reference_range }}</td>
+        <td class="col-ref ref-cell">{{ lv.reference_range | format_ref_range }}</td>
       </tr>
     {% endfor %}
   </tbody>

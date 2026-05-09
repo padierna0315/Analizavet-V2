@@ -2,140 +2,213 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+</head>
+<body>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: Arial, sans-serif;
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  .report-wrapper * { margin: 0; padding: 0; box-sizing: border-box; }
+  .report-wrapper {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 11px;
-    color: #1a1a1a;
+    color: #1e293b;
     padding: 20px 28px;
+    background-color: white;
   }
 
   /* ── Header ─────────────────────────────────────────────────── */
-  .header {
+  .report-wrapper .header {
     text-align: center;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #333;
-    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 16px;
   }
-  .header h1 {
-    font-size: 18px;
-    font-weight: bold;
-    color: #1a1a1a;
-    letter-spacing: 0.3px;
+  .report-wrapper .header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
   }
-  .header .address {
+  .report-wrapper .header .address {
     font-size: 10px;
-    color: #666;
-    margin-top: 3px;
+    color: #64748b;
+    font-weight: 500;
   }
 
   /* ── Patient info ────────────────────────────────────────────── */
-  .patient-grid {
+  .report-wrapper .patient-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 3px 32px;
-    margin-bottom: 16px;
-    padding: 10px 0;
-    border-bottom: 1px solid #ddd;
+    gap: 8px 32px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background-color: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
     font-size: 11px;
   }
-  .patient-field { display: flex; gap: 4px; }
-  .patient-label { color: #1a1a1a; white-space: nowrap; }
-  .patient-value { color: #1a1a1a; }
+  .report-wrapper .patient-field { display: flex; align-items: baseline; gap: 6px; }
+  .report-wrapper .patient-label { 
+    color: #64748b; 
+    font-size: 10px; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    width: 75px;
+  }
+  .report-wrapper .patient-value { 
+    color: #0f172a; 
+    font-weight: 500;
+  }
 
   /* ── Exam title ──────────────────────────────────────────────── */
-  .exam-title {
+  .report-wrapper .exam-title {
     text-align: center;
-    font-weight: bold;
-    font-size: 12px;
-    border: 1.5px solid #1a1a1a;
-    padding: 6px 10px;
-    margin-bottom: 14px;
+    font-weight: 700;
+    font-size: 14px;
+    color: #1a3a6b;
+    background-color: #f1f5f9;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
   }
 
   /* ── Physical characteristics ────────────────────────────────── */
-  .physical-section {
-    background: #f5f5f5;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 8px 12px;
-    margin-bottom: 12px;
+  .report-wrapper .physical-section {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
     font-size: 11px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
   }
-  .physical-title {
-    font-weight: bold;
-    margin-bottom: 5px;
-    color: #333;
+  .report-wrapper .physical-title {
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #334155;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
-  .physical-row { display: flex; gap: 24px; flex-wrap: wrap; }
-  .physical-item .p-label { color: #666; font-size: 10px; text-transform: uppercase; }
-  .physical-item .p-value { color: #1a1a1a; }
+  .report-wrapper .physical-row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .report-wrapper .physical-item {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    padding: 4px 10px;
+    border-radius: 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .report-wrapper .physical-item .p-label { color: #64748b; font-size: 9px; text-transform: uppercase; font-weight: 600;}
+  .report-wrapper .physical-item .p-value { color: #0f172a; font-weight: 500;}
 
   /* ── Table ───────────────────────────────────────────────────── */
-  table {
+  .report-wrapper table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
     font-size: 11px;
   }
 
   /* Column widths */
-  .col-examen { width: 52%; }
-  .col-result { width: 22%; }
-  .col-ref    { width: 26%; text-align: right; }
+  .report-wrapper .col-examen { width: 52%; }
+  .report-wrapper .col-result { width: 22%; }
+  .report-wrapper .col-ref    { width: 26%; text-align: right; }
 
   /* Column headers row */
-  .col-headers th {
+  .report-wrapper .col-headers th {
     font-size: 9px;
-    color: #888;
-    font-weight: bold;
+    color: #64748b;
+    font-weight: 700;
     text-transform: uppercase;
-    padding: 4px 0;
-    border-bottom: 1px solid #ccc;
-    letter-spacing: 0.8px;
+    padding: 8px 4px;
+    border-bottom: 2px solid #e2e8f0;
+    letter-spacing: 0.5px;
+    text-align: left;
   }
-  .col-headers th.col-ref { text-align: right; }
+  .report-wrapper .col-headers th.col-ref { text-align: right; }
 
   /* Group header row */
-  .group-header td {
-    background-color: #1a3a6b;
-    color: #ffffff;
-    font-weight: bold;
+  .report-wrapper .group-header td {
+    background-color: #f1f5f9;
+    color: #1a3a6b;
+    font-weight: 700;
     font-size: 11px;
-    padding: 5px 8px;
+    padding: 6px 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-left: 3px solid #1a3a6b;
+    margin-top: 8px;
   }
 
   /* Parameter rows */
-  .param-row td {
-    padding: 4px 2px;
-    border-bottom: 1px solid #f0f0f0;
+  .report-wrapper .param-row td {
+    padding: 6px 4px;
+    border-bottom: 1px solid #f1f5f9;
     vertical-align: middle;
+    color: #334155;
   }
-  .param-row.even td { background: #f9f9f9; }
+  .report-wrapper .param-row.even td { background: #fafafa; }
 
   /* Result values */
-  .val-normal { font-weight: bold; color: #1a1a1a; }
-  .val-alto   { font-weight: bold; color: #1565c0; }
-  .val-bajo   { font-weight: bold; color: #1565c0; }
+  .report-wrapper .val-normal { 
+    font-weight: 500; 
+    color: #0f172a; 
+  }
+  .report-wrapper .val-alto { 
+    font-weight: 600; 
+    color: #991b1b; 
+    background-color: #fee2e2;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+  }
+  .report-wrapper .val-bajo { 
+    font-weight: 600; 
+    color: #1e40af; 
+    background-color: #dbeafe;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+  }
 
   /* Reference */
-  .ref-cell {
+  .report-wrapper .ref-cell {
     text-align: right;
-    color: #666;
+    color: #64748b;
     font-size: 10px;
+  }
+  .report-wrapper .ref-min {
+    color: #94a3b8; /* Gris muy clarito/sutil */
+    font-weight: 400;
+  }
+  .report-wrapper .ref-max {
+    color: #475569; /* Gris oscuro para dar peso visual */
+    font-weight: 600;
+  }
+  .report-wrapper .ref-unit {
+    color: #94a3b8;
+    font-weight: 500;
+    margin-left: 2px;
+  }
+  .report-wrapper .ref-unit sup {
+    font-size: 0.7em;
   }
 
   /* ── Footer ──────────────────────────────────────────────────── */
-  .footer {
+  .report-wrapper .footer {
     text-align: center;
     font-size: 10px;
-    color: #888;
-    border-top: 1px solid #ccc;
-    padding-top: 6px;
-    margin-top: 14px;
+    color: #94a3b8;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 8px;
+    margin-top: 20px;
   }
 
   @page {
@@ -144,14 +217,12 @@
   @page :footer {
     content: "Cra.70 #34-13  Tel: 3147596552 - Itagüí";
     font-size: 9px;
-    color: #aaa;
+    color: #94a3b8;
     text-align: center;
   }
   {{ theme_css }}
 </style>
-</head>
-<body>
-
+<div class="report-wrapper">
 <!-- ── HEADER ──────────────────────────────────────────────────── -->
 <div class="header">
   <h1>Laboratorio Veterinario Huellas Lab 🐾</h1>
@@ -198,7 +269,7 @@
 </div>
 
 <!-- ── TÍTULO EXAMEN ───────────────────────────────────────────── -->
-<div class="exam-title">{{ test_result.test_type | upper }}</div>
+<div class="exam-title">{% if test_result.test_type == 'Coproscópico' %}COPROLÓGICO{% else %}{{ test_result.test_type | upper }}{% endif %}</div>
 
 <!-- ── CARACTERÍSTICAS FÍSICAS: COPROLÓGICO ───────────────────── -->
 {% if test_result.copro_color or test_result.copro_consistencia or test_result.copro_olor or test_result.copro_moco is not none %}
@@ -268,5 +339,6 @@
   Cra.70 #34-13&nbsp;&nbsp;Tel: 3147596552 - Itagüí
 </div>
 
+</div>
 </body>
 </html>

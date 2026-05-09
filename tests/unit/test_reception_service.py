@@ -34,7 +34,20 @@ def mock_async_session():
     mock_session = AsyncMock(spec=AsyncSession)
     mock_session.commit.return_value = None
     mock_session.refresh.return_value = None
+    
+    # Setup default execute behavior (return empty result)
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_session.execute = AsyncMock(return_value=mock_result)
+    
     return mock_session
+
+
+def setup_mock_session_execute(mock_session, return_value=None):
+    """Helper to configure session.execute().scalar_one_or_none()"""
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = return_value
+    mock_session.execute.return_value = mock_result
 
 
 @pytest.mark.asyncio

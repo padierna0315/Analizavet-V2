@@ -6,6 +6,7 @@ Pure logic — no database, no FastAPI.
 """
 
 from datetime import datetime, timezone
+from typing import Optional, List
 from pydantic import BaseModel
 import re
 import logfire
@@ -40,6 +41,9 @@ class ParsedOzelleMessage(BaseModel):
     raw_patient_string: str
     """Raw patient string from PID[9]: 'kitty felina 2a Laura Cepeda'."""
 
+    sample_id: Optional[str] = None
+    """Sample ID or session code from PID[3] or OBR[2]."""
+
     test_type_code: str
     """Test type code: 'CBC', 'FECAL_OCCULT_BLOOD', etc."""
 
@@ -58,7 +62,7 @@ class ParsedOzelleMessage(BaseModel):
 
 _TEST_TYPE_MAP = {
     "CBC": "Hemograma",
-    "FECAL_OCCULT_BLOOD": "Coproscópico",
+    "FECAL_OCCULT_BLOOD": "Coprológico",
     # Add more as needed
 }
 
@@ -89,6 +93,7 @@ def parse_hl7_message(raw_message: str, source: str | None = None) -> ParsedOzel
 
     received_at = datetime.now(timezone.utc)
     raw_patient_string = ""
+    sample_id = None
     test_type_code = "UNKNOWN"
     test_type_name = "Desconocido"
     lab_values: list[RawLabValueInput] = []
@@ -130,12 +135,18 @@ def parse_hl7_message(raw_message: str, source: str | None = None) -> ParsedOzel
         # ── PID: Patient Identification ────────────────────────────────────
         elif segment_type == "PID":
             pid_count += 1
+            # Patient ID (sample ID / short code) is often in PID[3]
+            if len(parts) > 3 and parts[3]:
+                sample_id = parts[3].strip()
             # Patient string is in PID[9] (index 9)
             if len(parts) > 9:
                 raw_patient_string = parts[9].strip()
 
         # ── OBR: Observation Request (test type) ────────────────────────────
         elif segment_type == "OBR":
+            # Sample ID can also be in OBR[2]
+            if len(parts) > 2 and parts[2] and not sample_id:
+                sample_id = parts[2].strip()
             if len(parts) > 4:
                 obr_4 = parts[4].split("^")
                 test_type_code = obr_4[0].strip() if obr_4 else parts[4].strip()
@@ -253,6 +264,7 @@ def parse_hl7_message(raw_message: str, source: str | None = None) -> ParsedOzel
     return ParsedOzelleMessage(
         received_at=received_at,
         raw_patient_string=raw_patient_string,
+        sample_id=sample_id,
         test_type_code=test_type_code,
         test_type_name=test_type_name,
         lab_values=lab_values,

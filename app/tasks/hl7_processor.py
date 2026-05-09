@@ -109,6 +109,7 @@ async def _async_process_pipeline(parsed_msg: ParsedOzelleMessage, source: str):
     # 1. Prepare Reception Input
     reception_input = RawPatientInput(
         raw_string=parsed_msg.raw_patient_string,
+        session_code=parsed_msg.sample_id,
         source=source_enum,
         received_at=parsed_msg.received_at,
     )

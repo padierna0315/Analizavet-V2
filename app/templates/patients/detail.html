@@ -45,7 +45,7 @@
                 {% for tr in test_results %}
                 <tr>
                     <td><strong>{{ tr.received_at.strftime('%Y-%m-%d %H:%M') }}</strong></td>
-                    <td>{{ tr.test_type }}</td>
+                    <td>{% if tr.test_type == 'Coproscópico' %}Coprológico{% else %}{{ tr.test_type }}{% endif %}</td>
                     <td>{{ tr.source }}</td>
                     <td>
                         {% if tr.status == 'listo' %}
@@ -60,7 +60,7 @@
                         <span class="flag-bajo">{{ tr.flag_bajo_count }}</span>
                     </td>
                     <td>
-                        <a href="/taller/{{ tr.id }}" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Abrir Taller</a>
+                        <a href="/reports/{{ tr.id }}/pdf" target="_blank" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">📄 Ver PDF</a>
                     </td>
                 </tr>
                 {% else %}

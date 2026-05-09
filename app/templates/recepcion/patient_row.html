@@ -7,7 +7,7 @@
     <td>
         {% for test_result in patient_data.test_results %}
         <div class="test-result-badge">
-            {{ test_result.test_type }} ({{ test_result.received_at.strftime('%Y-%m-%d %H:%M') }})
+            {% if test_result.test_type == 'Coproscópico' %}Coprológico{% else %}{{ test_result.test_type }}{% endif %} ({{ test_result.received_at.strftime('%Y-%m-%d %H:%M') }})
         </div>
         {% endfor %}
     </td>

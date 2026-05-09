@@ -2,14 +2,16 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel import select
-from app.domains.reception.schemas import RawPatientInput, BaulResult
+from app.domains.reception.schemas import RawPatientInput, BaulResult, PatientSource, NormalizedPatient
 from app.domains.reception.normalizer import parse_patient_string
 from app.domains.reception.baul import BaulService
 from app.domains.patients.models import Patient
 from app.tasks.hl7_processor import process_hl7_message, process_uploaded_batch, set_upload_status
 from app.shared.models.test_result import TestResult
 from app.shared.models.lab_value import LabValue # Added this
-from sqlalchemy.orm import selectinload # Added this # Added this line
+from app.services.appsheet import AppSheetPatient
+from sqlalchemy.orm import selectinload
+from sqlalchemy import delete
 import json
 import logfire
 import uuid
@@ -29,8 +31,53 @@ class ReceptionService:
     ) -> BaulResult:
         logfire.info(
             f"Recibiendo paciente: '{raw_input.raw_string}' "
+            f"(code={raw_input.session_code}) "
             f"[fuente={raw_input.source.value}]"
         )
+
+        # 1. Buscar por session_code PRIMERO
+        lookup_code = raw_input.session_code or raw_input.raw_string
+        stmt = select(Patient).where(Patient.session_code == lookup_code)
+        result = await session.execute(stmt)
+        existing_patient = result.scalar_one_or_none()
+
+        if existing_patient:
+            logfire.info(
+                f"Paciente encontrado por código corto: {existing_patient.name} "
+                f"({existing_patient.session_code}) [id={existing_patient.id}]"
+            )
+            
+            # Append new source if not present
+            new_source_value = raw_input.source.value
+            if new_source_value not in existing_patient.sources_received:
+                existing_patient.sources_received.append(new_source_value)
+                flag_modified(existing_patient, "sources_received")
+            
+            existing_patient.updated_at = datetime.now(timezone.utc)
+            session.add(existing_patient)
+            await session.commit()
+            await session.refresh(existing_patient)
+
+            # Convert Patient to NormalizedPatient for the result
+            normalized = NormalizedPatient(
+                name=existing_patient.name,
+                species=existing_patient.species,
+                sex=existing_patient.sex,
+                has_age=existing_patient.has_age,
+                age_value=existing_patient.age_value,
+                age_unit=existing_patient.age_unit,
+                age_display=existing_patient.age_display,
+                owner_name=existing_patient.owner_name,
+                source=raw_input.source
+            )
+            
+            return BaulResult(
+                patient_id=existing_patient.id,
+                created=False,
+                patient=normalized,
+            )
+
+        # 2. Si no es un código corto, proceder con el flujo normal de normalización
         normalized = parse_patient_string(raw_input.raw_string, raw_input.source)
         
         # Import the normalization function for deduplication
@@ -99,6 +146,86 @@ class ReceptionService:
             await session.refresh(newly_created_patient)
 
         return result
+
+    async def sync_from_appsheet(
+        self, patients: list[AppSheetPatient], session: AsyncSession, reset: bool = False
+    ) -> int:
+        """Sincroniza pacientes desde AppSheet, creando o actualizando registros."""
+        if reset:
+            await self.clear_all_active_patients(session)
+            
+        from app.domains.reception.baul import _normalize_for_comparison
+        
+        count = 0
+        for ap in patients:
+            norm_name = _normalize_for_comparison(ap.name)
+            norm_owner = _normalize_for_comparison(ap.owner_name)
+            
+            # 1. Buscar por session_code PRIMERO
+            stmt = select(Patient).where(Patient.session_code == ap.session_code)
+            result = await session.execute(stmt)
+            existing_patient = result.scalar_one_or_none()
+
+            if existing_patient:
+                # Actualizar paciente existente
+                existing_patient.name = ap.name
+                existing_patient.species = ap.species
+                existing_patient.sex = ap.gender
+                existing_patient.owner_name = ap.owner_name
+                existing_patient.breed = ap.breed
+                
+                # Manejar edad
+                try:
+                    existing_patient.age_value = int(ap.age_number)
+                except (ValueError, TypeError):
+                    existing_patient.age_value = None
+                
+                existing_patient.age_unit = ap.age_unit.lower() if ap.age_unit else None
+                existing_patient.age_display = f"{ap.age_number} {ap.age_unit}" if ap.age_number and ap.age_unit else None
+                existing_patient.has_age = bool(ap.age_number and ap.age_unit)
+                
+                if PatientSource.APPSHEET.value not in existing_patient.sources_received:
+                    existing_patient.sources_received.append(PatientSource.APPSHEET.value)
+                    flag_modified(existing_patient, "sources_received")
+                
+                existing_patient.updated_at = datetime.now(timezone.utc)
+                session.add(existing_patient)
+            else:
+                # Crear nuevo paciente limpio y fresco
+                new_patient = Patient(
+                    name=ap.name,
+                    species=ap.species,
+                    sex=ap.gender,
+                    owner_name=ap.owner_name,
+                    breed=ap.breed,
+                    session_code=ap.session_code,
+                    source=PatientSource.APPSHEET.value,
+                    sources_received=[PatientSource.APPSHEET.value],
+                    normalized_name=norm_name,
+                    normalized_owner=norm_owner,
+                    age_value=int(ap.age_number) if ap.age_number and ap.age_number.isdigit() else None,
+                    age_unit=ap.age_unit.lower() if ap.age_unit else None,
+                    age_display=f"{ap.age_number} {ap.age_unit}" if ap.age_number and ap.age_unit else None,
+                    has_age=bool(ap.age_number and ap.age_unit)
+                )
+                session.add(new_patient)
+            
+            count += 1
+        
+        await session.commit()
+        return count
+
+    async def clear_all_active_patients(self, session: AsyncSession) -> int:
+        """Deletes all patients from the waiting room (active patients)."""
+        logfire.info("Limpiando todos los pacientes activos de la recepción.")
+        stmt = delete(Patient).where(Patient.waiting_room_status == "active")
+        result = await session.execute(stmt)
+        await session.commit()
+        # Note: rowcount might not be reliable on all async drivers, 
+        # but it works for our Postgres/SQLite needs here.
+        count = result.rowcount if hasattr(result, "rowcount") else 0
+        logfire.info(f"Limpieza completada: {count} pacientes eliminados.")
+        return count
 
     async def get_waiting_room_patients(
         self, session: AsyncSession

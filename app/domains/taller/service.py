@@ -132,6 +132,58 @@ class TallerService:
         logfire.info(f"TestResult {tr.id} metadata updated.")
         return tr
 
+    async def update_lab_values_from_form(
+        self,
+        test_result_id: int,
+        form_data: dict,
+        session: AsyncSession,
+    ) -> None:
+        """Update lab values and recalculate their flags based on form data."""
+        result = await session.execute(
+            select(TestResult)
+            .where(TestResult.id == test_result_id)
+            .options(
+                selectinload(TestResult.patient),
+                selectinload(TestResult.lab_values)
+            )
+        )
+        tr = result.scalars().first()
+        if not tr:
+            raise ValueError(f"TestResult {test_result_id} no encontrado")
+
+        species = tr.patient.species if tr.patient else "Canino"
+
+        for lv in tr.lab_values:
+            form_key = f"value_{lv.parameter_code}"
+            if form_key in form_data:
+                raw_val = form_data[form_key]
+                lv.raw_value = str(raw_val)
+                try:
+                    lv.numeric_value = float(raw_val) if str(raw_val).strip() else None
+                except (ValueError, TypeError):
+                    lv.numeric_value = None
+
+                clean_code = _clean_parameter_code(lv.parameter_code)
+                if lv.numeric_value is not None:
+                    try:
+                        flag_result = self._flagging.flag_value(
+                            parameter=clean_code,
+                            value=lv.numeric_value,
+                            unit=lv.unit,
+                            species=species,
+                        )
+                        lv.flag = flag_result.flag
+                    except ValueError:
+                        lv.flag = "NORMAL"
+                else:
+                    lv.flag = "NORMAL"
+                
+                session.add(lv)
+        
+        await session.commit()
+        logfire.info(f"Lab values for TestResult {test_result_id} updated from form.")
+
+
     async def get_test_result_full(
         self,
         test_result_id: int,
