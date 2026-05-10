@@ -21,6 +21,8 @@ from app.core.reference import get_reference_range
 from clinical_standards import (
     get_parameter_group, get_parameter_name, PARAMETER_GROUPS, PARAMETER_GROUPS_ORDER, STANDARDS_MAPPING
 )
+from app.shared.algorithms.registry import AlgorithmRegistry
+from app.shared.algorithms.interpretations import INTERPRETATIONS
 
 _PART_PATTERN = re.compile(r"_Part\d+$")
 _KNOWN_SUFFIXES = {"Main", "Histo", "Distribution"}
@@ -268,6 +270,24 @@ class TallerService:
 
         lab_values_sorted = sorted(lab_values_list, key=sort_key)
 
+        # ── Generate clinical interpretations from flagged values ──────────
+        # Run the AlgorithmRegistry in-memory (no DB writes — pure computation)
+        # to produce interpretations for derived values (ratios, indices, etc.).
+        registry = AlgorithmRegistry()
+        algo_results, _algo_errors = registry.run_all(lab_values)
+
+        interpretations = []
+        for ar in algo_results:
+            interp = INTERPRETATIONS.get(ar.interpretation_key)
+            if interp:
+                interpretations.append({
+                    "parameter_code": ar.lab_value.parameter_code,
+                    "parameter_name_es": ar.lab_value.parameter_name_es,
+                    "flag": ar.lab_value.flag,
+                    "text_es": interp["text_es"],
+                    "severity": interp["severity"],
+                })
+
         return {
             "test_result": {
                 "id": tr.id,
@@ -312,4 +332,5 @@ class TallerService:
                 for img in images
             ],
             "summary": new_summary,
+            "interpretations": interpretations,
         }

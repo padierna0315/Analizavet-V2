@@ -10,7 +10,9 @@ class ClinicalFlaggingService:
         "Felina": "feline"
     }
 
-    def _get_species_key(self, species: str) -> str:
+    def _get_species_key(self, species: str) -> str | None:
+        if species == "Desconocida":
+            return None
         if species not in self.SPECIES_MAP:
             raise ValueError(f"Especie desconocida: {species}")
         return self.SPECIES_MAP[species]
@@ -18,6 +20,16 @@ class ClinicalFlaggingService:
     def flag_value(self, parameter: str, value: float, unit: str, species: str) -> FlagResult:
         species_key = self._get_species_key(species)
         
+        if species_key is None:
+            # No se puede evaluar flag sin especie conocida — NORMAL por defecto
+            return FlagResult(
+                parameter=parameter,
+                value=value,
+                unit=unit,
+                flag="NORMAL",
+                reference_range="N/D"
+            )
+
         resolved_parameter = STANDARDS_MAPPING.get(parameter, parameter)
         param_data = VETERINARY_STANDARDS.get(resolved_parameter)
         if not param_data:

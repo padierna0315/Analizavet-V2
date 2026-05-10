@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-MLLP_ENABLED="${MLLP_ENABLED:-false}"
+# MLLP siempre activo — controla Redis, Dramatiq y auto-inicio de adaptadores
 
 # Si no hay terminal (doble clic en GUI), abrir en Konsole
 if [ ! -t 0 ]; then
@@ -96,9 +96,26 @@ else
     uv run alembic upgrade head
 fi
 
-# 7. Verificar Redis para Dramatiq
-if [ "$MLLP_ENABLED" = "true" ]; then
-    echo "🔍 Verificando Redis..."
+# 7. Verificar Redis para Dramatiq (siempre necesario)
+echo "🔍 Verificando Redis..."
+if command -v podman &> /dev/null; then
+    # Podman-based Redis (Fedora, sin Redis nativo)
+    if podman ps --filter "name=redis-analizavet" --format "{{.Names}}" 2>/dev/null | grep -q "redis-analizavet"; then
+        echo "✅ Redis ya está corriendo (contenedor Podman: redis-analizavet)"
+    else
+        echo "📦 Iniciando Redis en contenedor Podman..."
+        podman run -d --name redis-analizavet -p 6379:6379 docker.io/redis:7-alpine
+        sleep 2
+        # Verificar con Python (redis-cli no siempre está instalado)
+        if uv run python -c "import redis; redis.Redis(host='localhost', port=6379).ping()" 2>/dev/null; then
+            echo "✅ Redis iniciado correctamente (contenedor Podman)"
+        else
+            echo "❌ No se pudo iniciar Redis en Podman"
+            exit 1
+        fi
+    fi
+elif command -v redis-server &> /dev/null; then
+    # Redis nativo (Debian/Ubuntu)
     if ! redis-cli ping &> /dev/null; then
         echo "⚠️  Redis no está corriendo. Iniciando Redis..."
         redis-server --daemonize yes
@@ -106,34 +123,35 @@ if [ "$MLLP_ENABLED" = "true" ]; then
         if redis-cli ping | grep -q "PONG"; then
             echo "✅ Redis iniciado correctamente"
         else
-            echo "❌ No se pudo iniciar Redis. Instálalo con: sudo apt install redis-server"
+            echo "❌ No se pudo iniciar Redis"
             exit 1
         fi
     else
         echo "✅ Redis ya está corriendo"
     fi
+else
+    echo "❌ No se encontró Podman ni Redis server."
+    echo "   Instala Podman: sudo dnf install podman"
+    exit 1
 fi
 
 # 8. Limpiar puertos 9191/9200 (Prometheus middleware) antes de iniciar worker
-if [ "$MLLP_ENABLED" = "true" ]; then
-    echo "Limpiando puertos 9191/9200..."
-    lsof -ti:9191 -ti:9200 2>/dev/null | xargs -r kill 2>/dev/null || fuser -k 9191/tcp 9200/tcp 2>/dev/null || true
-fi
+echo "🧹 Limpiando puertos 9191/9200 (Prometheus)..."
+fuser -k 9191/tcp 9200/tcp 2>/dev/null || true
 
 # 9. Iniciar Dramatiq worker en segundo plano
-if [ "$MLLP_ENABLED" = "true" ]; then
-    echo "🎭 Iniciando worker de Dramatiq..."
-    uv run dramatiq app.tasks.broker:broker --threads 2 &
-    DRAMATIQ_PID=$!
-    sleep 3
+echo "🎭 Iniciando worker de Dramatiq..."
+DRAMATIQ_ENV="DRAMATIQ_PROMETHEUS_PORT=-1"
+uv run env "$DRAMATIQ_ENV" dramatiq app.tasks.broker:broker --threads 2 &
+DRAMATIQ_PID=$!
+sleep 3
 
-    # Verify Dramatiq is running
-    if kill -0 $DRAMATIQ_PID 2>/dev/null; then
-        echo "✅ Worker de Dramatiq iniciado (PID: $DRAMATIQ_PID)"
-    else
-        echo "❌ Worker de Dramatiq falló al iniciar"
-        exit 1
-    fi
+# Verify Dramatiq is running
+if kill -0 $DRAMATIQ_PID 2>/dev/null; then
+    echo "✅ Worker de Dramatiq iniciado (PID: $DRAMATIQ_PID)"
+else
+    echo "❌ Worker de Dramatiq falló al iniciar"
+    exit 1
 fi
 
 # 9. Iniciar servidor FastAPI

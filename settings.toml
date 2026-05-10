@@ -3,9 +3,10 @@ DATABASE_URL = "sqlite+aiosqlite:///./analizavet.db"
 IMAGES_DIR = "./images"
 LOG_LEVEL = "INFO"
 OZELLE_PORT = 6000
+FUJIFILM_HOST = "192.168.100.2"
 FUJIFILM_PORT = 6001
 PDF_THEME = "huellas_lab"
-MLLP_ENABLED = false
+MLLP_ENABLED = true
 LOGFIRE_ENABLED = false
 
 [development]

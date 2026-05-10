@@ -107,11 +107,15 @@ async def _async_process_pipeline(parsed_msg: ParsedOzelleMessage, source: str):
 
     source_enum = PatientSource(source)
     # 1. Prepare Reception Input
+    # Pasar especie/sexo extraídos del HL7 (PID[10]/PID[8]) para que el normalizador
+    # los use en lugar de "Desconocida" cuando el paciente tiene código corto.
     reception_input = RawPatientInput(
         raw_string=parsed_msg.raw_patient_string,
         session_code=parsed_msg.sample_id,
         source=source_enum,
         received_at=parsed_msg.received_at,
+        species_override=parsed_msg.species,
+        sex_override=parsed_msg.sex,
     )
 
     async with AsyncSessionLocal() as session:

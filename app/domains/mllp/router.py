@@ -25,10 +25,11 @@ async def start_mllp_adapters(request: Request):
             from app.config import settings
 
             ozelle_port = getattr(settings, "OZELLE_PORT", 6000)
+            fujifilm_host = getattr(settings, "FUJIFILM_HOST", "0.0.0.0")
             fujifilm_port = getattr(settings, "FUJIFILM_PORT", 6001)
             mllp_state.adapters = [
                 OzelleAdapter(port=ozelle_port),
-                FujifilmAdapter(port=fujifilm_port),
+                FujifilmAdapter(host=fujifilm_host, port=fujifilm_port),
             ]
 
         for adapter in mllp_state.adapters:

@@ -334,6 +334,21 @@
 <!-- ── TABLA DE PARÁMETROS ─────────────────────────────────────── -->
 {% include "report/partials/lab_table.html" %}
 
+{% if interpretations %}
+<!-- ── INTERPRETACIONES CLÍNICAS ────────────────────────────────── -->
+<div class="interpretations-block" style="margin-top:1rem;padding:0.75rem; background:#f0f9ff;border:1px solid #0ea5e9;border-radius:0.375rem;">
+  <h4 style="color:#0369a1;font-size:0.875rem;margin-bottom:0.5rem;">Interpretaciones Clínicas</h4>
+  <ul style="font-size:0.75rem;color:#075985;padding-left:1.25rem;margin:0;">
+    {% for interp in interpretations %}
+    {% set severity_color = "#dc2626" if interp.severity == "critical" else "#d97706" if interp.severity == "warning" else "#0369a1" %}
+    <li style="margin-bottom:0.25rem;">
+      <strong style="color:{{ severity_color }}">{{ interp.parameter_name_es }}:</strong> {{ interp.text_es }}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 <!-- ── FOOTER ─────────────────────────────────────────────────── -->
 <div class="footer">
   Cra.70 #34-13&nbsp;&nbsp;Tel: 3147596552 - Itagüí

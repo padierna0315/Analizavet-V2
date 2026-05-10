@@ -44,6 +44,12 @@ class ParsedOzelleMessage(BaseModel):
     sample_id: Optional[str] = None
     """Sample ID or session code from PID[3] or OBR[2]."""
 
+    species: Optional[str] = None
+    """Species extracted from PID[10] (e.g., 'CAT' → 'Felino'). None if not present."""
+
+    sex: Optional[str] = None
+    """Sex extracted from PID[8] (e.g., 'F' → 'Hembra'). None if not present."""
+
     test_type_code: str
     """Test type code: 'CBC', 'FECAL_OCCULT_BLOOD', etc."""
 
@@ -94,6 +100,8 @@ def parse_hl7_message(raw_message: str, source: str | None = None) -> ParsedOzel
     received_at = datetime.now(timezone.utc)
     raw_patient_string = ""
     sample_id = None
+    species_value: str | None = None
+    species_sex: str | None = None
     test_type_code = "UNKNOWN"
     test_type_name = "Desconocido"
     lab_values: list[RawLabValueInput] = []
@@ -141,6 +149,36 @@ def parse_hl7_message(raw_message: str, source: str | None = None) -> ParsedOzel
             # Patient string is in PID[9] (index 9)
             if len(parts) > 9:
                 raw_patient_string = parts[9].strip()
+            
+            # ── Extract code prefix (e.g. "A1", "M12") from PID[9] ─────────
+            # Nueva formate: "A1 LULU" o "A1 pantera" → el código va primero
+            if raw_patient_string:
+                code_match = re.match(r'^([A-Z]\d{1,2})\s+(.*)$', raw_patient_string)
+                if code_match:
+                    code_prefix = code_match.group(1)
+                    if not sample_id:
+                        sample_id = code_prefix
+
+            # ── Extract sex from PID[8] (index 8) ───────────────────────────
+            # V1 behavior: PID.9 (index 8) = sex field (M/F)
+            species_sex = None
+            if len(parts) > 8 and parts[8].strip():
+                sex_raw = parts[8].strip().upper()
+                if sex_raw == 'F':
+                    species_sex = "Hembra"
+                elif sex_raw == 'M':
+                    species_sex = "Macho"
+
+            # ── Extract species from PID[10] (index 10) ─────────────────────
+            # V1 behavior: PID.10 (index 9) = combined field with species token.
+            # In the new format, Ozelle sends species code in PID[10] (e.g. "CAT", "DOG").
+            species_value = None
+            if len(parts) > 10 and parts[10].strip():
+                species_raw = parts[10].strip().upper()
+                if species_raw in ('CAT', 'FELINE', 'FELINO', 'FELINA'):
+                    species_value = "Felino"
+                elif species_raw in ('DOG', 'CANINE', 'CANINO', 'CANINA', 'CAN'):
+                    species_value = "Canino"
 
         # ── OBR: Observation Request (test type) ────────────────────────────
         elif segment_type == "OBR":
@@ -265,6 +303,8 @@ def parse_hl7_message(raw_message: str, source: str | None = None) -> ParsedOzel
         received_at=received_at,
         raw_patient_string=raw_patient_string,
         sample_id=sample_id,
+        species=species_value,
+        sex=species_sex,
         test_type_code=test_type_code,
         test_type_name=test_type_name,
         lab_values=lab_values,

@@ -20,6 +20,8 @@ class RawPatientInput(BaseModel):
     session_code: Optional[str] = None # New optional field
     source: PatientSource
     received_at: datetime  # UTC
+    species_override: Optional[str] = None  # Explicit species from HL7 parser (e.g. "Felino", "Canino")
+    sex_override: Optional[str] = None      # Explicit sex from HL7 parser (e.g. "Hembra", "Macho")
 
     @field_validator('raw_string')
     @classmethod
@@ -33,10 +35,13 @@ class RawPatientInput(BaseModel):
 class NormalizedPatient(BaseModel):
     """Patient data after normalization. Ready for Taller.
     All fields in natural Spanish — no codes, no abbreviations.
+    
+    Fujifilm source may produce "Desconocida" / "Desconocido" 
+    when the machine only sends the patient name.
     """
     name: str                                    # "Kitty"
-    species: Literal["Canino", "Felino"]
-    sex: Literal["Macho", "Hembra"]
+    species: Literal["Canino", "Felino", "Desconocida"]
+    sex: Literal["Macho", "Hembra", "Desconocido"]
     has_age: bool                                # False for coproscopics
     age_value: int | None                        # 2
     age_unit: Literal["meses", "años"] | None    # "años"

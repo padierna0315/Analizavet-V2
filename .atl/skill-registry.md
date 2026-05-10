@@ -8,16 +8,16 @@ See `_shared/skill-resolver.md` for the full resolution protocol.
 
 | Trigger | Skill | Path |
 |---------|-------|------|
-| creating, opening, or preparing PRs for review | branch-pr | /home/santiago/.gemini/antigravity/skills/branch-pr/SKILL.md |
-| PRs over 400 lines, stacked PRs, review slices | chained-pr | /home/santiago/.gemini/antigravity/skills/chained-pr/SKILL.md |
-| writing guides, READMEs, RFCs, onboarding, architecture, or review-facing docs | cognitive-doc-design | /home/santiago/.gemini/antigravity/skills/cognitive-doc-design/SKILL.md |
-| PR feedback, issue replies, reviews, Slack messages, or GitHub comments | comment-writer | /home/santiago/.gemini/antigravity/skills/comment-writer/SKILL.md |
-| Go tests, go test coverage, Bubbletea teatest, golden files | go-testing | /home/santiago/.gemini/antigravity/skills/go-testing/SKILL.md |
-| creating GitHub issues, bug reports, or feature requests | issue-creation | /home/santiago/.gemini/antigravity/skills/issue-creation/SKILL.md |
-| judgment day, dual review, adversarial review, juzgar | judgment-day | /home/santiago/.gemini/antigravity/skills/judgment-day/SKILL.md |
-| new skills, agent instructions, documenting AI usage patterns | skill-creator | /home/santiago/.gemini/antigravity/skills/skill-creator/SKILL.md |
-| update skills, skill registry, actualizar skills, or after skill changes | skill-registry | /home/santiago/.gemini/antigravity/skills/skill-registry/SKILL.md |
-| implementation, commit splitting, chained PRs, or keeping tests and docs with code | work-unit-commits | /home/santiago/.gemini/antigravity/skills/work-unit-commits/SKILL.md |
+| creating, opening, or preparing PRs for review | branch-pr | /home/laboratorio/.config/opencode/skills/branch-pr/SKILL.md |
+| PRs over 400 lines, stacked PRs, review slices | gentle-ai-chained-pr | /home/laboratorio/.config/opencode/skills/chained-pr/SKILL.md |
+| writing guides, READMEs, RFCs, onboarding, architecture, or review-facing docs | cognitive-doc-design | /home/laboratorio/.config/opencode/skills/cognitive-doc-design/SKILL.md |
+| PR feedback, issue replies, reviews, Slack messages, or GitHub comments | comment-writer | /home/laboratorio/.config/opencode/skills/comment-writer/SKILL.md |
+| Go tests, go test coverage, Bubbletea teatest, golden files | go-testing | /home/laboratorio/.config/opencode/skills/go-testing/SKILL.md |
+| creating GitHub issues, bug reports, or feature requests | issue-creation | /home/laboratorio/.config/opencode/skills/issue-creation/SKILL.md |
+| judgment day, dual review, adversarial review, juzgar | judgment-day | /home/laboratorio/.config/opencode/skills/judgment-day/SKILL.md |
+| new skills, agent instructions, documenting AI usage patterns | skill-creator | /home/laboratorio/.config/opencode/skills/skill-creator/SKILL.md |
+| update skills, skill registry, actualizar skills, or after skill changes | skill-registry | /home/laboratorio/.config/opencode/skills/skill-registry/SKILL.md |
+| implementation, commit splitting, chained PRs, or keeping tests and docs with code | work-unit-commits | /home/laboratorio/.config/opencode/skills/work-unit-commits/SKILL.md |
 
 ## Compact Rules
 
@@ -28,7 +28,7 @@ Pre-digested rules per skill. Delegators copy matching blocks into sub-agent pro
 - Always link PR to an existing issue
 - Keep PR descriptions concise
 
-### chained-pr
+### gentle-ai-chained-pr
 - Split oversized changes (>400 lines) into chained PRs
 - Protect review focus by keeping PRs atomic
 - Ensure tests run per chained step

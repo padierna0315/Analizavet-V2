@@ -11,6 +11,7 @@ import anyio
 from datetime import datetime, timezone
 
 from app.database import AsyncSessionLocal
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.domains.reception.schemas import RawPatientInput, PatientSource
 from app.domains.reception.service import ReceptionService
 
@@ -20,6 +21,8 @@ from app.core.reference import get_reference_range
 from app.domains.taller.service import TallerService
 from app.domains.taller.schemas import RawLabValueInput
 from app.domains.patients.models import Patient
+from app.shared.models.test_result import TestResult
+from app.shared.models.lab_value import LabValue
 from sqlmodel import select
 
 
@@ -88,9 +91,9 @@ def process_fujifilm_message(data: dict):
                     received_at = received_at.replace(tzinfo=timezone.utc)
             except Exception:
                 logfire.warning(f"Fujifilm: invalid received_at '{received_at_str}', using now()")
-                received_at = anyio.current_time()
+                received_at = datetime.now(timezone.utc)
         else:
-            received_at = anyio.current_time()
+            received_at = datetime.now(timezone.utc)
 
         reception_input = RawPatientInput(
             raw_string=raw_string,
@@ -105,6 +108,44 @@ def process_fujifilm_message(data: dict):
     except Exception as e:
         logfire.error(f"Fujifilm processing failed: {e}", exc_info=True)
         raise  # Trigger Dramatiq retry
+
+
+# ── Merge Helper ─────────────────────────────────────────────────────────────
+
+
+async def _find_or_create_test_result(
+    taller_svc: TallerService,
+    patient_id: int,
+    source: str,
+    received_at: datetime,
+    session: AsyncSession,
+) -> TestResult:
+    """Find existing TestResult by (patient_id, source, received_at) or create new.
+
+    All readings from the same transmission share the same received_at timestamp,
+    so an exact match on (patient_id, source, received_at) groups readings into
+    a single TestResult. This avoids creating one TestResult per chemistry value.
+    """
+    result = await session.execute(
+        select(TestResult).where(
+            TestResult.patient_id == patient_id,
+            TestResult.source == source,
+            TestResult.received_at == received_at,
+        )
+    )
+    existing = result.scalars().first()
+    if existing:
+        logfire.info(f"Found existing TestResult {existing.id} for patient {patient_id}")
+        return existing
+
+    return await taller_svc.create_test_result(
+        patient_id=patient_id,
+        test_type="Química Sanguínea",
+        test_type_code="CHEM",
+        source=source,
+        received_at=received_at,
+        session=session,
+    )
 
 
 # ── Pipeline ─────────────────────────────────────────────────────────────────
@@ -178,37 +219,48 @@ async def _async_process_pipeline(
 
                 # 3. Use the already obtained normalized_patient
                 
-                # 4. Crear TestResult
+                # 4. Find or create TestResult (merge: same patient+source+received_at → same TR)
                 taller_svc = _taller_service()
                 
-                tr = await taller_svc.create_test_result(
-                    patient_id=normalized_patient.id,
-                    test_type="Química Sanguínea",
-                    test_type_code="CHEM",
+                tr = await _find_or_create_test_result(
+                    taller_svc=taller_svc,
+                    patient_id=patient_id,
                     source="LIS_FUJIFILM",
-                    received_at=reception_input.received_at, # Using reception_input.received_at
+                    received_at=reception_input.received_at,
                     session=session,
                 )
 
-                # 5. Construir RawLabValueInput
-                raw_input = RawLabValueInput(
-                    parameter_code=parameter_code,
-                    parameter_name_es=param_name_es,
-                    raw_value=raw_value,
-                    numeric_value=numeric_value,
-                    unit=param_unit,
-                    reference_range=get_reference_range(parameter_code, normalized_patient.species),
-                    machine_flag=None,
+                # 5. Check for duplicate parameter_code in this TestResult
+                dup_result = await session.execute(
+                    select(LabValue).where(
+                        LabValue.test_result_id == tr.id,
+                        LabValue.parameter_code == parameter_code,
+                    )
                 )
+                if dup_result.scalars().first() is not None:
+                    logfire.warning(
+                        f"Duplicate value for {parameter_code} in TestResult {tr.id}, skipping"
+                    )
+                else:
+                    # 6. Construir RawLabValueInput
+                    raw_input = RawLabValueInput(
+                        parameter_code=parameter_code,
+                        parameter_name_es=param_name_es,
+                        raw_value=raw_value,
+                        numeric_value=numeric_value,
+                        unit=param_unit,
+                        reference_range=get_reference_range(parameter_code, normalized_patient.species),
+                        machine_flag=None,
+                    )
 
-                # 6. Flag y guardar
-                await taller_svc.flag_and_store(
-                    test_result_id=tr.id,
-                    species=normalized_patient.species,
-                    values=[raw_input],
-                    session=session,
-                )
-                logfire.info("Fujifilm lab value processed and stored successfully.")
+                    # 7. Flag y guardar
+                    await taller_svc.flag_and_store(
+                        test_result_id=tr.id,
+                        species=normalized_patient.species,
+                        values=[raw_input],
+                        session=session,
+                    )
+                    logfire.info(f"Fujifilm lab value {parameter_code}={raw_value} stored in TestResult {tr.id}.")
             else:
                 logfire.info("Fujifilm: No parameter_code or raw_value provided, skipping lab value processing.")
 

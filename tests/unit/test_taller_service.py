@@ -277,3 +277,67 @@ async def test_get_test_result_full_null_numeric_value(session):
     lab = result["lab_values"][0]
     assert lab["flag"] == "NORMAL"
     assert result["summary"]["NORMAL"] == 1
+
+
+@pytest.mark.asyncio
+async def test_get_test_result_full_interpretations(session):
+    """Scenario: get_test_result_full() returns clinical interpretations.
+
+    When LabValues trigger algorithm-derived results (e.g., BUN/CRE ratio),
+    the interpretations list should be populated with clinical notes.
+    """
+    patient = _make_patient()
+    session.add(patient)
+    await session.commit()
+    await session.refresh(patient)
+
+    tr = TestResult(
+        patient_id=patient.id,
+        test_type="Química Sanguínea",
+        test_type_code="CHEM",
+        source="LIS_FUJIFILM",
+        status="completado",
+        received_at=datetime.now(timezone.utc),
+    )
+    session.add(tr)
+    await session.commit()
+    await session.refresh(tr)
+
+    # CRE + BUN values that trigger the BUN/CRE ratio algorithm
+    lv_cre = LabValue(
+        test_result_id=tr.id,
+        parameter_code="CRE",
+        parameter_name_es="Creatinina",
+        raw_value="1.0",
+        numeric_value=1.0,
+        unit="mg/dL",
+        reference_range="0.5-1.5",
+        flag="NORMAL",
+        machine_flag="N",
+    )
+    lv_bun = LabValue(
+        test_result_id=tr.id,
+        parameter_code="BUN",
+        parameter_name_es="BUN",
+        raw_value="15.0",
+        numeric_value=15.0,
+        unit="mg/dL",
+        reference_range="7-27",
+        flag="NORMAL",
+        machine_flag="N",
+    )
+    session.add(lv_cre)
+    session.add(lv_bun)
+    await session.commit()
+
+    service = TallerService()
+    result = await service.get_test_result_full(tr.id, session)
+
+    assert result is not None
+    assert "interpretations" in result
+    # BUN(15) / CRE(1) = 15 which is ≤ 30 → RATIO_BUN_CRE_NORMAL interpretation
+    assert len(result["interpretations"]) > 0
+    interp = result["interpretations"][0]
+    assert "parameter_code" in interp
+    assert "text_es" in interp
+    assert "severity" in interp

@@ -47,11 +47,12 @@ async def lifespan(app: FastAPI):
     # Only start adapters if not in testing environment and MLLP is enabled
     if os.environ.get("TESTING") != "True" and settings.MLLP_ENABLED:
         ozelle_port = getattr(settings, "OZELLE_PORT", 6000)
+        fujifilm_host = getattr(settings, "FUJIFILM_HOST", "0.0.0.0")
         fujifilm_port = getattr(settings, "FUJIFILM_PORT", 6001)
 
         mllp_state.adapters = [
             OzelleAdapter(port=ozelle_port),
-            FujifilmAdapter(port=fujifilm_port),
+            FujifilmAdapter(host=fujifilm_host, port=fujifilm_port),
         ]
 
         for adapter in mllp_state.adapters:

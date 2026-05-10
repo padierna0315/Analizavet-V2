@@ -78,15 +78,65 @@ class ReceptionService:
             )
 
         # 2. Si no es un código corto, proceder con el flujo normal de normalización
-        normalized = parse_patient_string(raw_input.raw_string, raw_input.source)
+        # Pasar species_override/sex_override si el parser HL7 los extrajo (PID[10]/PID[8])
+        normalized = parse_patient_string(
+            raw_input.raw_string,
+            raw_input.source,
+            species_override=raw_input.species_override,
+            sex_override=raw_input.sex_override,
+        )
         
         # Import the normalization function for deduplication
         from app.domains.reception.baul import _normalize_for_comparison
         
-        # Check if patient already exists using deduplication key
         norm_name = _normalize_for_comparison(normalized.name)
         norm_owner = _normalize_for_comparison(normalized.owner_name)
         
+        # ── FUJIFILM: buscar por nombre únicamente ──────────────────────
+        # La máquina solo envía el nombre, sin especie/edad/tutor.
+        # Si ya existe un paciente con ese nombre, lo vinculamos.
+        if raw_input.source == PatientSource.LIS_FUJIFILM:
+            stmt = select(Patient).where(Patient.normalized_name == norm_name)
+            result = await session.execute(stmt)
+            fuji_match = result.scalars().first()
+            
+            if fuji_match:
+                logfire.info(
+                    f"Fujifilm: paciente encontrado por nombre: {fuji_match.name} "
+                    f"[id={fuji_match.id}]"
+                )
+                new_source = PatientSource.LIS_FUJIFILM.value
+                if new_source not in fuji_match.sources_received:
+                    fuji_match.sources_received.append(new_source)
+                    flag_modified(fuji_match, "sources_received")
+                # Backfill session_code si vino en el mensaje y el paciente no tiene
+                if raw_input.session_code and not fuji_match.session_code:
+                    fuji_match.session_code = raw_input.session_code
+                fuji_match.updated_at = datetime.now(timezone.utc)
+                session.add(fuji_match)
+                await session.commit()
+                await session.refresh(fuji_match)
+                
+                normalized = NormalizedPatient(
+                    name=fuji_match.name,
+                    species=fuji_match.species,
+                    sex=fuji_match.sex,
+                    has_age=fuji_match.has_age,
+                    age_value=fuji_match.age_value,
+                    age_unit=fuji_match.age_unit,
+                    age_display=fuji_match.age_display,
+                    owner_name=fuji_match.owner_name,
+                    source=raw_input.source,
+                )
+                return BaulResult(
+                    patient_id=fuji_match.id,
+                    created=False,
+                    patient=normalized,
+                )
+            
+            # No existe — seguir flujo normal (creará paciente con "Desconocida")
+        
+        # Check if patient already exists using deduplication key
         existing_patient = await self._baul._find_existing(
             session, norm_name, norm_owner, normalized.species
         )
@@ -132,9 +182,9 @@ class ReceptionService:
                 created=False,
                 patient=normalized,
             )
-        
+
         # Create new patient (existing flow)
-        result = await self._baul.register(normalized, session)
+        result = await self._baul.register(normalized, session, session_code=raw_input.session_code)
         
         # Manually set the initial source for the new patient
         newly_created_patient = await session.get(Patient, result.patient_id)
@@ -388,7 +438,7 @@ class ReceptionService:
                         "patient_name": record.patient_name,
                         "parameter_code": record.parameter_code,
                         "raw_value": record.raw_value,
-                        "source": "FUJIFILM",
+                        "source": PatientSource.LIS_FUJIFILM.value,
                         "received_at": datetime.now(timezone.utc).isoformat()
                     })
                     count += 1
