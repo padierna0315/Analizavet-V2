@@ -72,7 +72,18 @@ fi
 echo "🌐 Verificando navegadores de Playwright para tests..."
 uv run playwright install chromium
 
-# 4.3 Inicializar/Actualizar Base de Datos
+# 5. Crear directorios necesarios antes de importar app.main (StaticFiles, etc.)
+if [ ! -d "images" ]; then
+    echo "📁 Creando directorio images/..."
+    mkdir -p images
+fi
+
+if [ ! -d "app/static" ]; then
+    echo "📁 Creando directorio static/..."
+    mkdir -p app/static/css app/static/js app/static/images
+fi
+
+# 6. Inicializar/Actualizar Base de Datos
 echo "🗄️ Actualizando esquema de base de datos..."
 DB_FILE="analizavet.db"
 if [ ! -f "$DB_FILE" ]; then
@@ -83,18 +94,6 @@ if [ ! -f "$DB_FILE" ]; then
 else
     echo "🔄 Base de datos existente encontrada. Ejecutando migraciones..."
     uv run alembic upgrade head
-fi
-
-# 5. Verificar que existe la carpeta static (CRITICAL per skill-santiago Leccion #1)
-if [ ! -d "app/static" ]; then
-    echo "📁 Creando directorio static/..."
-    mkdir -p app/static/css app/static/js app/static/images
-fi
-
-# 6. Crear directorio images si no existe
-if [ ! -d "images" ]; then
-    echo "📁 Creando directorio images/..."
-    mkdir -p images
 fi
 
 # 7. Verificar Redis para Dramatiq
