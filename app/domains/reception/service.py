@@ -17,6 +17,12 @@ import logfire
 import uuid
 
 
+def _sanitize_patient_age(has_age: bool, age_value: int | None, age_unit: str | None, age_display: str | None) -> tuple[bool, int | None, str | None, str | None]:
+    """Ensure age field consistency. If has_age is False or age_value is None, all fields must be None."""
+    if has_age and age_value is not None:
+        return has_age, age_value, age_unit, age_display
+    return False, None, None, None
+
 
 class ReceptionService:
     """Orchestrates the full reception flow:
@@ -58,15 +64,35 @@ class ReceptionService:
             await session.commit()
             await session.refresh(existing_patient)
 
+            # Sanitize age fields from DB (defensive — Patient model has no cross-field validator)
+            sanitized_has_age, sanitized_age_value, sanitized_age_unit, sanitized_age_display = \
+                _sanitize_patient_age(
+                    existing_patient.has_age,
+                    existing_patient.age_value,
+                    existing_patient.age_unit,
+                    existing_patient.age_display,
+                )
+
+            # Write-back: heal inconsistent DB data
+            if (existing_patient.has_age != sanitized_has_age or 
+                existing_patient.age_value != sanitized_age_value):
+                existing_patient.has_age = sanitized_has_age
+                existing_patient.age_value = sanitized_age_value
+                existing_patient.age_unit = sanitized_age_unit
+                existing_patient.age_display = sanitized_age_display
+                session.add(existing_patient)
+                await session.commit()
+                await session.refresh(existing_patient)
+
             # Convert Patient to NormalizedPatient for the result
             normalized = NormalizedPatient(
                 name=existing_patient.name,
                 species=existing_patient.species,
                 sex=existing_patient.sex,
-                has_age=existing_patient.has_age,
-                age_value=existing_patient.age_value,
-                age_unit=existing_patient.age_unit,
-                age_display=existing_patient.age_display,
+                has_age=sanitized_has_age,
+                age_value=sanitized_age_value,
+                age_unit=sanitized_age_unit,
+                age_display=sanitized_age_display,
                 owner_name=existing_patient.owner_name,
                 source=raw_input.source
             )
@@ -117,14 +143,34 @@ class ReceptionService:
                 await session.commit()
                 await session.refresh(fuji_match)
                 
+                # Sanitize age fields from DB (defensive — Patient model has no cross-field validator)
+                sanitized_has_age, sanitized_age_value, sanitized_age_unit, sanitized_age_display = \
+                    _sanitize_patient_age(
+                        fuji_match.has_age,
+                        fuji_match.age_value,
+                        fuji_match.age_unit,
+                        fuji_match.age_display,
+                    )
+
+                # Write-back: heal inconsistent DB data
+                if (fuji_match.has_age != sanitized_has_age or 
+                    fuji_match.age_value != sanitized_age_value):
+                    fuji_match.has_age = sanitized_has_age
+                    fuji_match.age_value = sanitized_age_value
+                    fuji_match.age_unit = sanitized_age_unit
+                    fuji_match.age_display = sanitized_age_display
+                    session.add(fuji_match)
+                    await session.commit()
+                    await session.refresh(fuji_match)
+
                 normalized = NormalizedPatient(
                     name=fuji_match.name,
                     species=fuji_match.species,
                     sex=fuji_match.sex,
-                    has_age=fuji_match.has_age,
-                    age_value=fuji_match.age_value,
-                    age_unit=fuji_match.age_unit,
-                    age_display=fuji_match.age_display,
+                    has_age=sanitized_has_age,
+                    age_value=sanitized_age_value,
+                    age_unit=sanitized_age_unit,
+                    age_display=sanitized_age_display,
                     owner_name=fuji_match.owner_name,
                     source=raw_input.source,
                 )
@@ -135,6 +181,67 @@ class ReceptionService:
                 )
             
             # No existe — seguir flujo normal (creará paciente con "Desconocida")
+        
+        # ── OZELLE / FILE: buscar por nombre únicamente ────────────────────
+        if raw_input.source in (PatientSource.LIS_OZELLE, PatientSource.LIS_FILE):
+            stmt = select(Patient).where(Patient.normalized_name == norm_name)
+            result = await session.execute(stmt)
+            ozelle_match = result.scalars().first()
+            
+            if ozelle_match:
+                logfire.info(
+                    f"Ozelle/File: paciente encontrado por nombre: {ozelle_match.name} "
+                    f"[id={ozelle_match.id}]"
+                )
+                # Add source
+                new_source = raw_input.source.value
+                if new_source not in ozelle_match.sources_received:
+                    ozelle_match.sources_received.append(new_source)
+                    flag_modified(ozelle_match, "sources_received")
+                # Backfill session_code si vino en el mensaje y el paciente no tiene
+                if raw_input.session_code and not ozelle_match.session_code:
+                    ozelle_match.session_code = raw_input.session_code
+                ozelle_match.updated_at = datetime.now(timezone.utc)
+                session.add(ozelle_match)
+                await session.commit()
+                await session.refresh(ozelle_match)
+                
+                # Sanitize age fields from DB
+                sanitized_has_age, sanitized_age_value, sanitized_age_unit, sanitized_age_display = \
+                    _sanitize_patient_age(
+                        ozelle_match.has_age,
+                        ozelle_match.age_value,
+                        ozelle_match.age_unit,
+                        ozelle_match.age_display,
+                    )
+                
+                # Write-back: heal inconsistent DB data
+                if (ozelle_match.has_age != sanitized_has_age or 
+                    ozelle_match.age_value != sanitized_age_value):
+                    ozelle_match.has_age = sanitized_has_age
+                    ozelle_match.age_value = sanitized_age_value
+                    ozelle_match.age_unit = sanitized_age_unit
+                    ozelle_match.age_display = sanitized_age_display
+                    session.add(ozelle_match)
+                    await session.commit()
+                    await session.refresh(ozelle_match)
+                
+                normalized = NormalizedPatient(
+                    name=ozelle_match.name,
+                    species=ozelle_match.species,
+                    sex=ozelle_match.sex,
+                    has_age=sanitized_has_age,
+                    age_value=sanitized_age_value,
+                    age_unit=sanitized_age_unit,
+                    age_display=sanitized_age_display,
+                    owner_name=ozelle_match.owner_name,
+                    source=raw_input.source,
+                )
+                return BaulResult(
+                    patient_id=ozelle_match.id,
+                    created=False,
+                    patient=normalized,
+                )
         
         # Check if patient already exists using deduplication key
         existing_patient = await self._baul._find_existing(
@@ -155,15 +262,27 @@ class ReceptionService:
                 # Mark the mutable list as modified for SQLAlchemy to detect the change
                 flag_modified(existing_patient, "sources_received")
             
+            # Sanitize age from normalized data (defensive — normalized is model-validated, but be safe)
+            sanitized_has_age, sanitized_age_value, sanitized_age_unit, sanitized_age_display = \
+                _sanitize_patient_age(
+                    normalized.has_age,
+                    normalized.age_value,
+                    normalized.age_unit,
+                    normalized.age_display,
+                )
+
             # Update demographic fields from new data
-            existing_patient.name = normalized.name
-            existing_patient.species = normalized.species
-            existing_patient.sex = normalized.sex
-            existing_patient.owner_name = normalized.owner_name
-            existing_patient.has_age = normalized.has_age
-            existing_patient.age_value = normalized.age_value
-            existing_patient.age_unit = normalized.age_unit
-            existing_patient.age_display = normalized.age_display
+            # Only from non-machine sources (manual forms, AppSheet)
+            # Machine sources (Ozelle, Fujifilm) only provide lab results — don't overwrite
+            if raw_input.source not in (PatientSource.LIS_OZELLE, PatientSource.LIS_FILE, PatientSource.LIS_FUJIFILM):
+                existing_patient.name = normalized.name
+                existing_patient.species = normalized.species
+                existing_patient.sex = normalized.sex
+                existing_patient.owner_name = normalized.owner_name
+                existing_patient.has_age = sanitized_has_age
+                existing_patient.age_value = sanitized_age_value
+                existing_patient.age_unit = sanitized_age_unit
+                existing_patient.age_display = sanitized_age_display
             
             # Update timestamp
             existing_patient.updated_at = datetime.now(timezone.utc)
@@ -485,6 +604,13 @@ class ReceptionService:
         # sources_received is now a Python list (TypeDecorator handles deserialization)
         sources_received = list(patient.sources_received or [])
         
+        # Check for latest TestResult
+        from app.shared.models.test_result import TestResult
+        from sqlmodel import select
+        tr_stmt = select(TestResult.id).where(TestResult.patient_id == patient.id).order_by(TestResult.id.desc()).limit(1)
+        tr_result = await session.execute(tr_stmt)
+        latest_result_id = tr_result.scalar_one_or_none()
+        
         patient_data = {
             "id": patient.id,
             "name": patient.name,
@@ -493,6 +619,7 @@ class ReceptionService:
             "owner_name": patient.owner_name,
             "age_display": patient.age_display,
             "session_code": patient.session_code,
+            "result_id": latest_result_id,
             "waiting_room_status": patient.waiting_room_status,
             "sources_received": sources_received,
             "created_at": patient.created_at.isoformat() if patient.created_at else None,

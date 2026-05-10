@@ -290,7 +290,7 @@ async def test_inject_patient_with_listo_status_succeeds(client: TestClient, ses
 
 
 @pytest.mark.asyncio
-async def test_inject_patient_no_test_results_returns_404(client: TestClient, session: Session):
+async def test_inject_patient_no_test_results_returns_422(client: TestClient, session: Session):
     # Setup
     await session.execute(text("DELETE FROM patient;"))
     await session.execute(text("DELETE FROM testresult;"))
@@ -302,13 +302,9 @@ async def test_inject_patient_no_test_results_returns_404(client: TestClient, se
     # Action: Attempt to inject patient to Taller
     response = client.post(f"/reception/patient/{patient.id}/inject-to-taller")
 
-    # Assertions - the simplified service now returns 200 with an empty body
-    # if no TestResult is found, and the router handles the 404.
-    # Let's adjust this test to expect a specific message if no TestResult is found
-    # (which is what the service returns, then the router logic determines HTTP status).
-    # Assuming the router now correctly returns 404 if the service returns None.
-    assert response.status_code == 404
-    assert '{"detail":"No pending/received test results found for this patient."}' in response.text
+    # Assertions — router now returns 422 with user-friendly Spanish message
+    assert response.status_code == 422
+    assert "Este paciente aún no tiene resultados de laboratorio para inyectar" in response.text
 
 
 @pytest.mark.asyncio

@@ -38,8 +38,7 @@ async def test_upload_json_baptism_file(client: AsyncClient, stub_broker):
 @pytest.mark.asyncio
 async def test_receive_new_patient(client: AsyncClient):
     response = await client.post("/reception/receive", json={
-        # Use unique name to avoid collision with other tests using "kitty felina 2a Laura Cepeda"
-        "raw_string": "luna felina 3a Ana Gomez",
+        "raw_string": "luka felina 3a Ana Gomez",
         "source": "LIS_OZELLE",
         "received_at": datetime.now(timezone.utc).isoformat(),
     })
@@ -47,7 +46,7 @@ async def test_receive_new_patient(client: AsyncClient):
     data = response.json()
     assert data["created"] is True
     assert data["patient_id"] > 0
-    assert data["patient"]["name"] == "Luna"
+    assert data["patient"]["name"] == "Luka"
     assert data["patient"]["species"] == "Felino"
     assert data["patient"]["sex"] == "Hembra"
     assert data["patient"]["owner_name"] == "Ana Gomez"
@@ -79,7 +78,7 @@ async def test_receive_invalid_species_returns_422(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_receive_coproscopic_no_age(client: AsyncClient):
     response = await client.post("/reception/receive", json={
-        "raw_string": "luna felina Laura García",
+        "raw_string": "princesa felina Laura García",
         "source": "LIS_OZELLE",
         "received_at": datetime.now(timezone.utc).isoformat(),
     })

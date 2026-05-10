@@ -116,7 +116,7 @@ async def test_process_fujifilm_message_valid_data(
         mock_reception_service.receive.assert_awaited_once_with(
             RawPatientInput(
                 raw_string="POLO",
-                session_code="908",
+                session_code=None,
                 source=PatientSource.LIS_FUJIFILM,
                 received_at=reception_input.received_at # Use the actual received_at from the call
             ),
@@ -157,7 +157,7 @@ async def test_process_fujifilm_message_missing_chemistry_values(
         mock_reception_service.receive.assert_awaited_once_with(
             RawPatientInput(
                 raw_string="LUPO",
-                session_code="909",
+                session_code=None,
                 source=PatientSource.LIS_FUJIFILM,
                 received_at=reception_input.received_at
             ),
@@ -223,7 +223,7 @@ async def test_process_fujifilm_message_invalid_received_at(
         mock_reception_service.receive.assert_awaited_once_with(
             RawPatientInput(
                 raw_string="CANELA",
-                session_code="911",
+                session_code=None,
                 source=PatientSource.LIS_FUJIFILM,
                 received_at=reception_input.received_at
             ),
@@ -267,7 +267,7 @@ async def test_process_fujifilm_message_raw_value_asterisks(
         mock_reception_service.receive.assert_awaited_once_with(
             RawPatientInput(
                 raw_string="MAX",
-                session_code="912",
+                session_code=None,
                 source=PatientSource.LIS_FUJIFILM,
                 received_at=reception_input.received_at
             ),

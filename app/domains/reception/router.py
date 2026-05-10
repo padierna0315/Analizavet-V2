@@ -350,7 +350,7 @@ async def inject_patient_to_taller(
         unified_test_result = await _service.inject_patient_to_taller(patient_id, session)
         
         if not unified_test_result:
-            raise HTTPException(status_code=404, detail="No pending/received test results found for this patient.")
+            raise HTTPException(status_code=422, detail="Este paciente aún no tiene resultados de laboratorio para inyectar. Primero debe llegar el dato desde el analizador (Ozelle/Fujifilm).")
 
         from app.domains.taller.router import load_patient_workspace
         return await load_patient_workspace(request, unified_test_result.id, session)

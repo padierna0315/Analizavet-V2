@@ -97,7 +97,7 @@ def process_fujifilm_message(data: dict):
 
         reception_input = RawPatientInput(
             raw_string=raw_string,
-            session_code=internal_id,
+            session_code=None,
             source=PatientSource(source_value),
             received_at=received_at,
         )
