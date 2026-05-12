@@ -1,6 +1,6 @@
 {
     "RBC": {
-        "name": "Eritrocitos Modificado",
+        "name": "Eritrocitos",
         "unit": "x10^6/µL",
         "ranges": {
             "canine": {

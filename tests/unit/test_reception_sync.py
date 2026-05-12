@@ -41,6 +41,7 @@ async def test_sync_from_appsheet_new_patient(session: AsyncSession):
     assert patient.name == "Lucas"
     assert patient.owner_name == "Luz Bonolis Serna"
     assert patient.session_code == "A1"
+    assert patient.doctor_name == "Aura"
     assert PatientSource.APPSHEET.value in patient.sources_received
 
 @pytest.mark.asyncio
@@ -88,6 +89,7 @@ async def test_sync_from_appsheet_update_existing(session: AsyncSession):
     patient = result.scalar_one_or_none()
     
     assert patient is not None
+    assert patient.doctor_name == "Aura"
     assert PatientSource.APPSHEET.value in patient.sources_received
     assert PatientSource.LIS_OZELLE.value in patient.sources_received
     assert patient.breed == "Mestizo"
@@ -114,4 +116,6 @@ async def test_sync_from_appsheet_multiple(session: AsyncSession):
     patients = result.scalars().all()
     assert len(patients) == 2
     assert patients[0].session_code == "A1"
+    assert patients[0].doctor_name == "A"
     assert patients[1].session_code == "A2"
+    assert patients[1].doctor_name == "B"

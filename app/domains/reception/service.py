@@ -342,6 +342,7 @@ class ReceptionService:
                 existing_patient.sex = ap.gender
                 existing_patient.owner_name = ap.owner_name
                 existing_patient.breed = ap.breed
+                existing_patient.doctor_name = ap.vet_name or None
                 
                 # Manejar edad
                 try:
@@ -367,6 +368,7 @@ class ReceptionService:
                     sex=ap.gender,
                     owner_name=ap.owner_name,
                     breed=ap.breed,
+                    doctor_name=ap.vet_name or None,
                     session_code=ap.session_code,
                     source=PatientSource.APPSHEET.value,
                     sources_received=[PatientSource.APPSHEET.value],
@@ -489,26 +491,114 @@ class ReceptionService:
         self, patient_id: int, session: AsyncSession
     ) -> TestResult | None:
         """
-        Loads the latest TestResult for a patient into Taller.
-        No filtering by status — if the patient is in the waiting room, their data is injectable.
+        Loads ALL TestResults for a patient, merges them into a single TestResult,
+        and returns the unified result for the Taller workspace.
+
+        Handles:
+        - Multiple sources (Ozelle + Fujifilm) → merged into one TR
+        - Multiple parameters from same source (CRE + ALT) → merged into one TR
+        - Duplicate parameters → skipped (first wins)
+        - Race conditions → idempotent (merge always produces same result)
         """
         logfire.info(f"Attempting to inject patient {patient_id} test results to Taller.")
 
+        # Load ALL TestResults for this patient (newest first)
         statement = (
             select(TestResult)
             .where(TestResult.patient_id == patient_id)
             .order_by(TestResult.id.desc())
-            .limit(1)
         )
         result = await session.execute(statement)
-        test_result = result.scalars().first()
+        test_results = result.scalars().all()
 
-        if not test_result:
+        if not test_results:
             logfire.warning(f"No TestResult found for patient {patient_id}.")
             return None
 
-        logfire.info(f"Found TestResult {test_result.id} (status={test_result.status}) for patient {patient_id}.")
-        return test_result
+        # Load Patient to get doctor_name (sync desde AppSheet)
+        patient_result = await session.execute(select(Patient).where(Patient.id == patient_id))
+        patient = patient_result.scalar_one_or_none()
+        doctor_name = patient.doctor_name if patient else None
+
+        if len(test_results) == 1:
+            # Single TR — nothing to merge, return as-is with doctor_name
+            tr = test_results[0]
+            if doctor_name and not tr.doctor_name:
+                tr.doctor_name = doctor_name
+                session.add(tr)
+                await session.commit()
+                await session.refresh(tr)
+            logfire.info(f"Found TestResult {tr.id} (status={tr.status}) for patient {patient_id}.")
+            return tr
+
+        # Multiple TRs — merge all into the LATEST one
+        target_tr = test_results[0]
+        merged_sources = {target_tr.source}
+
+        for tr in test_results[1:]:
+            merged_sources.add(tr.source)
+
+            # Load LabValues from this older TR
+            older_lvs = await session.execute(
+                select(LabValue).where(LabValue.test_result_id == tr.id)
+            )
+
+            for lv in older_lvs.scalars().all():
+                # Skip if this parameter_code already exists in target TR
+                dup_check = await session.execute(
+                    select(LabValue).where(
+                        LabValue.test_result_id == target_tr.id,
+                        LabValue.parameter_code == lv.parameter_code,
+                    )
+                )
+                if dup_check.scalars().first() is not None:
+                    logfire.info(
+                        f"Skipping duplicate {lv.parameter_code} from TestResult {tr.id} "
+                        f"(already in TestResult {target_tr.id})"
+                    )
+                    continue
+
+                # Copy LabValue to target TR (create new, don't reparent — avoids cascade complexity)
+                new_lv = LabValue(
+                    test_result_id=target_tr.id,
+                    parameter_code=lv.parameter_code,
+                    parameter_name_es=lv.parameter_name_es,
+                    raw_value=lv.raw_value,
+                    numeric_value=lv.numeric_value,
+                    unit=lv.unit,
+                    reference_range=lv.reference_range,
+                    flag=lv.flag,
+                    machine_flag=lv.machine_flag,
+                )
+                session.add(new_lv)
+
+            # Delete the old TR (cascade deletes its now-redundant LabValues)
+            await session.delete(tr)
+
+        # Update target TR source to reflect merged provenance
+        target_tr.source = ",".join(sorted(merged_sources))
+
+        # Recalculate flag counts based on ALL merged LabValues
+        all_lvs = await session.execute(
+            select(LabValue).where(LabValue.test_result_id == target_tr.id)
+        )
+        flags = [lv.flag for lv in all_lvs.scalars().all()]
+        target_tr.flag_alto_count = flags.count("ALTO")
+        target_tr.flag_normal_count = flags.count("NORMAL")
+        target_tr.flag_bajo_count = flags.count("BAJO")
+
+        # Propagar doctor_name desde el Patient al TestResult unificado
+        if doctor_name and not target_tr.doctor_name:
+            target_tr.doctor_name = doctor_name
+
+        await session.commit()
+        await session.refresh(target_tr)
+
+        logfire.info(
+            f"Merged {len(test_results)} TestResults into TestResult {target_tr.id} "
+            f"(sources: {target_tr.source}, params: {len(flags)}) for patient {patient_id}."
+        )
+        return target_tr
 
     async def handle_uploaded_file(self, file_content: bytes, file_type: str, session: AsyncSession) -> str:
         """
@@ -550,6 +640,7 @@ class ReceptionService:
 
                 records = parse_fujifilm_message(content_str)
                 count = 0
+                batch_received_at = datetime.now(timezone.utc).isoformat()  # mismo timestamp para todo el batch
                 for record in records:
                     # 'record' is a FujifilmReading object
                     process_fujifilm_message.send({
@@ -558,7 +649,7 @@ class ReceptionService:
                         "parameter_code": record.parameter_code,
                         "raw_value": record.raw_value,
                         "source": PatientSource.LIS_FUJIFILM.value,
-                        "received_at": datetime.now(timezone.utc).isoformat()
+                        "received_at": batch_received_at
                     })
                     count += 1
                 set_upload_status(upload_id, f"complete:{count}")

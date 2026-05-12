@@ -16,7 +16,35 @@ fi
 
 echo "🚀 Iniciando Analizavet V2 (Fase Desarrollo - uv)"
 
-# 0. Instalar dependencias del sistema (WeasyPrint, etc)
+# ──────────────────────────────────────────────────
+# 0. LIMPIEZA TOTAL — siempre arrancar desde cero
+# ──────────────────────────────────────────────────
+echo "🧹 Limpiando procesos y puertos de ejecuciones anteriores..."
+
+# Matar instancias previas de uvicorn
+for pid in $(lsof -ti tcp:8000 2>/dev/null); do
+    kill "$pid" 2>/dev/null && echo "   Proceso anterior en puerto 8000 eliminado (PID: $pid)"
+done
+
+# Matar instancias previas de Dramatiq
+pkill -f "dramatiq.*broker" 2>/dev/null && echo "   Worker Dramatiq anterior eliminado"
+
+# Liberar TODOS los puertos que usamos
+for port in 6000 6001 8000 9191 9200; do
+    fuser -k "${port}/tcp" 2>/dev/null || true
+done
+echo "   Puertos 6000, 6001, 8000, 9191, 9200 liberados"
+
+# Eliminar contenedor Redis si existe de una sesión anterior
+if podman ps -a --filter "name=redis-analizavet" --format "{{.Names}}" 2>/dev/null | grep -q "redis-analizavet"; then
+    podman rm -f redis-analizavet 2>/dev/null && echo "   Contenedor Redis anterior eliminado"
+fi
+
+sleep 1
+echo "✅ Limpieza completa"
+# ──────────────────────────────────────────────────
+
+# 0.1. Instalar dependencias del sistema (WeasyPrint, etc)
 if command -v apt-get &> /dev/null; then
     echo "🔍 Verificando dependencias del sistema (Debian/Ubuntu)..."
     if ! dpkg -s libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info curl &> /dev/null; then
@@ -100,19 +128,16 @@ fi
 echo "🔍 Verificando Redis..."
 if command -v podman &> /dev/null; then
     # Podman-based Redis (Fedora, sin Redis nativo)
-    if podman ps --filter "name=redis-analizavet" --format "{{.Names}}" 2>/dev/null | grep -q "redis-analizavet"; then
-        echo "✅ Redis ya está corriendo (contenedor Podman: redis-analizavet)"
+    echo "📦 Iniciando Redis en contenedor Podman..."
+    podman rm -f redis-analizavet 2>/dev/null || true
+    podman run -d --name redis-analizavet -p 6379:6379 docker.io/redis:7-alpine
+    sleep 2
+    # Verificar con Python (redis-cli no siempre está instalado)
+    if uv run python -c "import redis; redis.Redis(host='localhost', port=6379).ping()" 2>/dev/null; then
+        echo "✅ Redis iniciado correctamente (contenedor Podman)"
     else
-        echo "📦 Iniciando Redis en contenedor Podman..."
-        podman run -d --name redis-analizavet -p 6379:6379 docker.io/redis:7-alpine
-        sleep 2
-        # Verificar con Python (redis-cli no siempre está instalado)
-        if uv run python -c "import redis; redis.Redis(host='localhost', port=6379).ping()" 2>/dev/null; then
-            echo "✅ Redis iniciado correctamente (contenedor Podman)"
-        else
-            echo "❌ No se pudo iniciar Redis en Podman"
-            exit 1
-        fi
+        echo "❌ No se pudo iniciar Redis en Podman"
+        exit 1
     fi
 elif command -v redis-server &> /dev/null; then
     # Redis nativo (Debian/Ubuntu)
@@ -135,14 +160,10 @@ else
     exit 1
 fi
 
-# 8. Limpiar puertos 9191/9200 (Prometheus middleware) antes de iniciar worker
-echo "🧹 Limpiando puertos 9191/9200 (Prometheus)..."
-fuser -k 9191/tcp 9200/tcp 2>/dev/null || true
-
-# 9. Iniciar Dramatiq worker en segundo plano
+# 8. Iniciar Dramatiq worker en segundo plano
 echo "🎭 Iniciando worker de Dramatiq..."
 DRAMATIQ_ENV="DRAMATIQ_PROMETHEUS_PORT=-1"
-uv run env "$DRAMATIQ_ENV" dramatiq app.tasks.broker:broker --threads 2 &
+uv run env "$DRAMATIQ_ENV" dramatiq app.tasks.broker:broker --threads 1 &
 DRAMATIQ_PID=$!
 sleep 3
 

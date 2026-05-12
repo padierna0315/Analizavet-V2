@@ -424,6 +424,53 @@ async def test_handle_uploaded_file_fujifilm_uses_correct_source(
         assert call_kwargs["source"] != "FUJIFILM"
 
 
+@pytest.mark.asyncio
+async def test_handle_uploaded_file_fujifilm_same_received_at_for_batch(
+    mock_async_session_local, mock_logfire
+):
+    """Scenario: Multiple Fujifilm records in one upload share the same received_at.
+
+    The merge helper _find_or_create_test_result groups LabValues by
+    (patient_id, source, received_at) — an exact match. If each record gets
+    a different received_at timestamp (because datetime.now() is called inside
+    the loop), they end up in separate TestResults. This test verifies that
+    all records in the same batch share a single received_at.
+    """
+    from app.domains.reception.service import ReceptionService
+
+    fake_records = [
+        FujifilmReading(internal_id="908", patient_name="POLO", parameter_code="CRE", raw_value="0.87"),
+        FujifilmReading(internal_id="908", patient_name="POLO", parameter_code="BUN", raw_value="15.2"),
+    ]
+
+    with (
+        patch('app.satellites.fujifilm.parser.parse_fujifilm_message', return_value=fake_records),
+        patch('app.tasks.fujifilm_processor.process_fujifilm_message') as mock_actor,
+    ):
+        service = ReceptionService()
+        await service.handle_uploaded_file(
+            b"dummy content", "fujifilm", mock_async_session_local
+        )
+
+        # Both records should have been sent
+        assert mock_actor.send.call_count == 2
+
+        received_ats = [
+            call.args[0]["received_at"]
+            for call in mock_actor.send.call_args_list
+        ]
+
+        # All received_at values must be identical (same batch timestamp)
+        assert len(set(received_ats)) == 1, (
+            f"Expected all records to share the same received_at, got: {received_ats}"
+        )
+
+        # Verify they are all non-empty ISO timestamps
+        for ts in received_ats:
+            assert ts, "received_at must not be empty"
+            assert "T" in ts, f"received_at must be ISO format, got: {ts}"
+
+
 # -----------------------------------------------------------------------------
 # Tests for _find_or_create_test_result (Task 1.2) and merge behavior (Task 1.3-1.4)
 # -----------------------------------------------------------------------------
@@ -463,7 +510,7 @@ async def test_find_or_create_test_result_finds_existing(
     assert result.id == 42
     mock_taller_service.create_test_result.assert_not_called()
     mock_logfire[0].assert_any_call(
-        f"Found existing TestResult 42 for patient 1"
+        f"Found existing TestResult 42 for patient 1 (time window match)"
     )
 
 
@@ -506,6 +553,41 @@ async def test_find_or_create_test_result_creates_new(
         received_at=received_at,
         session=mock_async_session_local,
     )
+
+
+# -----------------------------------------------------------------------------
+# Tests for logger output (Phase 2)
+# -----------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_fujifilm_pipeline_logging(
+    mock_reception_service, mock_taller_service, mock_async_session_local, mock_logfire
+):
+    """Scenario: Pipeline execution produces logger.info calls.
+
+    When _async_process_pipeline runs with valid data, it should log
+    key steps via the standard logging module (in addition to logfire).
+    """
+    with patch('app.tasks.fujifilm_processor.logger', create=True) as mock_logger:
+        received_at = datetime.now(timezone.utc)
+        reception_input = RawPatientInput(
+            raw_string="POLO",
+            source=PatientSource.LIS_FUJIFILM,
+            received_at=received_at,
+        )
+
+        await _async_process_pipeline(reception_input, "908", "CRE", "0.87")
+
+        # Verify logger.info was called at least once during pipeline execution
+        assert mock_logger.info.call_count >= 1
+
+        # Verify logfire.info was also called (coexistence)
+        mock_logfire[0].assert_any_call(
+            "Fujifilm pipeline starting",
+            patient_name="POLO",
+            internal_id="908",
+            parameter="CRE",
+        )
 
 
 # -----------------------------------------------------------------------------
@@ -572,6 +654,65 @@ async def test_async_process_pipeline_merge_same_tr(
     flag_call_2 = mock_taller_service.flag_and_store.await_args_list[1]
     assert flag_call_2.kwargs["test_result_id"] == 100
     assert flag_call_2.kwargs["values"][0].parameter_code == "BUN"
+
+
+@pytest.mark.asyncio
+async def test_sequential_cre_alt_merge_same_tr(
+    mock_reception_service, mock_taller_service, mock_async_session_local, mock_logfire
+):
+    """Scenario: Two sequential calls with CRE then ALT for same patient merge into one TR.
+
+    When CRE and ALT arrive for the same patient in the same received_at window,
+    they should share a single TestResult, with each value stored via flag_and_store.
+    """
+    received_at = datetime.now(timezone.utc)
+
+    # Set up mock so first pipeline call creates a TR (no existing found)
+    mock_no_tr = MagicMock()
+    mock_no_tr.scalars.return_value.first.return_value = None
+    mock_async_session_local.execute.return_value = mock_no_tr
+
+    # Mock create_test_result to return a known TR
+    created_tr = TestResult(id=100, patient_id=1, source="LIS_FUJIFILM", received_at=received_at)
+    mock_taller_service.create_test_result.return_value = created_tr
+
+    # Call pipeline for first value (CRE)
+    reception_input = RawPatientInput(
+        raw_string="POLO",
+        source=PatientSource.LIS_FUJIFILM,
+        received_at=received_at,
+    )
+    await _async_process_pipeline(reception_input, "908", "CRE", "0.87")
+
+    # Verify: create_test_result called once for the first value
+    assert mock_taller_service.create_test_result.await_count == 1
+    # Verify: flag_and_store was called with the first value
+    assert mock_taller_service.flag_and_store.await_count == 1
+    flag_call_1 = mock_taller_service.flag_and_store.await_args_list[0]
+    assert flag_call_1.kwargs["test_result_id"] == 100
+    assert flag_call_1.kwargs["values"][0].parameter_code == "CRE"
+
+    # For the second call, mock execute to return the existing TR on first call
+    # and None on second call (no duplicate LabValue for ALT)
+    mock_existing_tr = MagicMock()
+    mock_existing_tr.scalars.return_value.first.return_value = created_tr
+    mock_no_dup_lv = MagicMock()
+    mock_no_dup_lv.scalars.return_value.first.return_value = None
+    mock_async_session_local.execute.side_effect = [mock_existing_tr, mock_no_dup_lv]
+
+    # Call pipeline for second value (ALT) — same patient, same received_at
+    await _async_process_pipeline(reception_input, "908", "ALT", "45.0")
+
+    # Reset side_effect for any subsequent test fixture cleanup
+    mock_async_session_local.execute.side_effect = None
+
+    # Verify: create_test_result was NOT called again (same TR reused)
+    assert mock_taller_service.create_test_result.await_count == 1
+    # Verify: flag_and_store was called for the second value
+    assert mock_taller_service.flag_and_store.await_count == 2
+    flag_call_2 = mock_taller_service.flag_and_store.await_args_list[1]
+    assert flag_call_2.kwargs["test_result_id"] == 100
+    assert flag_call_2.kwargs["values"][0].parameter_code == "ALT"
 
 
 @pytest.mark.asyncio

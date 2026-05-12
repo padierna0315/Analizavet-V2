@@ -100,6 +100,9 @@ class Patient(SQLModel, table=True):
     # Source tracking
     source: str                 # PatientSource value as string
     
+    # Doctor/profesional asignado (sync desde AppSheet)
+    doctor_name: Optional[str] = Field(default=None)
+
     # Waiting room fields (for sala-espera-persistente)
     session_code: Optional[str] = Field(default=None, index=True)  # e.g., "A1-20260501"
     waiting_room_status: str = Field(default="active")  # active, deleted, pdf_generated

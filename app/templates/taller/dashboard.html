@@ -615,7 +615,7 @@
       </div>
       <div class="reception-content" id="reception-content"
            hx-get="/reception/taller/reception"
-           hx-trigger="load, every 5s [document.getElementById('modal-container').innerHTML.trim() === ''], refreshReceptionGrid from:body"
+           hx-trigger="load, every 5s, refreshReceptionGrid from:body"
            hx-swap="innerHTML">
           <div class="reception-status-msg">Cargando pacientes...</div>
       </div>

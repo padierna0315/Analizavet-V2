@@ -5,10 +5,20 @@ Decouples TCP reception from Core processing via Dramatiq background tasks.
 Similar to hl7_processor.py but tailored for Fujifilm-format messages.
 """
 
+import logging
+import sys
+
 import dramatiq
 import logfire
 import anyio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 from app.database import AsyncSessionLocal
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -65,6 +75,10 @@ def process_fujifilm_message(data: dict):
     if raw_value == "****":
         raw_value = None
 
+    logger.info(
+        f"Processing Fujifilm reading: patient={patient_name}, internal_id={internal_id}, "
+        f"param={parameter_code}, value={raw_value}, source={source_value}"
+    )
     logfire.info(
         "Processing Fujifilm reading",
         patient_name=patient_name,
@@ -106,6 +120,7 @@ def process_fujifilm_message(data: dict):
         anyio.run(_async_process_pipeline, reception_input, internal_id, parameter_code, raw_value)
 
     except Exception as e:
+        logger.error(f"Fujifilm processing failed: {e}", exc_info=True)
         logfire.error(f"Fujifilm processing failed: {e}", exc_info=True)
         raise  # Trigger Dramatiq retry
 
@@ -120,22 +135,29 @@ async def _find_or_create_test_result(
     received_at: datetime,
     session: AsyncSession,
 ) -> TestResult:
-    """Find existing TestResult by (patient_id, source, received_at) or create new.
+    """Find existing TestResult by (patient_id, source) within a time window or create new.
 
-    All readings from the same transmission share the same received_at timestamp,
-    so an exact match on (patient_id, source, received_at) groups readings into
-    a single TestResult. This avoids creating one TestResult per chemistry value.
+    Uses a ±3-second window on received_at instead of exact match to handle
+    both file uploads (same timestamp) and live TCP adapter (timestamps may
+    differ by milliseconds when the machine sends each parameter as a separate
+    TCP line). All readings from the same transmission are grouped into a
+    single TestResult.
     """
+    window = timedelta(seconds=3)
     result = await session.execute(
         select(TestResult).where(
             TestResult.patient_id == patient_id,
             TestResult.source == source,
-            TestResult.received_at == received_at,
-        )
+            TestResult.received_at.between(
+                received_at - window,
+                received_at + window,
+            ),
+        ).order_by(TestResult.received_at.desc())
     )
     existing = result.scalars().first()
     if existing:
-        logfire.info(f"Found existing TestResult {existing.id} for patient {patient_id}")
+        logger.info(f"Found existing TestResult {existing.id} for patient {patient_id} (time window match)")
+        logfire.info(f"Found existing TestResult {existing.id} for patient {patient_id} (time window match)")
         return existing
 
     return await taller_svc.create_test_result(
@@ -170,6 +192,10 @@ async def _async_process_pipeline(
     We forward it through ReceptionService so it appears in the Baúl just like
     other sources, making it queryable and deduplicated.
     """
+    logger.info(
+        f"Fujifilm pipeline starting: patient={reception_input.raw_string}, "
+        f"internal_id={internal_id}, param={parameter_code}"
+    )
     logfire.info(
         "Fujifilm pipeline starting",
         patient_name=reception_input.raw_string,
@@ -186,6 +212,10 @@ async def _async_process_pipeline(
             patient_id = baul_result.patient_id
             normalized_patient = baul_result.patient
 
+            logger.info(
+                f"Fujifilm reception complete: patient_id={patient_id}, "
+                f"created={baul_result.created}, name={normalized_patient.name}"
+            )
             logfire.info(
                 f"Fujifilm recepción completada. Paciente ID: {patient_id} "
                 f"(nuevo: {baul_result.created}) — name: {normalized_patient.name}"
@@ -199,6 +229,10 @@ async def _async_process_pipeline(
             # (The HL7 path handles full lab integration via TallerService.)
 
             if parameter_code and raw_value is not None:
+                logger.info(
+                    f"Fujifilm chemistry reading now fully processing: "
+                    f"patient_id={patient_id}, param={parameter_code}, value={raw_value}"
+                )
                 logfire.info(
                     f"Fujifilm chemistry reading now fully processing",
                     patient_id=patient_id,
@@ -260,12 +294,16 @@ async def _async_process_pipeline(
                         values=[raw_input],
                         session=session,
                     )
+                    logger.info(f"Fujifilm lab value {parameter_code}={raw_value} stored in TestResult {tr.id}.")
                     logfire.info(f"Fujifilm lab value {parameter_code}={raw_value} stored in TestResult {tr.id}.")
             else:
+                logger.info("Fujifilm: No parameter_code or raw_value provided, skipping lab value processing.")
                 logfire.info("Fujifilm: No parameter_code or raw_value provided, skipping lab value processing.")
 
+            logger.info("Fujifilm pipeline completado exitosamente.")
             logfire.info("Fujifilm pipeline completado exitosamente.")
 
     except Exception as e:
+        logger.error(f"Error crítico en pipeline Fujifilm: {e}", exc_info=True)
         logfire.error(f"Error crítico en pipeline Fujifilm: {e}", exc_info=True)
         raise  # Let Dramatiq retry
