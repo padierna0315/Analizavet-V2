@@ -103,6 +103,10 @@ class Patient(SQLModel, table=True):
     # Doctor/profesional asignado (sync desde AppSheet)
     doctor_name: Optional[str] = Field(default=None)
 
+    # Tipo de examen solicitado (sync desde AppSheet — Examen_Especifico)
+    appsheet_test_type: Optional[str] = Field(default=None)       # "Perfil Básico", "Coprológico", etc.
+    appsheet_test_type_code: Optional[str] = Field(default=None)  # "CHEM", "COPROSC", etc.
+
     # Waiting room fields (for sala-espera-persistente)
     session_code: Optional[str] = Field(default=None, index=True)  # e.g., "A1-20260501"
     waiting_room_status: str = Field(default="active")  # active, deleted, pdf_generated

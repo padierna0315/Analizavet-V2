@@ -24,6 +24,33 @@ def _sanitize_patient_age(has_age: bool, age_value: int | None, age_unit: str | 
     return False, None, None, None
 
 
+# ── AppSheet test_type mapping ─────────────────────────────────────────────────
+# Mapeo de Examen_Especifico (AppSheet) → (test_type_display, test_type_code)
+# Ordenado de más específico a menos específico para matching exacto.
+_APPSHEET_TEST_TYPE_MAP: dict[str, tuple[str, str]] = {
+    "Coprologico seriado 3": ("Coprológico Seriado 3", "COPROSC"),
+    "Coprologico seriado 2": ("Coprológico Seriado 2", "COPROSC"),
+    "Coprologico seriado 1": ("Coprológico Seriado 1", "COPROSC"),
+    "Coprologico": ("Coprológico", "COPROSC"),
+    "Perfil Hepatico": ("Perfil Hepático", "CHEM"),
+    "Perfil Renal": ("Perfil Renal", "CHEM"),
+    "Perfil Basico": ("Perfil Básico", "CHEM"),
+}
+
+# Valor por defecto cuando AppSheet no especifica el tipo de examen
+_DEFAULT_APPSHEET_TEST_TYPE = ("Química Sanguínea", "CHEM")
+
+
+def _resolve_appsheet_test_type(examen_especifico: str | None) -> tuple[str, str]:
+    """Resuelve Examen_Especifico de AppSheet a (test_type, test_type_code).
+
+    Si el valor no está en el mapa (None o desconocido), retorna el default.
+    """
+    if not examen_especifico:
+        return _DEFAULT_APPSHEET_TEST_TYPE
+    return _APPSHEET_TEST_TYPE_MAP.get(examen_especifico.strip(), _DEFAULT_APPSHEET_TEST_TYPE)
+
+
 class ReceptionService:
     """Orchestrates the full reception flow:
     RawPatientInput → normalize → Baúl → BaulResult
@@ -343,6 +370,9 @@ class ReceptionService:
                 existing_patient.owner_name = ap.owner_name
                 existing_patient.breed = ap.breed
                 existing_patient.doctor_name = ap.vet_name or None
+                appsheet_type, appsheet_code = _resolve_appsheet_test_type(ap.test_type)
+                existing_patient.appsheet_test_type = appsheet_type
+                existing_patient.appsheet_test_type_code = appsheet_code
                 
                 # Manejar edad
                 try:
@@ -362,6 +392,7 @@ class ReceptionService:
                 session.add(existing_patient)
             else:
                 # Crear nuevo paciente limpio y fresco
+                appsheet_type, appsheet_code = _resolve_appsheet_test_type(ap.test_type)
                 new_patient = Patient(
                     name=ap.name,
                     species=ap.species,
@@ -369,6 +400,8 @@ class ReceptionService:
                     owner_name=ap.owner_name,
                     breed=ap.breed,
                     doctor_name=ap.vet_name or None,
+                    appsheet_test_type=appsheet_type,
+                    appsheet_test_type_code=appsheet_code,
                     session_code=ap.session_code,
                     source=PatientSource.APPSHEET.value,
                     sources_received=[PatientSource.APPSHEET.value],
@@ -515,16 +548,22 @@ class ReceptionService:
             logfire.warning(f"No TestResult found for patient {patient_id}.")
             return None
 
-        # Load Patient to get doctor_name (sync desde AppSheet)
+        # Load Patient para datos de AppSheet (doctor_name + test_type)
         patient_result = await session.execute(select(Patient).where(Patient.id == patient_id))
         patient = patient_result.scalar_one_or_none()
         doctor_name = patient.doctor_name if patient else None
+        appsheet_test_type = patient.appsheet_test_type if patient else None
+        appsheet_test_type_code = patient.appsheet_test_type_code if patient else None
 
         if len(test_results) == 1:
-            # Single TR — nothing to merge, return as-is with doctor_name
+            # Single TR — nothing to merge, return as-is with doctor_name + appsheet_test_type
             tr = test_results[0]
             if doctor_name and not tr.doctor_name:
                 tr.doctor_name = doctor_name
+            if appsheet_test_type:
+                tr.test_type = appsheet_test_type
+                tr.test_type_code = appsheet_test_type_code or tr.test_type_code
+            if doctor_name or appsheet_test_type:
                 session.add(tr)
                 await session.commit()
                 await session.refresh(tr)
@@ -590,6 +629,12 @@ class ReceptionService:
         # Propagar doctor_name desde el Patient al TestResult unificado
         if doctor_name and not target_tr.doctor_name:
             target_tr.doctor_name = doctor_name
+
+        # Propagar appsheet_test_type desde el Patient al TestResult unificado
+        # para que el PDF muestre el tipo de examen que AppSheet especificó
+        if appsheet_test_type:
+            target_tr.test_type = appsheet_test_type
+            target_tr.test_type_code = appsheet_test_type_code or target_tr.test_type_code
 
         await session.commit()
         await session.refresh(target_tr)

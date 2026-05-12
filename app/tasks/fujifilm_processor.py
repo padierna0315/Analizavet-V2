@@ -128,6 +128,24 @@ def process_fujifilm_message(data: dict):
 # ── Merge Helper ─────────────────────────────────────────────────────────────
 
 
+async def _resolve_test_type_from_patient(
+    patient_id: int,
+    session: AsyncSession,
+) -> tuple[str, str]:
+    """Resuelve test_type + test_type_code desde el Patient (AppSheet) o fallback hardcoded.
+
+    Si el paciente fue sincronizado desde AppSheet con un Examen_Especifico,
+    usa ese valor. De lo contrario, cae al default "Química Sanguínea"/"CHEM".
+    """
+    patient_result = await session.execute(
+        select(Patient).where(Patient.id == patient_id)
+    )
+    patient = patient_result.scalar_one_or_none()
+    if patient and patient.appsheet_test_type:
+        return patient.appsheet_test_type, patient.appsheet_test_type_code or "CHEM"
+    return "Química Sanguínea", "CHEM"
+
+
 async def _find_or_create_test_result(
     taller_svc: TallerService,
     patient_id: int,
@@ -142,6 +160,10 @@ async def _find_or_create_test_result(
     differ by milliseconds when the machine sends each parameter as a separate
     TCP line). All readings from the same transmission are grouped into a
     single TestResult.
+
+    When creating a NEW TestResult, resolves test_type from the Patient's
+    AppSheet data (Examen_Especifico) if available, otherwise falls back
+    to hardcoded "Química Sanguínea"/"CHEM".
     """
     window = timedelta(seconds=3)
     result = await session.execute(
@@ -160,10 +182,11 @@ async def _find_or_create_test_result(
         logfire.info(f"Found existing TestResult {existing.id} for patient {patient_id} (time window match)")
         return existing
 
+    test_type, test_type_code = await _resolve_test_type_from_patient(patient_id, session)
     return await taller_svc.create_test_result(
         patient_id=patient_id,
-        test_type="Química Sanguínea",
-        test_type_code="CHEM",
+        test_type=test_type,
+        test_type_code=test_type_code,
         source=source,
         received_at=received_at,
         session=session,

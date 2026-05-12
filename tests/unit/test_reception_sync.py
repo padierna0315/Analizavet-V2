@@ -42,7 +42,63 @@ async def test_sync_from_appsheet_new_patient(session: AsyncSession):
     assert patient.owner_name == "Luz Bonolis Serna"
     assert patient.session_code == "A1"
     assert patient.doctor_name == "Aura"
+    # AppSheet test_type: "Perfil Básico (PQ1)" no está en el mapa exacto → fallback a default
+    assert patient.appsheet_test_type == "Química Sanguínea"
+    assert patient.appsheet_test_type_code == "CHEM"
     assert PatientSource.APPSHEET.value in patient.sources_received
+
+@pytest.mark.asyncio
+async def test_sync_from_appsheet_new_patient_mapped_type(session: AsyncSession):
+    """Verifica que Examen_Especifico con valores del mapa se resuelve correctamente."""
+    await session.execute(delete(Patient))
+    await session.commit()
+
+    service = ReceptionService()
+
+    appsheet_patients = [
+        AppSheetPatient(
+            Codigo_Corto="R1",
+            Doctora="Aura",
+            Categoria_Examen="Examen de sangre",
+            Examen_Especifico="Perfil Renal",
+            Nombre_Mascota="Rex",
+            Especie="Canino",
+            Sexo="Macho",
+            Edad_Numero="5",
+            Edad_Unidad="Años",
+            Nombre_Tutor="Juan Perez",
+            Raza="Labrador"
+        ),
+        AppSheetPatient(
+            Codigo_Corto="C1",
+            Doctora="Luis",
+            Categoria_Examen="Coprologico",
+            Examen_Especifico="Coprologico seriado 1",
+            Nombre_Mascota="Milo",
+            Especie="Canino",
+            Sexo="Macho",
+            Edad_Numero="3",
+            Edad_Unidad="Años",
+            Nombre_Tutor="Maria Lopez",
+            Raza="Mestizo"
+        ),
+    ]
+
+    await service.sync_from_appsheet(appsheet_patients, session)
+
+    # Verificar Perfil Renal
+    result = await session.execute(select(Patient).where(Patient.session_code == "R1"))
+    p1 = result.scalar_one_or_none()
+    assert p1 is not None
+    assert p1.appsheet_test_type == "Perfil Renal"
+    assert p1.appsheet_test_type_code == "CHEM"
+
+    # Verificar Coprologico seriado 1
+    result = await session.execute(select(Patient).where(Patient.session_code == "C1"))
+    p2 = result.scalar_one_or_none()
+    assert p2 is not None
+    assert p2.appsheet_test_type == "Coprológico Seriado 1"
+    assert p2.appsheet_test_type_code == "COPROSC"
 
 @pytest.mark.asyncio
 async def test_sync_from_appsheet_update_existing(session: AsyncSession):
@@ -90,6 +146,8 @@ async def test_sync_from_appsheet_update_existing(session: AsyncSession):
     
     assert patient is not None
     assert patient.doctor_name == "Aura"
+    assert patient.appsheet_test_type == "Química Sanguínea"  # fallback: "Perfil Básico (PQ1)" no está en mapa exacto
+    assert patient.appsheet_test_type_code == "CHEM"
     assert PatientSource.APPSHEET.value in patient.sources_received
     assert PatientSource.LIS_OZELLE.value in patient.sources_received
     assert patient.breed == "Mestizo"
@@ -117,5 +175,7 @@ async def test_sync_from_appsheet_multiple(session: AsyncSession):
     assert len(patients) == 2
     assert patients[0].session_code == "A1"
     assert patients[0].doctor_name == "A"
+    assert patients[0].appsheet_test_type == "Química Sanguínea"  # fallback
     assert patients[1].session_code == "A2"
     assert patients[1].doctor_name == "B"
+    assert patients[1].appsheet_test_type == "Química Sanguínea"  # fallback

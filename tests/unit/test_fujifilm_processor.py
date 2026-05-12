@@ -59,6 +59,7 @@ def mock_async_session_local():
     # Default DB query returns None (no existing TestResult found)
     mock_db_result = MagicMock()
     mock_db_result.scalars.return_value.first.return_value = None
+    mock_db_result.scalar_one_or_none.return_value = None  # Patient query returns None → fallback a hardcoded
     mock_session.execute.return_value = mock_db_result
     with patch('app.tasks.fujifilm_processor.AsyncSessionLocal') as MockAsyncSessionLocalClass:
         MockAsyncSessionLocalClass.return_value = mock_session
@@ -530,6 +531,7 @@ async def test_find_or_create_test_result_creates_new(
     # Mock the DB query to return None (no existing TR)
     mock_result = MagicMock()
     mock_result.scalars.return_value.first.return_value = None
+    mock_result.scalar_one_or_none.return_value = None  # Patient query → fallback a hardcoded
     mock_async_session_local.execute.return_value = mock_result
 
     # Mock create_test_result to return a new TestResult
@@ -788,6 +790,7 @@ async def test_async_process_pipeline_empty_session_code(
     # Mock DB query to return no existing TR (first call)
     mock_no_tr = MagicMock()
     mock_no_tr.scalars.return_value.first.return_value = None
+    mock_no_tr.scalar_one_or_none.return_value = None  # Patient query → fallback a hardcoded
     mock_async_session_local.execute.return_value = mock_no_tr
 
     created_tr = TestResult(id=100, patient_id=1, source="LIS_FUJIFILM", received_at=received_at)
