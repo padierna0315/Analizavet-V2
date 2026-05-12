@@ -258,12 +258,28 @@ async def get_preview_post(
                 "breed": getattr(patient_obj, "breed", "Mestizo"),
             }
 
-    # Actualizar metadata del TestResult (doctor_name, copro_*, cito_*)
+    # Actualizar metadata del TestResult (doctor_name, test_type, copro_*, cito_*)
     tr_obj = await session.get(TestResult, result_id)
     if tr_obj:
         doctor_name = form_data.get("doctor_name")
         if doctor_name is not None:
             tr_obj.doctor_name = doctor_name or None
+        # Actualizar test_type (título del PDF) si el usuario lo cambió manualmente
+        new_test_type = form_data.get("test_type")
+        if new_test_type is not None and new_test_type.strip():
+            tr_obj.test_type = new_test_type.strip()
+            # Mapear test_type_code según el nuevo test_type cuando sea posible
+            _test_type_code_map = {
+                "Perfil Básico": "CHEM",
+                "Perfil Renal": "CHEM",
+                "Perfil Hepático": "CHEM",
+                "Coprológico": "COPROSC",
+                "Coprológico Seriado 1": "COPROSC",
+                "Coprológico Seriado 2": "COPROSC",
+                "Coprológico Seriado 3": "COPROSC",
+            }
+            if new_test_type.strip() in _test_type_code_map:
+                tr_obj.test_type_code = _test_type_code_map[new_test_type.strip()]
         for field in ["copro_color","copro_consistencia","copro_olor","cito_color","cito_turbidez","cito_aspecto"]:
             val = form_data.get(field)
             if val is not None:
@@ -584,7 +600,8 @@ async def load_patient_workspace(
       <div class="form-row">
         <div class="form-group">
           <label>Tipo de Examen</label>
-          <input type="text" value="{e(test_result.get('test_type', ''))}" readonly>
+          <input type="text" name="test_type" value="{e(test_result.get('test_type', ''))}"
+            style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
         </div>
       </div>
 
