@@ -13,6 +13,7 @@ from sqlmodel import SQLModel
 
 # Import all models to ensure they are registered with SQLModel.metadata
 from app.domains.patients.models import Patient
+from app.domains.exam_order.models import ExamOrder
 from app.domains.patients.patient_registry import PatientRegistry
 from app.shared.models.doctor import Doctor
 from app.shared.models.lab_value import LabValue
