@@ -40,6 +40,7 @@ dependencies = [
     "sse-starlette>=1.6.0",
     "python-multipart>=0.0.27",
     "babel==2.18.0",
+    "thefuzz>=0.22.1",
 ]
 
 [dependency-groups]
