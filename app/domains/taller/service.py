@@ -9,6 +9,7 @@ from app.shared.models.test_result import TestResult
 from app.shared.models.lab_value import LabValue
 from app.shared.models.patient_image import PatientImage
 from app.domains.patients.models import Patient
+from app.domains.exam_order.service import ExamOrderService
 from app.domains.taller.schemas import (
     FlagBatchRequest, FlagBatchResult,
     ImageUploadRequest, ImageUploadResult,
@@ -288,6 +289,20 @@ class TallerService:
                     "severity": interp["severity"],
                 })
 
+        # ── Look up active ExamOrders for this patient ────────────────
+        exam_orders_info: list[dict] = []
+        if patient:
+            exam_svc = ExamOrderService()
+            orders = await exam_svc.get_by_patient(patient.id, session)
+            for order in orders:
+                exam_orders_info.append({
+                    "id": order.id,
+                    "session_code": order.session_code,
+                    "exam_types": order.exam_types,
+                    "status": order.status,
+                    "created_at": order.created_at.isoformat() if order.created_at else None,
+                })
+
         return {
             "test_result": {
                 "id": tr.id,
@@ -333,4 +348,5 @@ class TallerService:
             ],
             "summary": new_summary,
             "interpretations": interpretations,
+            "exam_orders": exam_orders_info,
         }

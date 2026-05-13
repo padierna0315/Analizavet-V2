@@ -31,8 +31,10 @@ from app.core.reference import get_reference_range
 from app.domains.taller.service import TallerService
 from app.domains.taller.schemas import RawLabValueInput
 from app.domains.patients.models import Patient
+from app.domains.exam_order.service import ExamOrderService
 from app.shared.models.test_result import TestResult
 from app.shared.models.lab_value import LabValue
+from app.shared.catalogs.appsheet_exam_catalog import EXAM_CATALOG
 from sqlmodel import select
 
 
@@ -132,11 +134,34 @@ async def _resolve_test_type_from_patient(
     patient_id: int,
     session: AsyncSession,
 ) -> tuple[str, str]:
-    """Resuelve test_type + test_type_code desde el Patient (AppSheet) o fallback hardcoded.
+    """Resuelve test_type + test_type_code desde ExamOrder o Patient.appsheet_test_type.
 
-    Si el paciente fue sincronizado desde AppSheet con un Examen_Especifico,
-    usa ese valor. De lo contrario, cae al default "Química Sanguínea"/"CHEM".
+    Prioridad:
+    1. Active ExamOrder (pending/partial) — usa el primer exam_type del catálogo.
+    2. Patient.appsheet_test_type — sincronizado desde AppSheet.
+    3. Fallback hardcoded "Química Sanguínea"/"CHEM".
     """
+    # 1. Try active ExamOrder first
+    exam_svc = ExamOrderService()
+    orders = await exam_svc.get_by_patient(patient_id, session)
+    active_orders = [o for o in orders if o.status in ("pending", "partial")]
+    if active_orders:
+        exam_types = active_orders[0].exam_types
+        if exam_types:
+            first_code = exam_types[0]
+            entry = EXAM_CATALOG.get(first_code)
+            if entry:
+                category_code_map = {
+                    "Química Sanguínea": "CHEM",
+                    "Hematología": "CBC",
+                    "Coprología": "COPROSC",
+                    "Orina": "URINE",
+                    "Dermatología": "DERM",
+                }
+                code = category_code_map.get(entry["category"], "CHEM")
+                return entry["display_name"], code
+
+    # 2. Fall back to Patient.appsheet_test_type
     patient_result = await session.execute(
         select(Patient).where(Patient.id == patient_id)
     )

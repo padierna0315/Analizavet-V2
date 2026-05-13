@@ -5,7 +5,9 @@ from app.config import settings
 
 import logfire
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
+from app.domains.patients.models import Patient
 from app.domains.exam_order.service import ExamOrderService
 
 
@@ -92,19 +94,19 @@ class AppSheetService:
         count = 0
         for patient in patients:
             try:
+                # Resolve patient_id from the session_code lookup
+                stmt = select(Patient).where(Patient.session_code == patient.session_code)
+                result = await session.execute(stmt)
+                existing_patient = result.scalar_one_or_none()
+                patient_id = str(existing_patient.id) if existing_patient else ""
+
                 # Build the raw data dict expected by ExamOrderService
                 data = patient.model_dump(by_alias=True)
-                # Convert Pydantic alias fields back to the original format
                 row_data = {
                     "Codigo_Corto": data.get("Codigo_Corto", ""),
                     "Examen_Especifico": data.get("Examen_Especifico", ""),
+                    "Paciente_ID": patient_id,
                 }
-                # Add patient lookup info from the patient's session_code
-                # (the actual patient_id will need to be resolved — currently
-                #  the service expects it in the data dict. For now we include
-                #  an empty Paciente_ID and the service will raise if missing.)
-                # NOTE: In Phase 4, `patient_id` resolution will be added here
-                # by looking up the Patient matching session_code.
 
                 await self._exam_order_service.create_from_appsheet(row_data, session)
                 count += 1

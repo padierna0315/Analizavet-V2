@@ -8,6 +8,7 @@ from sqlalchemy.ext.mutable import MutableList
 
 if TYPE_CHECKING:
     from app.shared.models.test_result import TestResult
+    from app.domains.exam_order.models import ExamOrder
 
 
 class _JsonListType(TypeDecorator):
@@ -130,3 +131,4 @@ class Patient(SQLModel, table=True):
         back_populates="patient",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
+    exam_orders: list["ExamOrder"] = Relationship(back_populates="patient")

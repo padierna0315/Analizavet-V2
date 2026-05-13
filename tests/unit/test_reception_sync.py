@@ -5,11 +5,13 @@ from sqlmodel import select, delete
 from app.domains.reception.service import ReceptionService
 from app.services.appsheet import AppSheetPatient
 from app.domains.patients.models import Patient
+from app.domains.exam_order.models import ExamOrder
 from app.domains.reception.schemas import PatientSource
 
 @pytest.mark.asyncio
 async def test_sync_from_appsheet_new_patient(session: AsyncSession):
-    # Clear patients table first to avoid MultipleResultsFound
+    # Clear tables first to avoid MultipleResultsFound and orphan ExamOrders
+    await session.execute(delete(ExamOrder))
     await session.execute(delete(Patient))
     await session.commit()
     
@@ -46,10 +48,23 @@ async def test_sync_from_appsheet_new_patient(session: AsyncSession):
     assert patient.appsheet_test_type == "Química Sanguínea"
     assert patient.appsheet_test_type_code == "CHEM"
     assert PatientSource.APPSHEET.value in patient.sources_received
+    
+    # Verify ExamOrder was created
+    order_result = await session.execute(
+        select(ExamOrder).where(ExamOrder.session_code == "A1")
+    )
+    order = order_result.scalar_one_or_none()
+    assert order is not None
+    assert order.patient_id == patient.id
+    assert order.status == "pending"
+    # "Perfil Básico (PQ1)" should resolve via the fuzzy matcher
+    assert len(order.exam_types) > 0
+
 
 @pytest.mark.asyncio
 async def test_sync_from_appsheet_new_patient_mapped_type(session: AsyncSession):
     """Verifica que Examen_Especifico con valores del mapa se resuelve correctamente."""
+    await session.execute(delete(ExamOrder))
     await session.execute(delete(Patient))
     await session.commit()
 
@@ -100,9 +115,30 @@ async def test_sync_from_appsheet_new_patient_mapped_type(session: AsyncSession)
     assert p2.appsheet_test_type == "Coprológico Seriado 1"
     assert p2.appsheet_test_type_code == "COPROSC"
 
+    # Verify ExamOrders were created with correct exam_types
+    order_result = await session.execute(
+        select(ExamOrder).where(ExamOrder.session_code == "R1")
+    )
+    r1_order = order_result.scalar_one_or_none()
+    assert r1_order is not None
+    assert r1_order.patient_id == p1.id
+    # "Perfil Renal" resolves to CHEM_RENAL
+    assert "CHEM_RENAL" in r1_order.exam_types
+
+    order_result = await session.execute(
+        select(ExamOrder).where(ExamOrder.session_code == "C1")
+    )
+    c1_order = order_result.scalar_one_or_none()
+    assert c1_order is not None
+    assert c1_order.patient_id == p2.id
+    # "Coprologico seriado 1" fuzzy-matches to "Coprologico Seriado 2" (COPROSC_SERIADO_2)
+    # because the catalog has no exact alias for "seriado 1"
+    assert "COPROSC_SERIADO_2" in c1_order.exam_types
+
 @pytest.mark.asyncio
 async def test_sync_from_appsheet_update_existing(session: AsyncSession):
-    # Clear patients table first
+    # Clear tables first
+    await session.execute(delete(ExamOrder))
     await session.execute(delete(Patient))
     await session.commit()
 
@@ -152,8 +188,18 @@ async def test_sync_from_appsheet_update_existing(session: AsyncSession):
     assert PatientSource.LIS_OZELLE.value in patient.sources_received
     assert patient.breed == "Mestizo"
 
+    # Verify ExamOrder was created/updated
+    order_result = await session.execute(
+        select(ExamOrder).where(ExamOrder.session_code == "A1")
+    )
+    order = order_result.scalar_one_or_none()
+    assert order is not None
+    assert order.patient_id == patient.id
+    assert order.status == "pending"
+
 @pytest.mark.asyncio
 async def test_sync_from_appsheet_multiple(session: AsyncSession):
+    await session.execute(delete(ExamOrder))
     await session.execute(delete(Patient))
     await session.commit()
 
@@ -179,3 +225,12 @@ async def test_sync_from_appsheet_multiple(session: AsyncSession):
     assert patients[1].session_code == "A2"
     assert patients[1].doctor_name == "B"
     assert patients[1].appsheet_test_type == "Química Sanguínea"  # fallback
+
+    # Verify ExamOrders were created for each patient
+    orders_result = await session.execute(select(ExamOrder).order_by(ExamOrder.session_code))
+    orders = orders_result.scalars().all()
+    assert len(orders) == 2
+    assert orders[0].session_code == "A1"
+    assert orders[0].patient_id == patients[0].id
+    assert orders[1].session_code == "A2"
+    assert orders[1].patient_id == patients[1].id

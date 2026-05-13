@@ -36,6 +36,18 @@
         {% if patient.name and patient.name != "" %}
             <p><strong>{% if patient.session_code %}{{ patient.session_code }} - {% endif %}{{ patient.name }}</strong></p>
             <p>{{ patient.species }}</p>
+            {% if patient.exam_orders and patient.exam_orders|length > 0 %}
+                {% set active_orders = patient.exam_orders|selectattr("status", "in", ["pending", "partial"])|list %}
+                {% if active_orders|length > 0 %}
+                    <p style="font-size: 0.75rem; color: #059669; margin-top: 0.25rem;">
+                    📋 {{ active_orders[0].exam_types|join(", ") }}
+                    </p>
+                {% endif %}
+            {% elif patient.appsheet_test_type %}
+                <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
+                📋 {{ patient.appsheet_test_type }}
+                </p>
+            {% endif %}
         {% else %}
             <p><strong>{% if patient.session_code %}{{ patient.session_code }}{% endif %}</strong></p>
         {% endif %}
