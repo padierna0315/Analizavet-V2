@@ -10,6 +10,7 @@ from app.tasks.hl7_processor import process_hl7_message, process_uploaded_batch,
 from app.shared.models.test_result import TestResult
 from app.shared.models.lab_value import LabValue # Added this
 from app.services.appsheet import AppSheetPatient
+from app.domains.exam_order.service import ExamOrderService
 from sqlalchemy.orm import selectinload
 from sqlalchemy import delete
 import json
@@ -40,6 +41,15 @@ _APPSHEET_TEST_TYPE_MAP: dict[str, tuple[str, str]] = {
 # Valor por defecto cuando AppSheet no especifica el tipo de examen
 _DEFAULT_APPSHEET_TEST_TYPE = ("Química Sanguínea", "CHEM")
 
+# Mapeo de categoría de catálogo → test_type_code (código corto)
+_CATEGORY_TO_CODE: dict[str, str] = {
+    "Química Sanguínea": "CHEM",
+    "Hematología": "CBC",
+    "Coprología": "COPROSC",
+    "Orina": "URINE",
+    "Dermatología": "DERM",
+}
+
 
 def _resolve_appsheet_test_type(examen_especifico: str | None) -> tuple[str, str]:
     """Resuelve Examen_Especifico de AppSheet a (test_type, test_type_code).
@@ -51,6 +61,27 @@ def _resolve_appsheet_test_type(examen_especifico: str | None) -> tuple[str, str
     return _APPSHEET_TEST_TYPE_MAP.get(examen_especifico.strip(), _DEFAULT_APPSHEET_TEST_TYPE)
 
 
+def _resolve_test_type_from_exam_types(exam_types: list[str]) -> tuple[str, str] | None:
+    """Resolve ExamOrder ``exam_types`` codes to ``(test_type, test_type_code)``.
+
+    Uses the first exam type code to look up the catalog entry.
+    Returns ``None`` when the list is empty, so the caller can fall back to
+    ``Patient.appsheet_test_type`` for backward compatibility.
+    """
+    if not exam_types:
+        return None
+
+    from app.shared.catalogs.appsheet_exam_catalog import EXAM_CATALOG
+
+    first_code = exam_types[0]
+    entry = EXAM_CATALOG.get(first_code)
+    if entry:
+        category_code = _CATEGORY_TO_CODE.get(entry["category"], "CHEM")
+        return (entry["display_name"], category_code)
+
+    return None
+
+
 class ReceptionService:
     """Orchestrates the full reception flow:
     RawPatientInput → normalize → Baúl → BaulResult
@@ -58,6 +89,7 @@ class ReceptionService:
 
     def __init__(self):
         self._baul = BaulService()
+        self._exam_order_service = ExamOrderService()
 
     async def receive(
         self, raw_input: RawPatientInput, session: AsyncSession
@@ -356,13 +388,14 @@ class ReceptionService:
         for ap in patients:
             norm_name = _normalize_for_comparison(ap.name)
             norm_owner = _normalize_for_comparison(ap.owner_name)
-            
+
             # 1. Buscar por session_code PRIMERO
             stmt = select(Patient).where(Patient.session_code == ap.session_code)
             result = await session.execute(stmt)
             existing_patient = result.scalar_one_or_none()
 
             if existing_patient:
+                patient_id = existing_patient.id
                 # Actualizar paciente existente
                 existing_patient.name = ap.name
                 existing_patient.species = ap.species
@@ -373,21 +406,21 @@ class ReceptionService:
                 appsheet_type, appsheet_code = _resolve_appsheet_test_type(ap.test_type)
                 existing_patient.appsheet_test_type = appsheet_type
                 existing_patient.appsheet_test_type_code = appsheet_code
-                
+
                 # Manejar edad
                 try:
                     existing_patient.age_value = int(ap.age_number)
                 except (ValueError, TypeError):
                     existing_patient.age_value = None
-                
+
                 existing_patient.age_unit = ap.age_unit.lower() if ap.age_unit else None
                 existing_patient.age_display = f"{ap.age_number} {ap.age_unit}" if ap.age_number and ap.age_unit else None
                 existing_patient.has_age = bool(ap.age_number and ap.age_unit)
-                
+
                 if PatientSource.APPSHEET.value not in existing_patient.sources_received:
                     existing_patient.sources_received.append(PatientSource.APPSHEET.value)
                     flag_modified(existing_patient, "sources_received")
-                
+
                 existing_patient.updated_at = datetime.now(timezone.utc)
                 session.add(existing_patient)
             else:
@@ -413,9 +446,25 @@ class ReceptionService:
                     has_age=bool(ap.age_number and ap.age_unit)
                 )
                 session.add(new_patient)
-            
+                await session.flush()  # Get patient ID before creating ExamOrder
+                patient_id = new_patient.id
+
+            # ── Create/update ExamOrder from AppSheet data ─────────────
+            order_data = {
+                "Codigo_Corto": ap.session_code,
+                "Examen_Especifico": ap.test_type,
+                "Paciente_ID": str(patient_id),
+            }
+            try:
+                await self._exam_order_service.create_from_appsheet(order_data, session)
+            except Exception as e:
+                logfire.warning(
+                    f"Error creating ExamOrder for patient {patient_id} "
+                    f"(session={ap.session_code}): {e}"
+                )
+
             count += 1
-        
+
         await session.commit()
         return count
 
@@ -449,7 +498,7 @@ class ReceptionService:
         patients_data = []
         for patient in patients:
             sources_received = list(patient.sources_received or [])
-            
+
             # Get the most recent TestResult id for this patient
             tr_query = (
                 select(TestResult.id)
@@ -459,7 +508,18 @@ class ReceptionService:
             )
             tr_result = await session.execute(tr_query)
             latest_result_id = tr_result.scalar_one_or_none()
-            
+
+            # ── Look up active ExamOrders ─────────────────────────────
+            exam_orders_list: list[dict] = []
+            orders = await self._exam_order_service.get_by_patient(patient.id, session)
+            for order in orders:
+                exam_orders_list.append({
+                    "id": order.id,
+                    "session_code": order.session_code,
+                    "exam_types": order.exam_types,
+                    "status": order.status,
+                })
+
             patient_data = {
                 "id": patient.id,
                 "result_id": latest_result_id,
@@ -471,11 +531,14 @@ class ReceptionService:
                 "session_code": patient.session_code,
                 "waiting_room_status": patient.waiting_room_status,
                 "sources_received": sources_received,
+                "exam_orders": exam_orders_list,
+                "appsheet_test_type": patient.appsheet_test_type,
+                "appsheet_test_type_code": patient.appsheet_test_type_code,
                 "created_at": patient.created_at.isoformat() if patient.created_at else None,
                 "updated_at": patient.updated_at.isoformat() if patient.updated_at else None,
                 "source": patient.source,
                 "normalized_name": patient.normalized_name,
-                "normalized_owner": patient.normalized_owner
+                "normalized_owner": patient.normalized_owner,
             }
             patients_data.append(patient_data)
         
@@ -548,15 +611,26 @@ class ReceptionService:
             logfire.warning(f"No TestResult found for patient {patient_id}.")
             return None
 
-        # Load Patient para datos de AppSheet (doctor_name + test_type)
+        # Load Patient para datos de AppSheet (doctor_name)
         patient_result = await session.execute(select(Patient).where(Patient.id == patient_id))
         patient = patient_result.scalar_one_or_none()
         doctor_name = patient.doctor_name if patient else None
-        appsheet_test_type = patient.appsheet_test_type if patient else None
-        appsheet_test_type_code = patient.appsheet_test_type_code if patient else None
+
+        # Resolve test_type from active ExamOrder first, fall back to Patient.appsheet_test_type
+        exam_orders = await self._exam_order_service.get_by_patient(patient_id, session)
+        active_orders = [o for o in exam_orders if o.status in ("pending", "partial")]
+        exam_type_result = None
+        if active_orders:
+            exam_type_result = _resolve_test_type_from_exam_types(active_orders[0].exam_types)
+
+        if exam_type_result:
+            appsheet_test_type, appsheet_test_type_code = exam_type_result
+        else:
+            appsheet_test_type = patient.appsheet_test_type if patient else None
+            appsheet_test_type_code = patient.appsheet_test_type_code if patient else None
 
         if len(test_results) == 1:
-            # Single TR — nothing to merge, return as-is with doctor_name + appsheet_test_type
+            # Single TR — nothing to merge, return as-is with doctor_name + exam type
             tr = test_results[0]
             if doctor_name and not tr.doctor_name:
                 tr.doctor_name = doctor_name
@@ -630,8 +704,7 @@ class ReceptionService:
         if doctor_name and not target_tr.doctor_name:
             target_tr.doctor_name = doctor_name
 
-        # Propagar appsheet_test_type desde el Patient al TestResult unificado
-        # para que el PDF muestre el tipo de examen que AppSheet especificó
+        # Propagar test_type desde ExamOrder (o Patient.appsheet_test_type) al TestResult
         if appsheet_test_type:
             target_tr.test_type = appsheet_test_type
             target_tr.test_type_code = appsheet_test_type_code or target_tr.test_type_code
@@ -734,19 +807,30 @@ class ReceptionService:
         patient = await session.get(Patient, patient_id)
         if not patient:
             return None
-            
+
         # This logic is duplicated from get_waiting_room_patients.
         # Consider refactoring into a helper function in the future.
         # sources_received is now a Python list (TypeDecorator handles deserialization)
         sources_received = list(patient.sources_received or [])
-        
+
         # Check for latest TestResult
         from app.shared.models.test_result import TestResult
         from sqlmodel import select
         tr_stmt = select(TestResult.id).where(TestResult.patient_id == patient.id).order_by(TestResult.id.desc()).limit(1)
         tr_result = await session.execute(tr_stmt)
         latest_result_id = tr_result.scalar_one_or_none()
-        
+
+        # ── Look up active ExamOrders ─────────────────────────────────
+        exam_orders_list: list[dict] = []
+        orders = await self._exam_order_service.get_by_patient(patient.id, session)
+        for order in orders:
+            exam_orders_list.append({
+                "id": order.id,
+                "session_code": order.session_code,
+                "exam_types": order.exam_types,
+                "status": order.status,
+            })
+
         patient_data = {
             "id": patient.id,
             "name": patient.name,
@@ -758,10 +842,13 @@ class ReceptionService:
             "result_id": latest_result_id,
             "waiting_room_status": patient.waiting_room_status,
             "sources_received": sources_received,
+            "exam_orders": exam_orders_list,
+            "appsheet_test_type": patient.appsheet_test_type,
+            "appsheet_test_type_code": patient.appsheet_test_type_code,
             "created_at": patient.created_at.isoformat() if patient.created_at else None,
             "updated_at": patient.updated_at.isoformat() if patient.updated_at else None,
             "source": patient.source,
             "normalized_name": patient.normalized_name,
-            "normalized_owner": patient.normalized_owner
+            "normalized_owner": patient.normalized_owner,
         }
         return patient_data

@@ -1,8 +1,11 @@
 from datetime import datetime
-from typing import Optional, List
-from sqlmodel import SQLModel, Field, Column
+from typing import TYPE_CHECKING, Optional, List
+from sqlmodel import SQLModel, Field, Column, Relationship
 
 from app.domains.patients.models import _MutableJsonList
+
+if TYPE_CHECKING:
+    from app.domains.patients.models import Patient
 
 
 class ExamOrder(SQLModel, table=True):
@@ -31,6 +34,9 @@ class ExamOrder(SQLModel, table=True):
 
     # AppSheet row ID for sync tracking
     appsheet_row_id: Optional[str] = Field(default=None)
+
+    # Relationships
+    patient: Optional["Patient"] = Relationship(back_populates="exam_orders")
 
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.now)
