@@ -12,6 +12,7 @@ from app.domains.taller.router import router as taller_router
 from app.domains.reports.router import router as reports_router
 from app.domains.patients.router import router as patients_ui_router
 from app.domains.editor.router import router as editor_router
+from app.domains.exam_order.router import router as exam_order_router
 from app.logging_config import setup_logging
 from app.config import settings
 from app.satellites.ozelle import OzelleAdapter
@@ -93,6 +94,7 @@ app.include_router(taller_router)
 app.include_router(reports_router)
 app.include_router(patients_ui_router)
 app.include_router(editor_router)
+app.include_router(exam_order_router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/images", StaticFiles(directory=settings.IMAGES_DIR), name="images")

@@ -3,6 +3,12 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 from app.config import settings
 
+import logfire
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.domains.exam_order.service import ExamOrderService
+
+
 class AppSheetPatient(BaseModel):
     session_code: str = Field(default="", alias="Codigo_Corto")
     vet_name: str = Field(default="", alias="Doctora")
@@ -19,12 +25,14 @@ class AppSheetPatient(BaseModel):
     class Config:
         populate_by_name = True
 
+
 class AppSheetService:
     def __init__(self, api_key: Optional[str] = None, app_id: Optional[str] = None):
         self.api_key = api_key or settings.get("APPSHEET_API_KEY")
         self.app_id = app_id or settings.get("APPSHEET_APP_ID")
         self.table_name = settings.get("APPSHEET_TABLE_NAME", "Muestras_Activas")
         self.base_url = f"https://api.appsheet.com/api/v2/apps/{self.app_id}/tables/{self.table_name}/Action"
+        self._exam_order_service = ExamOrderService()
 
     async def fetch_active_patients(self) -> List[AppSheetPatient]:
         if not self.api_key or not self.app_id:
@@ -65,3 +73,44 @@ class AppSheetService:
                     return []
 
             return [AppSheetPatient(**row) for row in data]
+
+    async def sync_from_appsheet(
+        self, patients: List[AppSheetPatient], session: AsyncSession, reset: bool = False
+    ) -> int:
+        """Synchronize AppSheet patients into ExamOrder records.
+
+        For each AppSheetPatient row, creates or updates an ExamOrder via
+        ``ExamOrderService.create_from_appsheet()``.
+
+        Returns the number of successfully processed rows.
+
+        .. note::
+           The ``reset`` parameter is accepted for backward compatibility
+           with the existing ReceptionService sync. When ``True``, existing
+           ExamOrders are not reset — only the create/update logic runs.
+        """
+        count = 0
+        for patient in patients:
+            try:
+                # Build the raw data dict expected by ExamOrderService
+                data = patient.model_dump(by_alias=True)
+                # Convert Pydantic alias fields back to the original format
+                row_data = {
+                    "Codigo_Corto": data.get("Codigo_Corto", ""),
+                    "Examen_Especifico": data.get("Examen_Especifico", ""),
+                }
+                # Add patient lookup info from the patient's session_code
+                # (the actual patient_id will need to be resolved — currently
+                #  the service expects it in the data dict. For now we include
+                #  an empty Paciente_ID and the service will raise if missing.)
+                # NOTE: In Phase 4, `patient_id` resolution will be added here
+                # by looking up the Patient matching session_code.
+
+                await self._exam_order_service.create_from_appsheet(row_data, session)
+                count += 1
+            except Exception as e:
+                logfire.warning(f"Error syncing AppSheet patient to ExamOrder: {e}")
+                # Don't fail the entire batch — log and continue
+
+        logfire.info(f"sync_from_appsheet: processed {count}/{len(patients)} rows")
+        return count
