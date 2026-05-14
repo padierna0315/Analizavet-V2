@@ -277,6 +277,7 @@ async def get_preview_post(
                 "Coprológico Seriado 1": "COPROSC",
                 "Coprológico Seriado 2": "COPROSC",
                 "Coprológico Seriado 3": "COPROSC",
+                "Citoquímico": "CITO",
             }
             if new_test_type.strip() in _test_type_code_map:
                 tr_obj.test_type_code = _test_type_code_map[new_test_type.strip()]

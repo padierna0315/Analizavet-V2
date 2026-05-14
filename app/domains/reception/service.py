@@ -33,6 +33,7 @@ _APPSHEET_TEST_TYPE_MAP: dict[str, tuple[str, str]] = {
     "Coprologico seriado 2": ("Coprológico Seriado 2", "COPROSC"),
     "Coprologico seriado 1": ("Coprológico Seriado 1", "COPROSC"),
     "Coprologico": ("Coprológico", "COPROSC"),
+    "Citoquimico": ("Citoquímico", "CITO"),
     "Perfil Hepatico": ("Perfil Hepático", "CHEM"),
     "Perfil Renal": ("Perfil Renal", "CHEM"),
     "Perfil Basico": ("Perfil Básico", "CHEM"),

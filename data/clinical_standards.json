@@ -1542,7 +1542,7 @@
         "short_name": "Fosfatasa_Alcalina"
     },
     "ALT": {
-        "name": "Alanina Aminotransferasa (ALT)",
+        "name": "Alanina Aminotransferasa",
         "unit": "U/L",
         "ranges": {
             "canine": {

@@ -11,10 +11,30 @@ _report_service = ReportService()
 _taller_service = TallerService()
 
 
-def _sanitize_filename(text: str) -> str:
+def _sanitize_patient_name(text: str) -> str:
+    """Sanitize a patient name for use in filenames.
+
+    - Lowercases the text
+    - Strips Unicode accents (NFD normalization)
+    - Replaces spaces with underscores
+    - Removes any character that is not alphanumeric, underscore, hyphen, or dot
+    """
     nfd = unicodedata.normalize("NFD", text)
     ascii_text = "".join(c for c in nfd if unicodedata.category(c) != "Mn")
-    return ascii_text.replace(" ", "_")
+    ascii_text = ascii_text.lower().replace(" ", "_")
+    return "".join(c for c in ascii_text if c.isalnum() or c in "_-.")
+
+
+def _sanitize_person_name(text: str) -> str:
+    """Sanitize a person name (owner, doctor) for use in filenames.
+
+    - Strips Unicode accents (NFD normalization)
+    - Preserves spaces and most printable characters
+    - Removes any character that is not alphanumeric, space, underscore, hyphen, or dot
+    """
+    nfd = unicodedata.normalize("NFD", text)
+    ascii_text = "".join(c for c in nfd if unicodedata.category(c) != "Mn")
+    return "".join(c for c in ascii_text if c.isalnum() or c in " _-.")
 
 
 @router.get("/{result_id}/pdf")
@@ -26,10 +46,12 @@ async def download_pdf(
     if not data:
         raise HTTPException(status_code=404, detail="Resultado no encontrado")
 
-    patient_name = _sanitize_filename(data["patient"]["name"] or "")
-    test_type = _sanitize_filename(data["test_result"]["test_type"] or "")
-    date_str = data["test_result"]["received_at"][:10].replace("-", "")
-    filename = f"{patient_name}_{date_str}_{test_type}.pdf"
+    patient_name = _sanitize_patient_name(data["patient"]["name"] or "")
+    owner_name_raw = (data["patient"]["owner_name"] or "").strip()
+    owner_name = _sanitize_person_name(owner_name_raw) if owner_name_raw else "Sin_tutor"
+    doctor_name_raw = data["test_result"].get("doctor_name") or ""
+    doctor_name = _sanitize_person_name(doctor_name_raw) if doctor_name_raw else "Sin_medico"
+    filename = f"{patient_name}+{owner_name}+{doctor_name}.pdf"
 
     pdf_bytes = _report_service.generate_pdf_sync(data)
 

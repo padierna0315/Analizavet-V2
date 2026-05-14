@@ -200,6 +200,10 @@ for i in {1..30}; do
     sleep 0.5
 done
 
+# 10. Marcar inicio de sesión para la jornada
+date +%s > /tmp/analizavet-session-start
+echo "🕒 Sesión de jornada iniciada"
+
 # 11. Abrir Firefox (sin bloquear terminal - skill-santiago Regla #4)
 echo "🦊 Abriendo navegador..."
 nohup firefox --new-tab http://localhost:8000 > /dev/null 2>&1 &
@@ -215,5 +219,5 @@ echo "╚═══════════════════════�
 echo ""
 
 # Mantener script vivo
-trap "echo ''; echo '🛑 Deteniendo servicios...'; kill $SERVER_PID $DRAMATIQ_PID 2>/dev/null || true; exit 0" SIGINT SIGTERM
+trap "echo ''; echo '🛑 Deteniendo servicios...'; rm -f /tmp/analizavet-session-start; kill $SERVER_PID $DRAMATIQ_PID 2>/dev/null || true; exit 0" SIGINT SIGTERM
 wait $SERVER_PID

@@ -50,12 +50,13 @@ async def test_pdf_content_disposition_filename(client: AsyncClient):
 
     response = await client.get(f"/reports/{result_id}/pdf")
     content_disp = response.headers.get("content-disposition", "")
-    # Expected format: attachment; filename="Kitty_20260424_Hemograma.pdf"
+    # Expected format: attachment; filename="kitty+Laura Cepeda+Sin_medico.pdf"
     assert content_disp.startswith('attachment; filename="')
     assert content_disp.endswith('.pdf"')
-    # Check the filename pattern: PatientName_Date_TestType.pdf
-    assert "Kitty_" in content_disp
-    assert "Hemograma" in content_disp
+    # Check the new format: Patient+Owner+Doctor.pdf
+    assert "kitty+" in content_disp
+    assert "Laura Cepeda" in content_disp
+    assert "Sin_medico" in content_disp
 
 
 @pytest.mark.asyncio
