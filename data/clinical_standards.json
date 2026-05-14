@@ -1661,6 +1661,36 @@
         },
         "short_name": "Nitrogeno_Ureico"
     },
+    "UA": {
+        "name": "Ácido Úrico",
+        "unit": "mg/dL",
+        "ranges": {
+            "canine": {
+                "min": 2.0,
+                "max": 9.0
+            },
+            "feline": {
+                "min": 0.5,
+                "max": 7.0
+            }
+        },
+        "short_name": "Acido_Urico"
+    },
+    "UREA": {
+        "name": "Urea",
+        "unit": "mg/dL",
+        "ranges": {
+            "canine": {
+                "min": 32.1,
+                "max": 74.9
+            },
+            "feline": {
+                "min": 32.1,
+                "max": 74.9
+            }
+        },
+        "short_name": "Urea"
+    },
     "CRE": {
         "name": "Creatinina",
         "unit": "mg/dL",

@@ -109,9 +109,9 @@ async def test_process_fujifilm_message_valid_data(
         mock_anyio_run.assert_called_once() # Verify anyio.run was called
 
         # Now, we manually call the _async_process_pipeline that was passed to anyio.run
-        async_func_to_run, reception_input, internal_id, parameter_code, raw_value_processed = mock_anyio_run.call_args.args
+        async_func_to_run, reception_input, internal_id, parameter_code, raw_value_processed, upload_id = mock_anyio_run.call_args.args
         assert async_func_to_run == _async_process_pipeline
-        await async_func_to_run(reception_input, internal_id, parameter_code, raw_value_processed)
+        await async_func_to_run(reception_input, internal_id, parameter_code, raw_value_processed, upload_id)
 
         # Assertions on calls made within _async_process_pipeline should go here now
         mock_reception_service.receive.assert_awaited_once_with(
@@ -151,9 +151,9 @@ async def test_process_fujifilm_message_missing_chemistry_values(
         process_fujifilm_message(data)
         mock_anyio_run.assert_called_once()
 
-        async_func_to_run, reception_input, internal_id, parameter_code, raw_value_processed = mock_anyio_run.call_args.args
+        async_func_to_run, reception_input, internal_id, parameter_code, raw_value_processed, upload_id = mock_anyio_run.call_args.args
         assert async_func_to_run == _async_process_pipeline
-        await async_func_to_run(reception_input, internal_id, parameter_code, raw_value_processed)
+        await async_func_to_run(reception_input, internal_id, parameter_code, raw_value_processed, upload_id)
 
         mock_reception_service.receive.assert_awaited_once_with(
             RawPatientInput(
@@ -217,9 +217,9 @@ async def test_process_fujifilm_message_invalid_received_at(
         process_fujifilm_message(data)
         mock_anyio_run.assert_called_once()
         
-        async_func_to_run, reception_input, internal_id, parameter_code, raw_value_processed = mock_anyio_run.call_args.args
+        async_func_to_run, reception_input, internal_id, parameter_code, raw_value_processed, upload_id = mock_anyio_run.call_args.args
         assert async_func_to_run == _async_process_pipeline
-        await async_func_to_run(reception_input, internal_id, parameter_code, raw_value_processed)
+        await async_func_to_run(reception_input, internal_id, parameter_code, raw_value_processed, upload_id)
 
         mock_reception_service.receive.assert_awaited_once_with(
             RawPatientInput(
@@ -261,9 +261,9 @@ async def test_process_fujifilm_message_raw_value_asterisks(
         process_fujifilm_message(data)
         mock_anyio_run.assert_called_once()
 
-        async_func_to_run, reception_input, internal_id, parameter_code, raw_value_processed = mock_anyio_run.call_args.args
+        async_func_to_run, reception_input, internal_id, parameter_code, raw_value_processed, upload_id = mock_anyio_run.call_args.args
         assert async_func_to_run == _async_process_pipeline
-        await async_func_to_run(reception_input, internal_id, parameter_code, raw_value_processed)
+        await async_func_to_run(reception_input, internal_id, parameter_code, raw_value_processed, upload_id)
 
         mock_reception_service.receive.assert_awaited_once_with(
             RawPatientInput(
@@ -822,5 +822,145 @@ async def test_async_process_pipeline_empty_session_code(
     # Verify flag_and_store stored the value
     mock_taller_service.flag_and_store.assert_awaited_once()
     mock_logfire[0].assert_any_call("Fujifilm lab value CRE=0.87 stored in TestResult 100.")
+
+
+# -----------------------------------------------------------------------------
+# Tests for upload_id propagation and counter decrement (Tasks 2.2, 2.3)
+# -----------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_handle_uploaded_file_fujifilm_passes_upload_id(
+    mock_async_session_local, mock_logfire
+):
+    """Scenario: handle_uploaded_file passes upload_id in the Dramatiq message.
+
+    The upload_id is needed by worker pipelines to decrement the pending counter.
+    """
+    from app.domains.reception.service import ReceptionService
+
+    fake_records = [
+        FujifilmReading(internal_id="908", patient_name="POLO", parameter_code="CRE", raw_value="0.87"),
+    ]
+
+    with (
+        patch('app.satellites.fujifilm.parser.parse_fujifilm_message', return_value=fake_records),
+        patch('app.tasks.fujifilm_processor.process_fujifilm_message') as mock_actor,
+    ):
+        service = ReceptionService()
+        upload_id = await service.handle_uploaded_file(
+            b"dummy content", "fujifilm", mock_async_session_local
+        )
+
+        mock_actor.send.assert_called_once()
+        call_kwargs = mock_actor.send.call_args[0][0]
+        assert "upload_id" in call_kwargs
+        assert call_kwargs["upload_id"] == upload_id
+
+
+@pytest.mark.asyncio
+async def test_handle_uploaded_file_fujifilm_uses_init_upload_counter(
+    mock_async_session_local, mock_logfire
+):
+    """Scenario: Instead of set_upload_status("complete:"), uses init_upload_counter.
+
+    The counter-based approach sets a Redis pending counter so that
+    "complete" status reflects actual processing, not just enqueueing.
+    """
+    from app.domains.reception.service import ReceptionService
+
+    fake_records = [
+        FujifilmReading(internal_id="908", patient_name="POLO", parameter_code="CRE", raw_value="0.87"),
+        FujifilmReading(internal_id="908", patient_name="POLO", parameter_code="BUN", raw_value="15.2"),
+    ]
+
+    with (
+        patch('app.satellites.fujifilm.parser.parse_fujifilm_message', return_value=fake_records),
+        patch('app.tasks.fujifilm_processor.process_fujifilm_message') as mock_actor,
+        patch('app.domains.reception.service.init_upload_counter') as mock_init,
+    ):
+        service = ReceptionService()
+        await service.handle_uploaded_file(
+            b"dummy content", "fujifilm", mock_async_session_local
+        )
+
+        # init_upload_counter should be called with total=2 (2 records)
+        mock_init.assert_called_once()
+        args = mock_init.call_args
+        assert args[0][1] == 2  # total count
+
+
+@pytest.mark.asyncio
+async def test_process_fujifilm_message_extracts_upload_id(
+    mock_reception_service, mock_taller_service, mock_async_session_local, mock_logfire
+):
+    """Scenario: process_fujifilm_message extracts upload_id from data.
+
+    The upload_id should be extracted from message data and passed
+    through to the async pipeline.
+    """
+    data = {
+        "internal_id": "908",
+        "patient_name": "POLO",
+        "parameter_code": "CRE",
+        "raw_value": "0.87",
+        "source": PatientSource.LIS_FUJIFILM.value,
+        "received_at": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+        "upload_id": "test-upload-123",
+    }
+
+    with patch('app.tasks.fujifilm_processor.anyio.run', new_callable=MagicMock) as mock_anyio_run:
+        process_fujifilm_message(data)
+        mock_anyio_run.assert_called_once()
+
+        async_func_to_run, reception_input, internal_id, parameter_code, raw_value_processed, upload_id = mock_anyio_run.call_args.args
+        assert upload_id == "test-upload-123"
+
+
+@pytest.mark.asyncio
+async def test_async_process_pipeline_decrements_counter_on_success(
+    mock_reception_service, mock_taller_service, mock_async_session_local, mock_logfire
+):
+    """Scenario: _async_process_pipeline calls decrement_upload_counter on success.
+
+    After a successful pipeline (reception + flag_and_store), the counter
+    should be decremented to track upload completion.
+    """
+    from app.tasks.fujifilm_processor import _async_process_pipeline
+
+    reception_input = RawPatientInput(
+        raw_string="POLO",
+        source=PatientSource.LIS_FUJIFILM,
+        received_at=datetime.now(timezone.utc)
+    )
+
+    with patch('app.tasks.fujifilm_processor.decrement_upload_counter') as mock_decrement:
+        await _async_process_pipeline(
+            reception_input, "908", "CRE", "0.87", upload_id="test-upload-123"
+        )
+        mock_decrement.assert_called_once_with("test-upload-123")
+
+
+@pytest.mark.asyncio
+async def test_async_process_pipeline_no_upload_id_no_decrement(
+    mock_reception_service, mock_taller_service, mock_async_session_local, mock_logfire
+):
+    """Scenario: _async_process_pipeline without upload_id does not decrement.
+
+    When upload_id is not provided, decrement_upload_counter should NOT be called.
+    This ensures backward compatibility with existing callers (e.g., TCP adapter).
+    """
+    from app.tasks.fujifilm_processor import _async_process_pipeline
+
+    reception_input = RawPatientInput(
+        raw_string="POLO",
+        source=PatientSource.LIS_FUJIFILM,
+        received_at=datetime.now(timezone.utc)
+    )
+
+    with patch('app.tasks.fujifilm_processor.decrement_upload_counter') as mock_decrement:
+        await _async_process_pipeline(
+            reception_input, "908", "CRE", "0.87"  # no upload_id
+        )
+        mock_decrement.assert_not_called()
 
 

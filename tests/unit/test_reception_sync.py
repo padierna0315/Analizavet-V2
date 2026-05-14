@@ -1,5 +1,6 @@
 import pytest
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, delete
 from app.domains.reception.service import ReceptionService
@@ -7,6 +8,58 @@ from app.services.appsheet import AppSheetPatient
 from app.domains.patients.models import Patient
 from app.domains.exam_order.models import ExamOrder
 from app.domains.reception.schemas import PatientSource
+
+
+# ── Redis Counter Helpers (Task 2.1) ─────────────────────────────────────────
+
+class TestUploadCounter:
+    """Tests for init_upload_counter and decrement_upload_counter in hl7_processor."""
+
+    @pytest.fixture(autouse=True)
+    def mock_redis(self):
+        """Mock redis.from_url for all tests."""
+        self.mock_conn = MagicMock()
+        with patch('app.tasks.hl7_processor.redis.from_url', return_value=self.mock_conn):
+            yield
+
+    def test_init_upload_counter_sets_pending(self):
+        """init_upload_counter sets upload:pending with TTL=300."""
+        from app.tasks.hl7_processor import init_upload_counter
+        init_upload_counter("test-upload-1", 5)
+        self.mock_conn.setex.assert_called_once_with("upload:test-upload-1:pending", 300, 5)
+
+    def test_decrement_upload_counter_reaches_zero(self):
+        """decrement_upload_counter: when DECR returns 0, sets complete status."""
+        from app.tasks.hl7_processor import decrement_upload_counter, set_upload_status
+        self.mock_conn.decr.return_value = 0
+
+        with patch('app.tasks.hl7_processor.set_upload_status') as mock_set_status:
+            decrement_upload_counter("test-upload-1")
+            self.mock_conn.decr.assert_called_once_with("upload:test-upload-1:pending")
+            self.mock_conn.delete.assert_called_once_with("upload:test-upload-1:pending")
+            mock_set_status.assert_called_once_with("test-upload-1", "complete:")
+
+    def test_decrement_upload_counter_negative_becomes_zero(self):
+        """decrement_upload_counter: when DECR returns negative, also completes."""
+        from app.tasks.hl7_processor import decrement_upload_counter
+        self.mock_conn.decr.return_value = -2
+
+        with patch('app.tasks.hl7_processor.set_upload_status') as mock_set_status:
+            decrement_upload_counter("test-upload-1")
+            self.mock_conn.decr.assert_called_once_with("upload:test-upload-1:pending")
+            self.mock_conn.delete.assert_called_once_with("upload:test-upload-1:pending")
+            mock_set_status.assert_called_once_with("test-upload-1", "complete:")
+
+    def test_decrement_upload_counter_still_processing(self):
+        """decrement_upload_counter: when DECR returns >0, no completion."""
+        from app.tasks.hl7_processor import decrement_upload_counter
+        self.mock_conn.decr.return_value = 3
+
+        with patch('app.tasks.hl7_processor.set_upload_status') as mock_set_status:
+            decrement_upload_counter("test-upload-1")
+            self.mock_conn.decr.assert_called_once_with("upload:test-upload-1:pending")
+            self.mock_conn.delete.assert_not_called()
+            mock_set_status.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_sync_from_appsheet_new_patient(session: AsyncSession):

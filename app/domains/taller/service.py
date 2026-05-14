@@ -261,6 +261,40 @@ class TallerService:
                 "group": group,
             })
 
+        # ── Inject UREA virtual value if BUN is present ──────────────
+        bun_lv = next(
+            (lv for lv in lab_values if _clean_parameter_code(lv.parameter_code) == "BUN"),
+            None,
+        )
+        if bun_lv and bun_lv.numeric_value is not None:
+            urea_value = round(bun_lv.numeric_value * 2.14, 2)
+            urea_ref = get_reference_range("UREA", species)
+            try:
+                urea_flag_result = self._flagging.flag_value(
+                    parameter="UREA",
+                    value=urea_value,
+                    unit="mg/dL",
+                    species=species,
+                )
+                urea_flag = urea_flag_result.flag
+            except ValueError:
+                urea_flag = "NORMAL"
+
+            new_summary[urea_flag] += 1
+
+            lab_values_list.append({
+                "id": None,  # virtual — no DB row
+                "parameter_code": "UREA",
+                "parameter_name_es": get_parameter_name("UREA", short=False),
+                "raw_value": str(urea_value),
+                "numeric_value": urea_value,
+                "unit": "mg/dL",
+                "reference_range": urea_ref,
+                "flag": urea_flag,
+                "machine_flag": None,
+                "group": get_parameter_group("UREA"),
+            })
+
         # Ordenar lab_values por grupo (orden del PDF)
         def sort_key(lv_dict):
             group = lv_dict.get("group", "OTROS")

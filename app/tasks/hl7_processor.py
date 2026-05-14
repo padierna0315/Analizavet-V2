@@ -60,6 +60,29 @@ def get_upload_status(upload_id: str) -> str | None:
         return status.decode('utf-8')
     return None
 
+
+# ── Upload Counter Helpers (Task 2.1) ───────────────────────────────────────────
+
+
+def init_upload_counter(upload_id: str, total: int) -> None:
+    """Initialize a Redis counter to track upload completion.
+
+    Sets the pending counter with a 5-minute TTL so that if all workers
+    fail, the counter auto-expires instead of hanging indefinitely.
+    """
+    r = redis.from_url(settings.REDIS_URL)
+    r.setex(f"upload:{upload_id}:pending", 300, total)
+
+
+def decrement_upload_counter(upload_id: str) -> None:
+    """Decrement the pending counter. When it reaches ≤0, mark as complete."""
+    r = redis.from_url(settings.REDIS_URL)
+    remaining = r.decr(f"upload:{upload_id}:pending")
+    if remaining <= 0:
+        r.delete(f"upload:{upload_id}:pending")
+        set_upload_status(upload_id, "complete:")
+
+
 @dramatiq.actor(max_retries=3, time_limit=60000)
 def process_hl7_message(raw_hl7: str, source: str):
     """

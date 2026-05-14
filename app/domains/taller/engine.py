@@ -84,12 +84,16 @@ class TallerFlaggingEngine:
         for fr in flagged:
             summary[fr.flag] += 1
 
-        # 5. Update TestResult
-        test_result.flag_alto_count = summary["ALTO"]
-        test_result.flag_normal_count = summary["NORMAL"]
-        test_result.flag_bajo_count = summary["BAJO"]
-        test_result.status = "listo"
-        test_result.processed_at = datetime.now(timezone.utc)
+        # 5. Update TestResult — ADDITIVE counts (preserve existing values)
+        test_result.flag_alto_count = (test_result.flag_alto_count or 0) + summary["ALTO"]
+        test_result.flag_normal_count = (test_result.flag_normal_count or 0) + summary["NORMAL"]
+        test_result.flag_bajo_count = (test_result.flag_bajo_count or 0) + summary["BAJO"]
+
+        # Only set status to "listo" once (guard against re-triggering)
+        if test_result.status != "listo":
+            test_result.status = "listo"
+            test_result.processed_at = datetime.now(timezone.utc)
+
         session.add(test_result)
 
         await session.commit()

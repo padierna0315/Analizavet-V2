@@ -6,7 +6,7 @@ from app.domains.reception.schemas import RawPatientInput, BaulResult, PatientSo
 from app.domains.reception.normalizer import parse_patient_string
 from app.domains.reception.baul import BaulService
 from app.domains.patients.models import Patient
-from app.tasks.hl7_processor import process_hl7_message, process_uploaded_batch, set_upload_status
+from app.tasks.hl7_processor import process_hl7_message, process_uploaded_batch, set_upload_status, init_upload_counter
 from app.shared.models.test_result import TestResult
 from app.shared.models.lab_value import LabValue # Added this
 from app.services.appsheet import AppSheetPatient
@@ -768,10 +768,12 @@ class ReceptionService:
                         "parameter_code": record.parameter_code,
                         "raw_value": record.raw_value,
                         "source": PatientSource.LIS_FUJIFILM.value,
-                        "received_at": batch_received_at
+                        "received_at": batch_received_at,
+                        "upload_id": upload_id,
                     })
                     count += 1
-                set_upload_status(upload_id, f"complete:{count}")
+                # Use counter-based tracking so "complete" reflects actual processing
+                init_upload_counter(upload_id, count)
                 logfire.info(f"Enqueued {count} Fujifilm records for Dramatiq processing.")
             
             case "json":

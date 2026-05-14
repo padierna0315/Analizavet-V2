@@ -1101,6 +1101,24 @@ _DEFAULT_VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
         },
         'short_name': 'Nitrogeno_Ureico'
     },
+    'UA': {
+        'name': 'Ácido Úrico',
+        'unit': 'mg/dL',
+        'ranges': {
+            'canine': {'min': 2.0, 'max': 9.0},
+            'feline': {'min': 0.5, 'max': 7.0},
+        },
+        'short_name': 'Acido_Urico'
+    },
+    'UREA': {
+        'name': 'Urea',
+        'unit': 'mg/dL',
+        'ranges': {
+            'canine': {'min': 32.1, 'max': 74.9},
+            'feline': {'min': 32.1, 'max': 74.9},
+        },
+        'short_name': 'Urea'
+    },
     'CRE': {
         'name': 'Creatinina',
         'unit': 'mg/dL',
@@ -1392,14 +1410,14 @@ LEGACY_HEMOGRAM_MAPPING: Dict[str, str] = {
 CHEMISTRY_CODES = {
     'ALP', 'ALT', 'AST', 'GGT', 'CPK', 'v-LIP', 'v-AMY', 'LDH',
     'BUN', 'CRE', 'GLU', 'IP', 'Ca', 'TP', 'ALB', 'TCHO', 'TG', 'TBIL', 'NH3',
-    'Na', 'K', 'Cl'
+    'Na', 'K', 'Cl', 'UA',
 }
 
 # ── Agrupamiento de parámetros por sección ──────────────────────────────────
 PARAMETER_GROUPS = {
     "QUÍMICA SANGUÍNEA": [
         "ALP", "ALT", "AST", "GGT", "CPK", "v-LIP", "v-AMY", "LDH",
-        "BUN", "CRE", "GLU", "IP", "Ca", "TP", "ALB", "TCHO", "TG",
+        "BUN", "UREA", "CRE", "GLU", "IP", "Ca", "UA", "TP", "ALB", "TCHO", "TG",
         "TBIL", "NH3", "Na", "K", "Cl",
     ],
     "Línea Blanca": [

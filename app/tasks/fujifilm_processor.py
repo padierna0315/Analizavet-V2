@@ -27,6 +27,7 @@ from app.domains.reception.service import ReceptionService
 
 # NEW IMPORTS FOR FUJIFILM PROCESSING
 from clinical_standards import VETERINARY_STANDARDS, get_parameter_name
+from app.tasks.hl7_processor import decrement_upload_counter
 from app.core.reference import get_reference_range
 from app.domains.taller.service import TallerService
 from app.domains.taller.schemas import RawLabValueInput
@@ -74,6 +75,7 @@ def process_fujifilm_message(data: dict):
     patient_name = data.get("patient_name", "")
     parameter_code = data.get("parameter_code", "")
     raw_value = data.get("raw_value", "")
+    upload_id = data.get("upload_id")
     if raw_value == "****":
         raw_value = None
 
@@ -119,7 +121,7 @@ def process_fujifilm_message(data: dict):
         )
 
         # Async execution of the Core pipeline
-        anyio.run(_async_process_pipeline, reception_input, internal_id, parameter_code, raw_value)
+        anyio.run(_async_process_pipeline, reception_input, internal_id, parameter_code, raw_value, upload_id)
 
     except Exception as e:
         logger.error(f"Fujifilm processing failed: {e}", exc_info=True)
@@ -226,6 +228,7 @@ async def _async_process_pipeline(
     internal_id: str,
     parameter_code: str,
     raw_value: str | None,
+    upload_id: str | None = None,
 ):
     """
     Fujifilm processing pipeline:
@@ -347,6 +350,10 @@ async def _async_process_pipeline(
             else:
                 logger.info("Fujifilm: No parameter_code or raw_value provided, skipping lab value processing.")
                 logfire.info("Fujifilm: No parameter_code or raw_value provided, skipping lab value processing.")
+
+            # ── Decrement upload counter (if this is part of a batch upload) ──
+            if upload_id:
+                decrement_upload_counter(upload_id)
 
             logger.info("Fujifilm pipeline completado exitosamente.")
             logfire.info("Fujifilm pipeline completado exitosamente.")

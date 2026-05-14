@@ -203,6 +203,66 @@ async def test_flag_nsh_canine_high(session):
     assert result.flagged_values[0].reference_range == "0.0-0.4 x10^3/µL"
 
 @pytest.mark.asyncio
+async def test_flag_counts_additive(session):
+    """Scenario: Two flag_test_result calls on the same TestResult accumulate counts.
+
+    When flag_test_result is called multiple times with different values,
+    the counts should be ADDITIVE (existing + new), not overwritten.
+    The status should only be set to "listo" on the FIRST call.
+    """
+    tr = await create_test_result(session)
+    engine = TallerFlaggingEngine()
+
+    # First call: HGB=5.0 is BAJO for Felino (range 9.8-16.2 g/dL)
+    vals_1 = [RawLabValueInput(
+        parameter_code="HGB", parameter_name_es="Hemoglobina",
+        raw_value="5.0", numeric_value=5.0,
+        unit="g/dL", reference_range="9.8-16.2",
+    )]
+    request_1 = FlagBatchRequest(
+        test_result_id=tr.id, species="Felino", values=vals_1
+    )
+    result_1 = await engine.flag_test_result(request_1, session)
+    assert result_1.summary["BAJO"] == 1
+    assert result_1.summary["ALTO"] == 0
+    assert result_1.summary["NORMAL"] == 0
+
+    # Refresh to get latest DB state
+    await session.refresh(tr)
+    assert tr.flag_bajo_count == 1
+    assert tr.flag_alto_count == 0
+    assert tr.flag_normal_count == 0
+    assert tr.status == "listo"  # First call sets status
+    first_processed_at = tr.processed_at
+    assert first_processed_at is not None
+
+    # Second call: WBC=14.26 is NORMAL for Felino (range 2.8-17.0)
+    vals_2 = [RawLabValueInput(
+        parameter_code="WBC", parameter_name_es="Leucocitos",
+        raw_value="14.26", numeric_value=14.26,
+        unit="10*9/L", reference_range="2.8-17.0",
+    )]
+    request_2 = FlagBatchRequest(
+        test_result_id=tr.id, species="Felino", values=vals_2
+    )
+    result_2 = await engine.flag_test_result(request_2, session)
+    assert result_2.summary["NORMAL"] == 1
+    assert result_2.summary["BAJO"] == 0
+    assert result_2.summary["ALTO"] == 0
+
+    # Refresh and verify counts ACCUMULATED
+    await session.refresh(tr)
+    assert tr.flag_bajo_count == 1  # from first call — PRESERVED
+    assert tr.flag_normal_count == 1  # from second call — ADDED
+    assert tr.flag_alto_count == 0
+
+    # Status should NOT have changed (already "listo" from first call)
+    assert tr.status == "listo"
+    # processed_at should still be the first call's timestamp
+    assert tr.processed_at == first_processed_at
+
+
+@pytest.mark.asyncio
 async def test_flag_nsh_canine_normal(session):
     """Verify NSH# for Canine is flagged as NORMAL when value is in range."""
     tr = await create_test_result(session)
