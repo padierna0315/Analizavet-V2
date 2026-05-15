@@ -1,2024 +1,2153 @@
 {
-    "RBC": {
-        "name": "Eritrocitos",
-        "unit": "x10^6/µL",
-        "ranges": {
-            "canine": {
-                "min": 5.65,
-                "max": 8.87
-            },
-            "feline": {
-                "min": 6.54,
-                "max": 12.2
-            }
-        },
-        "short_name": "Eritrocitos"
-    },
-    "HGB": {
-        "name": "Hemoglobina",
-        "unit": "g/L",
-        "ranges": {
-            "canine": {
-                "min": 131.0,
-                "max": 205.0
-            },
-            "feline": {
-                "min": 98.0,
-                "max": 162.0
-            }
-        },
-        "short_name": "Hemoglobina"
-    },
-    "HCT": {
-        "name": "Hematocrito",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 37.3,
-                "max": 61.7
-            },
-            "feline": {
-                "min": 30.3,
-                "max": 52.3
-            }
-        },
-        "short_name": "Hematocrito"
-    },
-    "MCV": {
-        "name": "Volumen Corpuscular Medio",
-        "unit": "fL",
-        "ranges": {
-            "canine": {
-                "min": 61.6,
-                "max": 73.5
-            },
-            "feline": {
-                "min": 35.9,
-                "max": 53.1
-            }
-        },
-        "short_name": "Volumen_Corpuscular_Medio"
-    },
-    "MCH": {
-        "name": "Hemoglobina Corpuscular Media",
-        "unit": "pg",
-        "ranges": {
-            "canine": {
-                "min": 21.2,
-                "max": 25.9
-            },
-            "feline": {
-                "min": 11.8,
-                "max": 17.3
-            }
-        },
-        "short_name": "Hemoglobina_Corpuscular_Media"
-    },
-    "MCHC": {
-        "name": "Concentración de Hemoglobina Corpuscular Media",
-        "unit": "g/L",
-        "ranges": {
-            "canine": {
-                "min": 320.0,
-                "max": 379.0
-            },
-            "feline": {
-                "min": 281.0,
-                "max": 358.0
-            }
-        },
-        "short_name": "Concentracion_Hemoglobina_Corpuscular_Media"
-    },
-    "RDW-CV": {
-        "name": "Amplitud de Distribución Eritrocitaria (coeficiente de variación)",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 11.2,
-                "max": 17.1
-            },
-            "feline": {
-                "min": 20.9,
-                "max": 33.6
-            }
-        },
-        "short_name": "RDW_CV"
-    },
-    "RDW-SD": {
-        "name": "Amplitud de Distribución Eritrocitaria (desviación estándar)",
-        "unit": "fL",
-        "ranges": {
-            "canine": {
-                "min": 25.6,
-                "max": 41.6
-            },
-            "feline": {
-                "min": 16.0,
-                "max": 27.4
-            }
-        },
-        "short_name": "RDW_SD"
-    },
-    "HDW-CV": {
-        "name": "Ancho de Distribución de Hemoglobina (Coeficiente de Variación)",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 7.0,
-                "max": 20.0
-            },
-            "feline": {
-                "min": 7.0,
-                "max": 30.0
-            }
-        },
-        "short_name": "HDW_CV"
-    },
-    "HDW-SD": {
-        "name": "Ancho de Distribución de Hemoglobina (Desviación Estándar)",
-        "unit": "pg",
-        "ranges": {
-            "canine": {
-                "min": 2.0,
-                "max": 8.0
-            },
-            "feline": {
-                "min": 2.0,
-                "max": 8.0
-            }
-        },
-        "short_name": "HDW_SD"
-    },
-    "RET#": {
-        "name": "Reticulocitos Absolutos",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 3.0,
-                "max": 110.0
-            },
-            "feline": {
-                "min": 3.0,
-                "max": 50.0
-            }
-        },
-        "short_name": "Reticulocitos"
-    },
-    "RET%": {
-        "name": "Reticulocitos %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 1.5
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 1.0
-            }
-        },
-        "short_name": "Reticulocitos_Pct"
-    },
-    "ETG#": {
-        "name": "Eritrocitos Fantasma",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.5
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.6
-            }
-        },
-        "short_name": "Eritrocitos_Fantasma"
-    },
-    "ETG%": {
-        "name": "Eritrocitos Fantasma %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.16
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.25
-            }
-        },
-        "short_name": "Eritrocitos_Fantasma_Pct"
-    },
-    "SPH#": {
-        "name": "Esferocitos",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 130.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 193.66
-            }
-        },
-        "short_name": "Esferocitos"
-    },
-    "SPH%": {
-        "name": "Esferocitos %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 1.54
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 2.71
-            }
-        },
-        "short_name": "Esferocitos_Pct"
-    },
-    "WBC": {
-        "name": "Leucocitos",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 5.05,
-                "max": 16.76
-            },
-            "feline": {
-                "min": 2.8,
-                "max": 17.0
-            }
-        },
-        "short_name": "Leucocitos"
-    },
-    "NEU#": {
-        "name": "Neutrófilos",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 2.95,
-                "max": 11.64
-            },
-            "feline": {
-                "min": 2.3,
-                "max": 10.29
-            }
-        },
-        "short_name": "Neutrofilos"
-    },
-    "NEU%": {
-        "name": "Neutrófilos %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 52.0,
-                "max": 78.0
-            },
-            "feline": {
-                "min": 38.0,
-                "max": 80.0
-            }
-        },
-        "short_name": "Neutrofilos_Pct"
-    },
-    "NST#": {
-        "name": "Neutrófilos en Banda",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.8
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.8
-            }
-        },
-        "short_name": "Neutrofilos_Banda"
-    },
-    "NST/WBC%": {
-        "name": "Relación bandas/Leucocitos totales %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 10.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 10.0
-            }
-        },
-        "short_name": "Bandas_Leucocitos_Pct"
-    },
-    "NST/NEU%": {
-        "name": "Relación bandas/Neutrófilos totales %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 20.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 15.0
-            }
-        },
-        "short_name": "Bandas_Neutrofilos_Pct"
-    },
-    "NSG#": {
-        "name": "Neutrófilos Segmentados",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 2.5,
-                "max": 11.3
-            },
-            "feline": {
-                "min": 2.3,
-                "max": 12.5
-            }
-        },
-        "short_name": "Neutrofilos_Segmentados"
-    },
-    "NSG%": {
-        "name": "Neutrófilos Segmentados %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 50.0,
-                "max": 75.0
-            },
-            "feline": {
-                "min": 35.0,
-                "max": 75.0
-            }
-        },
-        "short_name": "Neutrofilos_Segmentados_Pct"
-    },
-    "NSH#": {
-        "name": "Neutrófilos Hipersegmentados",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.4
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.3
-            }
-        },
-        "short_name": "Neutrofilos_Hipersegmentados"
-    },
-    "NSH/WBC%": {
-        "name": "Relación hipersegmentado/Leucocitos %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 5.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 3.0
-            }
-        },
-        "short_name": "Hipersegmentados_Leucocitos_Pct"
-    },
-    "NSH/NEU%": {
-        "name": "Relación hipersegmentado/Neutrófilos %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 7.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 4.0
-            }
-        },
-        "short_name": "Hipersegmentados_Neutrofilos_Pct"
-    },
-    "LYM#": {
-        "name": "Linfocitos",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 1.05,
-                "max": 5.1
-            },
-            "feline": {
-                "min": 0.92,
-                "max": 6.88
-            }
-        },
-        "short_name": "Linfocitos"
-    },
-    "LYM%": {
-        "name": "Linfocitos %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 16.0,
-                "max": 41.5
-            },
-            "feline": {
-                "min": 16.0,
-                "max": 47.5
-            }
-        },
-        "short_name": "Linfocitos_Pct"
-    },
-    "MON#": {
-        "name": "Monocitos",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.16,
-                "max": 1.12
-            },
-            "feline": {
-                "min": 0.05,
-                "max": 0.67
-            }
-        },
-        "short_name": "Monocitos"
-    },
-    "MON%": {
-        "name": "Monocitos %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 1.0,
-                "max": 13.0
-            },
-            "feline": {
-                "min": 1.0,
-                "max": 7.6
-            }
-        },
-        "short_name": "Monocitos_Pct"
-    },
-    "EOS#": {
-        "name": "Eosinófilos",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.06,
-                "max": 1.23
-            },
-            "feline": {
-                "min": 0.17,
-                "max": 1.57
-            }
-        },
-        "short_name": "Eosinofilos"
-    },
-    "EOS%": {
-        "name": "Eosinófilos %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 0.5,
-                "max": 11.85
-            },
-            "feline": {
-                "min": 1.0,
-                "max": 11.1
-            }
-        },
-        "short_name": "Eosinofilos_Pct"
-    },
-    "BAS#": {
-        "name": "Basófilos",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.1
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.26
-            }
-        },
-        "short_name": "Basofilos"
-    },
-    "BAS%": {
-        "name": "Basófilos %",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.9
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.7
-            }
-        },
-        "short_name": "Basofilos_Pct"
-    },
-    "LUC#": {
-        "name": "Grandes Células Inmaduras",
-        "short_name": "LUC",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "LUC%": {
-        "name": "Grandes Células Inmaduras %",
-        "short_name": "LUC_Pct",
-        "unit": "%",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "IG#": {
-        "name": "Granulocitos Inmaduros",
-        "short_name": "IG",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "IG%": {
-        "name": "Granulocitos Inmaduros %",
-        "short_name": "IG_Pct",
-        "unit": "%",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "PLT": {
-        "name": "Plaquetas",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 148.0,
-                "max": 484.0
-            },
-            "feline": {
-                "min": 151.0,
-                "max": 600.0
-            }
-        },
-        "short_name": "Plaquetas"
-    },
-    "MPV": {
-        "name": "Volumen Plaquetario Medio",
-        "unit": "fL",
-        "ranges": {
-            "canine": {
-                "min": 8.7,
-                "max": 13.2
-            },
-            "feline": {
-                "min": 11.4,
-                "max": 21.6
-            }
-        },
-        "short_name": "Volumen_Plaquetario_Medio"
-    },
-    "PDW": {
-        "name": "Amplitud de la Distribución Plaquetaria",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 9.1,
-                "max": 19.4
-            },
-            "feline": {
-                "min": 9.1,
-                "max": 19.4
-            }
-        },
-        "short_name": "Distribucion_Plaquetaria"
-    },
-    "PCT": {
-        "name": "Plaquetocrito",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 1.4,
-                "max": 4.6
-            },
-            "feline": {
-                "min": 1.7,
-                "max": 8.6
-            }
-        },
-        "short_name": "Plaquetocrito"
-    },
-    "APLT#": {
-        "name": "Plaquetas Agregadas",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.15
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.15
-            }
-        },
-        "short_name": "Plaquetas_Agregadas"
-    },
-    "P-LCC": {
-        "name": "Recuento de Plaquetas Grandes",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 66.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 103.0
-            }
-        },
-        "short_name": "Plaquetas_Grandes"
-    },
-    "P-LCR": {
-        "name": "Relación de Plaquetas Grandes",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 25.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 30.0
-            }
-        },
-        "short_name": "Relacion_Plaquetas_Grandes"
-    },
-    "cCRP": {
-        "name": "Proteína C Reactiva Canina",
-        "unit": "mg/L",
-        "ranges": {
-            "canine": {
-                "min": 2.0,
-                "max": 8.0
-            },
-            "feline": {
-                "min": 2.0,
-                "max": 8.0
-            }
-        },
-        "short_name": "PCR_Canina"
-    },
-    "fSAA": {
-        "name": "Amiloide A Sérico Felino",
-        "unit": "mg/L",
-        "ranges": {
-            "canine": null,
-            "feline": {
-                "min": 0.0,
-                "max": 5.0
-            }
-        },
-        "short_name": "SAA_Felino"
-    },
-    "cPL": {
-        "name": "Lipasa Pancreática Canina",
-        "unit": "µg/L",
-        "ranges": {
-            "canine": {
-                "min": 9.1,
-                "max": 19.4
-            },
-            "feline": {
-                "min": 9.1,
-                "max": 19.4
-            }
-        },
-        "short_name": "Lipasa_Pancreatica_Canina"
-    },
-    "fPL": {
-        "name": "Lipasa Pancreática Felina",
-        "unit": "µg/L",
-        "ranges": {
-            "canine": null,
-            "feline": {
-                "min": 0.0,
-                "max": 3.5
-            }
-        },
-        "short_name": "Lipasa_Pancreatica_Felina"
-    },
-    "cT4": {
-        "name": "Tiroxina Canina",
-        "unit": "µg/dL",
-        "ranges": {
-            "canine": {
-                "min": 1.0,
-                "max": 4.0
-            },
-            "feline": null
-        },
-        "short_name": "Tiroxina_Canina"
-    },
-    "fT4": {
-        "name": "Tiroxina Felina",
-        "unit": "µg/dL",
-        "ranges": {
-            "canine": null,
-            "feline": {
-                "min": 1.2,
-                "max": 4.0
-            }
-        },
-        "short_name": "Tiroxina_Felina"
-    },
-    "cProg": {
-        "name": "Progesterona Canina",
-        "unit": "ng/mL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 1.0
-            },
-            "feline": null
-        },
-        "short_name": "Progesterona_Canina"
-    },
-    "cNT-proBNP": {
-        "name": "Péptido Natriurético Cerebral (Canino)",
-        "unit": "pmol/L",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 900.0
-            },
-            "feline": null
-        },
-        "short_name": "NT_proBNP_Canino"
-    },
-    "fNT-proBNP": {
-        "name": "Péptido Natriurético Cerebral (Felino)",
-        "unit": "pmol/L",
-        "ranges": {
-            "canine": null,
-            "feline": {
-                "min": 0.0,
-                "max": 100.0
-            }
-        },
-        "short_name": "NT_proBNP_Felino"
-    },
-    "URBC#": {
-        "name": "Glóbulos Rojos en Orina",
-        "unit": "cél/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 5.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 5.0
-            }
-        },
-        "short_name": "GR_Orina"
-    },
-    "UWBC#": {
-        "name": "Leucocitos en Orina",
-        "unit": "cél/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 5.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 5.0
-            }
-        },
-        "short_name": "Leucocitos_Orina"
-    },
-    "RTE#": {
-        "name": "Células Epiteliales Renales",
-        "unit": "cél/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Celulas_Renales"
-    },
-    "SEC#": {
-        "name": "Células Escamosas",
-        "unit": "cél/µL",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        },
-        "short_name": "Celulas_Escamosas"
-    },
-    "TEC#": {
-        "name": "Células Transicionales",
-        "unit": "cél/µL",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        },
-        "short_name": "Celulas_Transicionales"
-    },
-    "UBAC#": {
-        "name": "Bacterias Generales en Orina",
-        "unit": "bac/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Bacterias_Orina"
-    },
-    "UCOS#": {
-        "name": "Bacterias Formadoras de Cocos en Orina",
-        "unit": "bac/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Cocos_Orina"
-    },
-    "UYEA#": {
-        "name": "Levaduras y Hongos en Orina",
-        "unit": "cél/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Levaduras_Orina"
-    },
-    "FAT#": {
-        "name": "Cuerpos Lipídicos/Grasa en Orina",
-        "unit": "cél/µL",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        },
-        "short_name": "Cuerpos_Lipidicos_Orina"
-    },
-    "PHL#": {
-        "name": "Células Sanguíneas Alteradas en Orina",
-        "unit": "cél/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Celulas_Sanguineas_Alteradas_Orina"
-    },
-    "MAP#": {
-        "name": "Estruvita (Fosfato Amónico Magnésico)",
-        "unit": "",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        },
-        "short_name": "Estruvita"
-    },
-    "COMC#": {
-        "name": "Oxalato de Calcio Monohidratado",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Oxalato_Calcio_Mono"
-    },
-    "CODC#": {
-        "name": "Oxalato de Calcio Dihidratado",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 66.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 66.0
-            }
-        },
-        "short_name": "Oxalato_Calcio_Dihidrato"
-    },
-    "CP#": {
-        "name": "Fosfato de Calcio",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Fosfato_Calcio"
-    },
-    "AUC#": {
-        "name": "Urato de Amonio",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Urato_Amonio"
-    },
-    "CYSC#": {
-        "name": "Cistina",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Cistina"
-    },
-    "CC#": {
-        "name": "Carbonato de Calcio",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Carbonato_Calcio"
-    },
-    "UBilC#": {
-        "name": "Bilirrubina en Orina",
-        "unit": "",
-        "ranges": {
-            "canine": null,
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Bilirrubina_Orina"
-    },
-    "HYA#": {
-        "name": "Cilindros Hialinos",
-        "unit": "",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        },
-        "short_name": "Cilindros_Hialinos"
-    },
-    "GRA#": {
-        "name": "Cilindros Granulosos",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Cilindros_Granulosos"
-    },
-    "WAC#": {
-        "name": "Cilindros Leucocitarios",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Cilindros_Leucocitarios"
-    },
-    "URBC-C#": {
-        "name": "Cilindros Eritrocíticos",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Cilindros_Eritrociticos"
-    },
-    "RTC#": {
-        "name": "Cilindros Celulares/Renales",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Cilindros_Celulares"
-    },
-    "ALE#": {
-        "name": "Huevos de Nematodos",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Nematodos"
-    },
-    "ANE#": {
-        "name": "Huevos de Ancylostoma",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Ancylostoma"
-    },
-    "TRE#": {
-        "name": "Huevos de Trematodos",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Trematodos"
-    },
-    "DIP#": {
-        "name": "Huevos de Diphyllobothrium",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Diphyllobothrium"
-    },
-    "SPI#": {
-        "name": "Huevos de Spirometra",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Spirometra"
-    },
-    "TtE#": {
-        "name": "Huevos de Trichuris trichiura",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Trichuris_trichiura"
-    },
-    "CEE#": {
-        "name": "Huevos de Taenia",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Taenia"
-    },
-    "TRI#": {
-        "name": "Trichomonas spp.",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Trichomonas"
-    },
-    "FLA#": {
-        "name": "Giardia",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Giardia"
-    },
-    "COD#": {
-        "name": "Coccidia spp.",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Coccidia"
-    },
-    "COD0#": {
-        "name": "Coccidia spp. estadio 0",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Coccidia"
-    },
-    "COD1#": {
-        "name": "Coccidia spp. estadio 1",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Coccidia"
-    },
-    "COD2#": {
-        "name": "Coccidia spp. estadio 2",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Coccidia"
-    },
-    "Tg#": {
-        "name": "Toxoplasma gondii",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Toxoplasma"
-    },
-    "COS#": {
-        "name": "Cocos",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 20.0,
-                "max": 120.0
-            },
-            "feline": {
-                "min": 20.0,
-                "max": 120.0
-            }
-        },
-        "short_name": "Cocos"
-    },
-    "BACI#": {
-        "name": "Bacilos",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 80.0,
-                "max": 2200.0
-            },
-            "feline": {
-                "min": 80.0,
-                "max": 2200.0
-            }
-        },
-        "short_name": "Bacilos"
-    },
-    "C/B#": {
-        "name": "Coco/bacilo",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.01,
-                "max": 0.15
-            },
-            "feline": {
-                "min": 0.01,
-                "max": 0.15
-            }
-        },
-        "short_name": "Coco/bacilo"
-    },
-    "CAM#": {
-        "name": "Campylobacter spp.",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Campylobacter"
-    },
-    "BAC#": {
-        "name": "Bacterias",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 6.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 6.0
-            }
-        },
-        "short_name": "Bacterias"
-    },
-    "SS1#": {
-        "name": "Salmonella spp. tipo 1",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Salmonella"
-    },
-    "SS2#": {
-        "name": "Salmonella spp. tipo 2",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Salmonella"
-    },
-    "YEA#": {
-        "name": "Levaduras",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 10.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 10.0
-            }
-        },
-        "short_name": "Levaduras"
-    },
-    "RBC#": {
-        "name": "Eritrocitos",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Eritrocitos"
-    },
-    "WBC#": {
-        "name": "Leucocitos",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Leucocitos"
-    },
-    "EPC#": {
-        "name": "Celulas Epiteliales",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        },
-        "short_name": "Celulas"
-    },
-    "STA#": {
-        "name": "Almidón no digerido",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 2.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 2.0
-            }
-        },
-        "short_name": "Almidon"
-    },
-    "LFAT#": {
-        "name": "Grasa ligera",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.2
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.2
-            }
-        },
-        "short_name": "Grasa"
-    },
-    "PLA#": {
-        "name": "Fibra vegetal",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.1
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.1
-            }
-        },
-        "short_name": "Fibra"
-    },
-    "AF#": {
-        "name": "Grasa",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.1
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.1
-            }
-        },
-        "short_name": "Grasa"
-    },
-    "ALP": {
-        "name": "Fosfatasa Alcalina",
-        "unit": "U/L",
-        "ranges": {
-            "canine": {
-                "min": 20.0,
-                "max": 150.0
-            },
-            "feline": {
-                "min": 10.0,
-                "max": 80.0
-            }
-        },
-        "short_name": "Fosfatasa_Alcalina"
-    },
-    "ALT": {
-        "name": "Alanina Aminotransferasa",
-        "unit": "U/L",
-        "ranges": {
-            "canine": {
-                "min": 10.0,
-                "max": 100.0
-            },
-            "feline": {
-                "min": 10.0,
-                "max": 100.0
-            }
-        },
-        "short_name": "ALT"
-    },
-    "AST": {
-        "name": "Aspartato Aminotransferasa",
-        "unit": "U/L",
-        "ranges": {
-            "canine": {
-                "min": 10.0,
-                "max": 50.0
-            },
-            "feline": {
-                "min": 10.0,
-                "max": 50.0
-            }
-        },
-        "short_name": "AST"
-    },
-    "GGT": {
-        "name": "Gamma-Glutamil Transferasa",
-        "unit": "U/L",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 10.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 10.0
-            }
-        },
-        "short_name": "GGT"
-    },
-    "CPK": {
-        "name": "Creatina Quinasa",
-        "unit": "U/L",
-        "ranges": {
-            "canine": {
-                "min": 50.0,
-                "max": 200.0
-            },
-            "feline": {
-                "min": 50.0,
-                "max": 250.0
-            }
-        },
-        "short_name": "CPK"
-    },
-    "v-LIP": {
-        "name": "Lipasa Veterinaria",
-        "unit": "U/L",
-        "ranges": {
-            "canine": {
-                "min": 200.0,
-                "max": 800.0
-            },
-            "feline": {
-                "min": 100.0,
-                "max": 600.0
-            }
-        },
-        "short_name": "Lipasa_Veterinaria"
-    },
-    "v-AMY": {
-        "name": "Amilasa Veterinaria",
-        "unit": "U/L",
-        "ranges": {
-            "canine": {
-                "min": 400.0,
-                "max": 1500.0
-            },
-            "feline": {
-                "min": 500.0,
-                "max": 1500.0
-            }
-        },
-        "short_name": "Amilasa_Veterinaria"
-    },
-    "LDH": {
-        "name": "Deshidrogenasa Láctica",
-        "unit": "U/L",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 200.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 200.0
-            }
-        },
-        "short_name": "LDH"
-    },
-    "BUN": {
-        "name": "Nitrógeno Ureico",
-        "unit": "mg/dL",
-        "ranges": {
-            "canine": {
-                "min": 15.0,
-                "max": 35.0
-            },
-            "feline": {
-                "min": 15.0,
-                "max": 35.0
-            }
-        },
-        "short_name": "Nitrogeno_Ureico"
-    },
-    "UA": {
-        "name": "Ácido Úrico",
-        "unit": "mg/dL",
-        "ranges": {
-            "canine": {
-                "min": 2.0,
-                "max": 9.0
-            },
-            "feline": {
-                "min": 0.5,
-                "max": 7.0
-            }
-        },
-        "short_name": "Acido_Urico"
-    },
-    "BUNCRE": {
-        "name": "Relación BUN/CRE",
-        "unit": "",
-        "ranges": {
-            "canine": {
-                "min": 10.0,
-                "max": 27.0
-            },
-            "feline": {
-                "min": 10.0,
-                "max": 30.0
-            }
-        },
-        "short_name": "Relacion_BUN_CRE"
-    },
-    "UREA": {
-        "name": "Urea",
-        "unit": "mg/dL",
-        "ranges": {
-            "canine": {
-                "min": 32.1,
-                "max": 74.9
-            },
-            "feline": {
-                "min": 32.1,
-                "max": 74.9
-            }
-        },
-        "short_name": "Urea"
-    },
-    "CRE": {
-        "name": "Creatinina",
-        "unit": "mg/dL",
-        "ranges": {
-            "canine": {
-                "min": 0.6,
-                "max": 1.6
-            },
-            "feline": {
-                "min": 0.8,
-                "max": 2.0
-            }
-        },
-        "short_name": "Creatinina"
-    },
-    "GLU": {
-        "name": "Glucosa",
-        "unit": "mg/dL",
-        "ranges": {
-            "canine": {
-                "min": 70.0,
-                "max": 110.0
-            },
-            "feline": {
-                "min": 70.0,
-                "max": 150.0
-            }
-        },
-        "short_name": "Glucosa"
-    },
-    "IP": {
-        "name": "Fósforo Inorgánico",
-        "unit": "mg/dL",
-        "ranges": {
-            "canine": {
-                "min": 2.5,
-                "max": 6.0
-            },
-            "feline": {
-                "min": 3.0,
-                "max": 6.5
-            }
-        },
-        "short_name": "Fosforo_Inorganico"
-    },
-    "Ca": {
-        "name": "Calcio Total",
-        "unit": "mg/dL",
-        "ranges": {
-            "canine": {
-                "min": 9.0,
-                "max": 11.5
-            },
-            "feline": {
-                "min": 8.5,
-                "max": 10.5
-            }
-        },
-        "short_name": "Calcio_Total"
-    },
-    "TP": {
-        "name": "Proteína Total",
-        "unit": "g/dL",
-        "ranges": {
-            "canine": {
-                "min": 5.5,
-                "max": 7.5
-            },
-            "feline": {
-                "min": 6.0,
-                "max": 8.0
-            }
-        },
-        "short_name": "Proteina_Total"
-    },
-    "ALB": {
-        "name": "Albúmina",
-        "unit": "g/dL",
-        "ranges": {
-            "canine": {
-                "min": 2.5,
-                "max": 4.0
-            },
-            "feline": {
-                "min": 2.5,
-                "max": 4.0
-            }
-        },
-        "short_name": "Albumina"
-    },
-    "TCHO": {
-        "name": "Colesterol Total",
-        "unit": "mg/dL",
-        "ranges": {
-            "canine": {
-                "min": 130.0,
-                "max": 300.0
-            },
-            "feline": {
-                "min": 80.0,
-                "max": 220.0
-            }
-        },
-        "short_name": "Colesterol_Total"
-    },
-    "TG": {
-        "name": "Triglicéridos",
-        "unit": "mg/dL",
-        "ranges": {
-            "canine": {
-                "min": 20.0,
-                "max": 110.0
-            },
-            "feline": {
-                "min": 20.0,
-                "max": 110.0
-            }
-        },
-        "short_name": "Trigliceridos"
-    },
-    "TBIL": {
-        "name": "Bilirrubina Total",
-        "unit": "mg/dL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.5
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.5
-            }
-        },
-        "short_name": "Bilirrubina_Total"
-    },
-    "NH3": {
-        "name": "Amoníaco",
-        "unit": "µg/dL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 100.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 100.0
-            }
-        },
-        "short_name": "Amoniaco"
-    },
-    "Na": {
-        "name": "Sodio",
-        "unit": "mEq/L",
-        "ranges": {
-            "canine": {
-                "min": 140.0,
-                "max": 155.0
-            },
-            "feline": {
-                "min": 145.0,
-                "max": 155.0
-            }
-        },
-        "short_name": "Sodio"
-    },
-    "K": {
-        "name": "Potasio",
-        "unit": "mEq/L",
-        "ranges": {
-            "canine": {
-                "min": 3.5,
-                "max": 5.5
-            },
-            "feline": {
-                "min": 3.5,
-                "max": 5.5
-            }
-        },
-        "short_name": "Potasio"
-    },
-    "Cl": {
-        "name": "Cloruro",
-        "unit": "mEq/L",
-        "ranges": {
-            "canine": {
-                "min": 105.0,
-                "max": 115.0
-            },
-            "feline": {
-                "min": 115.0,
-                "max": 125.0
-            }
-        },
-        "short_name": "Cloruro"
-    },
-    "RBC_PLT": {
-        "name": "Distribución RBC PLT",
-        "short_name": "Distribucion_RBC_PLT",
-        "unit": "",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "NRBC#": {
-        "name": "Eritrocitos Nucleados",
-        "short_name": "NRBC",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        }
-    },
-    "NRBC%": {
-        "name": "Eritrocitos Nucleados %",
-        "short_name": "NRBC_Pct",
-        "unit": "%",
-        "ranges": {
-            "canine": {
-                "min": 0.0,
-                "max": 0.0
-            },
-            "feline": {
-                "min": 0.0,
-                "max": 0.0
-            }
-        }
-    },
-    "IRF": {
-        "name": "Fracción de Reticulocitos Inmaduros",
-        "short_name": "IRF",
-        "unit": "%",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "LFR": {
-        "name": "Fracción de Reticulocitos de Baja Fluorescencia",
-        "short_name": "LFR",
-        "unit": "%",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "MFR": {
-        "name": "Fracción de Reticulocitos de Media Fluorescencia",
-        "short_name": "MFR",
-        "unit": "%",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "HFR": {
-        "name": "Fracción de Reticulocitos de Alta Fluorescencia",
-        "short_name": "HFR",
-        "unit": "%",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "PLT-I": {
-        "name": "Plaquetas Inmaduras",
-        "short_name": "PLT-I",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "PLT-O": {
-        "name": "Plaquetas Ópticas",
-        "short_name": "PLT-O",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "PLT-F": {
-        "name": "Plaquetas Fluorescentes",
-        "short_name": "PLT-F",
-        "unit": "x10^3/µL",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "IPF": {
-        "name": "Fracción de Plaquetas Inmaduras",
-        "short_name": "IPF",
-        "unit": "%",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    },
-    "FECES": {
-        "name": "Heces",
-        "short_name": "Heces",
-        "unit": "",
-        "ranges": {
-            "canine": null,
-            "feline": null
-        }
-    }
+  "RBC": {
+    "name": "Eritrocitos",
+    "unit": "x10^6/µL",
+    "ranges": {
+      "canine": {
+        "min": 5.65,
+        "max": 8.87
+      },
+      "feline": {
+        "min": 6.54,
+        "max": 12.2
+      }
+    },
+    "short_name": "Eritrocitos"
+  },
+  "HGB": {
+    "name": "Hemoglobina",
+    "unit": "g/L",
+    "ranges": {
+      "canine": {
+        "min": 131.0,
+        "max": 205.0
+      },
+      "feline": {
+        "min": 98.0,
+        "max": 162.0
+      }
+    },
+    "short_name": "Hemoglobina"
+  },
+  "HCT": {
+    "name": "Hematocrito",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 37.3,
+        "max": 61.7
+      },
+      "feline": {
+        "min": 30.3,
+        "max": 52.3
+      }
+    },
+    "short_name": "Hematocrito"
+  },
+  "MCV": {
+    "name": "Volumen Corpuscular Medio",
+    "unit": "fL",
+    "ranges": {
+      "canine": {
+        "min": 61.6,
+        "max": 73.5
+      },
+      "feline": {
+        "min": 35.9,
+        "max": 53.1
+      }
+    },
+    "short_name": "Volumen_Corpuscular_Medio"
+  },
+  "MCH": {
+    "name": "Hemoglobina Corpuscular Media",
+    "unit": "pg",
+    "ranges": {
+      "canine": {
+        "min": 21.2,
+        "max": 25.9
+      },
+      "feline": {
+        "min": 11.8,
+        "max": 17.3
+      }
+    },
+    "short_name": "Hemoglobina_Corpuscular_Media"
+  },
+  "MCHC": {
+    "name": "Concentración de Hemoglobina Corpuscular Media",
+    "unit": "g/L",
+    "ranges": {
+      "canine": {
+        "min": 320.0,
+        "max": 379.0
+      },
+      "feline": {
+        "min": 281.0,
+        "max": 358.0
+      }
+    },
+    "short_name": "Concentracion_Hemoglobina_Corpuscular_Media"
+  },
+  "RDW-CV": {
+    "name": "Amplitud de Distribución Eritrocitaria (coeficiente de variación)",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 11.2,
+        "max": 17.1
+      },
+      "feline": {
+        "min": 20.9,
+        "max": 33.6
+      }
+    },
+    "short_name": "RDW_CV"
+  },
+  "RDW-SD": {
+    "name": "Amplitud de Distribución Eritrocitaria (desviación estándar)",
+    "unit": "fL",
+    "ranges": {
+      "canine": {
+        "min": 25.6,
+        "max": 41.6
+      },
+      "feline": {
+        "min": 16.0,
+        "max": 27.4
+      }
+    },
+    "short_name": "RDW_SD"
+  },
+  "HDW-CV": {
+    "name": "Ancho de Distribución de Hemoglobina (Coeficiente de Variación)",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 7.0,
+        "max": 20.0
+      },
+      "feline": {
+        "min": 7.0,
+        "max": 30.0
+      }
+    },
+    "short_name": "HDW_CV"
+  },
+  "HDW-SD": {
+    "name": "Ancho de Distribución de Hemoglobina (Desviación Estándar)",
+    "unit": "pg",
+    "ranges": {
+      "canine": {
+        "min": 2.0,
+        "max": 8.0
+      },
+      "feline": {
+        "min": 2.0,
+        "max": 8.0
+      }
+    },
+    "short_name": "HDW_SD"
+  },
+  "RET#": {
+    "name": "Reticulocitos Absolutos",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 3.0,
+        "max": 110.0
+      },
+      "feline": {
+        "min": 3.0,
+        "max": 50.0
+      }
+    },
+    "short_name": "Reticulocitos"
+  },
+  "RET%": {
+    "name": "Reticulocitos %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 1.5
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 1.0
+      }
+    },
+    "short_name": "Reticulocitos_Pct"
+  },
+  "ETG#": {
+    "name": "Eritrocitos Fantasma",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.5
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.6
+      }
+    },
+    "short_name": "Eritrocitos_Fantasma"
+  },
+  "ETG%": {
+    "name": "Eritrocitos Fantasma %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.16
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.25
+      }
+    },
+    "short_name": "Eritrocitos_Fantasma_Pct"
+  },
+  "SPH#": {
+    "name": "Esferocitos",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 130.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 193.66
+      }
+    },
+    "short_name": "Esferocitos"
+  },
+  "SPH%": {
+    "name": "Esferocitos %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 1.54
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 2.71
+      }
+    },
+    "short_name": "Esferocitos_Pct"
+  },
+  "WBC": {
+    "name": "Leucocitos",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 5.05,
+        "max": 16.76
+      },
+      "feline": {
+        "min": 2.8,
+        "max": 17.0
+      }
+    },
+    "short_name": "Leucocitos"
+  },
+  "NEU#": {
+    "name": "Neutrófilos",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 2.95,
+        "max": 11.64
+      },
+      "feline": {
+        "min": 2.3,
+        "max": 10.29
+      }
+    },
+    "short_name": "Neutrofilos"
+  },
+  "NEU%": {
+    "name": "Neutrófilos %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 52.0,
+        "max": 78.0
+      },
+      "feline": {
+        "min": 38.0,
+        "max": 80.0
+      }
+    },
+    "short_name": "Neutrofilos_Pct"
+  },
+  "NST#": {
+    "name": "Neutrófilos en Banda",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.8
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.8
+      }
+    },
+    "short_name": "Neutrofilos_Banda"
+  },
+  "NST/WBC%": {
+    "name": "Relación bandas/Leucocitos totales %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 10.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 10.0
+      }
+    },
+    "short_name": "Bandas_Leucocitos_Pct"
+  },
+  "NST/NEU%": {
+    "name": "Relación bandas/Neutrófilos totales %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 20.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 15.0
+      }
+    },
+    "short_name": "Bandas_Neutrofilos_Pct"
+  },
+  "NSG#": {
+    "name": "Neutrófilos Segmentados",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 2.5,
+        "max": 11.3
+      },
+      "feline": {
+        "min": 2.3,
+        "max": 12.5
+      }
+    },
+    "short_name": "Neutrofilos_Segmentados"
+  },
+  "NSG%": {
+    "name": "Neutrófilos Segmentados %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 50.0,
+        "max": 75.0
+      },
+      "feline": {
+        "min": 35.0,
+        "max": 75.0
+      }
+    },
+    "short_name": "Neutrofilos_Segmentados_Pct"
+  },
+  "NSH#": {
+    "name": "Neutrófilos Hipersegmentados",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.4
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.3
+      }
+    },
+    "short_name": "Neutrofilos_Hipersegmentados"
+  },
+  "NSH/WBC%": {
+    "name": "Relación hipersegmentado/Leucocitos %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 5.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 3.0
+      }
+    },
+    "short_name": "Hipersegmentados_Leucocitos_Pct"
+  },
+  "NSH/NEU%": {
+    "name": "Relación hipersegmentado/Neutrófilos %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 7.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 4.0
+      }
+    },
+    "short_name": "Hipersegmentados_Neutrofilos_Pct"
+  },
+  "LYM#": {
+    "name": "Linfocitos",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 1.05,
+        "max": 5.1
+      },
+      "feline": {
+        "min": 0.92,
+        "max": 6.88
+      }
+    },
+    "short_name": "Linfocitos"
+  },
+  "LYM%": {
+    "name": "Linfocitos %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 16.0,
+        "max": 41.5
+      },
+      "feline": {
+        "min": 16.0,
+        "max": 47.5
+      }
+    },
+    "short_name": "Linfocitos_Pct"
+  },
+  "MON#": {
+    "name": "Monocitos",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.16,
+        "max": 1.12
+      },
+      "feline": {
+        "min": 0.05,
+        "max": 0.67
+      }
+    },
+    "short_name": "Monocitos"
+  },
+  "MON%": {
+    "name": "Monocitos %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 1.0,
+        "max": 13.0
+      },
+      "feline": {
+        "min": 1.0,
+        "max": 7.6
+      }
+    },
+    "short_name": "Monocitos_Pct"
+  },
+  "EOS#": {
+    "name": "Eosinófilos",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.06,
+        "max": 1.23
+      },
+      "feline": {
+        "min": 0.17,
+        "max": 1.57
+      }
+    },
+    "short_name": "Eosinofilos"
+  },
+  "EOS%": {
+    "name": "Eosinófilos %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 0.5,
+        "max": 11.85
+      },
+      "feline": {
+        "min": 1.0,
+        "max": 11.1
+      }
+    },
+    "short_name": "Eosinofilos_Pct"
+  },
+  "BAS#": {
+    "name": "Basófilos",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.1
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.26
+      }
+    },
+    "short_name": "Basofilos"
+  },
+  "BAS%": {
+    "name": "Basófilos %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.9
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.7
+      }
+    },
+    "short_name": "Basofilos_Pct"
+  },
+  "LUC#": {
+    "name": "Grandes Células Inmaduras",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "LUC"
+  },
+  "LUC%": {
+    "name": "Grandes Células Inmaduras %",
+    "unit": "%",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "LUC_Pct"
+  },
+  "IG#": {
+    "name": "Granulocitos Inmaduros",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "IG"
+  },
+  "IG%": {
+    "name": "Granulocitos Inmaduros %",
+    "unit": "%",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "IG_Pct"
+  },
+  "PLT": {
+    "name": "Plaquetas",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 148.0,
+        "max": 484.0
+      },
+      "feline": {
+        "min": 151.0,
+        "max": 600.0
+      }
+    },
+    "short_name": "Plaquetas"
+  },
+  "MPV": {
+    "name": "Volumen Plaquetario Medio",
+    "unit": "fL",
+    "ranges": {
+      "canine": {
+        "min": 8.7,
+        "max": 13.2
+      },
+      "feline": {
+        "min": 11.4,
+        "max": 21.6
+      }
+    },
+    "short_name": "Volumen_Plaquetario_Medio"
+  },
+  "PDW": {
+    "name": "Amplitud de la Distribución Plaquetaria",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 9.1,
+        "max": 19.4
+      },
+      "feline": {
+        "min": 9.1,
+        "max": 19.4
+      }
+    },
+    "short_name": "Distribucion_Plaquetaria"
+  },
+  "PCT": {
+    "name": "Plaquetocrito",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 1.4,
+        "max": 4.6
+      },
+      "feline": {
+        "min": 1.7,
+        "max": 8.6
+      }
+    },
+    "short_name": "Plaquetocrito"
+  },
+  "APLT#": {
+    "name": "Plaquetas Agregadas",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.15
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.15
+      }
+    },
+    "short_name": "Plaquetas_Agregadas"
+  },
+  "P-LCC": {
+    "name": "Recuento de Plaquetas Grandes",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 66.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 103.0
+      }
+    },
+    "short_name": "Plaquetas_Grandes"
+  },
+  "P-LCR": {
+    "name": "Relación de Plaquetas Grandes",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 25.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 30.0
+      }
+    },
+    "short_name": "Relacion_Plaquetas_Grandes"
+  },
+  "cCRP": {
+    "name": "Proteína C Reactiva Canina",
+    "unit": "mg/L",
+    "ranges": {
+      "canine": {
+        "min": 2.0,
+        "max": 8.0
+      },
+      "feline": {
+        "min": 2.0,
+        "max": 8.0
+      }
+    },
+    "short_name": "PCR_Canina"
+  },
+  "fSAA": {
+    "name": "Amiloide A Sérico Felino",
+    "unit": "mg/L",
+    "ranges": {
+      "canine": null,
+      "feline": {
+        "min": 0.0,
+        "max": 5.0
+      }
+    },
+    "short_name": "SAA_Felino"
+  },
+  "cPL": {
+    "name": "Lipasa Pancreática Canina",
+    "unit": "µg/L",
+    "ranges": {
+      "canine": {
+        "min": 9.1,
+        "max": 19.4
+      },
+      "feline": {
+        "min": 9.1,
+        "max": 19.4
+      }
+    },
+    "short_name": "Lipasa_Pancreatica_Canina"
+  },
+  "fPL": {
+    "name": "Lipasa Pancreática Felina",
+    "unit": "µg/L",
+    "ranges": {
+      "canine": null,
+      "feline": {
+        "min": 0.0,
+        "max": 3.5
+      }
+    },
+    "short_name": "Lipasa_Pancreatica_Felina"
+  },
+  "cT4": {
+    "name": "Tiroxina Canina",
+    "unit": "µg/dL",
+    "ranges": {
+      "canine": {
+        "min": 1.0,
+        "max": 4.0
+      },
+      "feline": null
+    },
+    "short_name": "Tiroxina_Canina"
+  },
+  "fT4": {
+    "name": "Tiroxina Felina",
+    "unit": "µg/dL",
+    "ranges": {
+      "canine": null,
+      "feline": {
+        "min": 1.2,
+        "max": 4.0
+      }
+    },
+    "short_name": "Tiroxina_Felina"
+  },
+  "cProg": {
+    "name": "Progesterona Canina",
+    "unit": "ng/mL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 1.0
+      },
+      "feline": null
+    },
+    "short_name": "Progesterona_Canina"
+  },
+  "cNT-proBNP": {
+    "name": "Péptido Natriurético Cerebral (Canino)",
+    "unit": "pmol/L",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 900.0
+      },
+      "feline": null
+    },
+    "short_name": "NT_proBNP_Canino"
+  },
+  "fNT-proBNP": {
+    "name": "Péptido Natriurético Cerebral (Felino)",
+    "unit": "pmol/L",
+    "ranges": {
+      "canine": null,
+      "feline": {
+        "min": 0.0,
+        "max": 100.0
+      }
+    },
+    "short_name": "NT_proBNP_Felino"
+  },
+  "URBC#": {
+    "name": "Glóbulos Rojos en Orina",
+    "unit": "cél/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 5.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 5.0
+      }
+    },
+    "short_name": "GR_Orina"
+  },
+  "UWBC#": {
+    "name": "Leucocitos en Orina",
+    "unit": "cél/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 5.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 5.0
+      }
+    },
+    "short_name": "Leucocitos_Orina"
+  },
+  "RTE#": {
+    "name": "Células Epiteliales Renales",
+    "unit": "cél/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Celulas_Renales"
+  },
+  "SEC#": {
+    "name": "Células Escamosas",
+    "unit": "cél/µL",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "Celulas_Escamosas"
+  },
+  "TEC#": {
+    "name": "Células Transicionales",
+    "unit": "cél/µL",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "Celulas_Transicionales"
+  },
+  "UBAC#": {
+    "name": "Bacterias Generales en Orina",
+    "unit": "bac/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Bacterias_Orina"
+  },
+  "UCOS#": {
+    "name": "Bacterias Formadoras de Cocos en Orina",
+    "unit": "bac/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Cocos_Orina"
+  },
+  "UYEA#": {
+    "name": "Levaduras y Hongos en Orina",
+    "unit": "cél/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Levaduras_Orina"
+  },
+  "FAT#": {
+    "name": "Cuerpos Lipídicos/Grasa en Orina",
+    "unit": "cél/µL",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "Cuerpos_Lipidicos_Orina"
+  },
+  "PHL#": {
+    "name": "Células Sanguíneas Alteradas en Orina",
+    "unit": "cél/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Celulas_Sanguineas_Alteradas_Orina"
+  },
+  "MAP#": {
+    "name": "Estruvita (Fosfato Amónico Magnésico)",
+    "unit": "",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "Estruvita"
+  },
+  "COMC#": {
+    "name": "Oxalato de Calcio Monohidratado",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Oxalato_Calcio_Mono"
+  },
+  "CODC#": {
+    "name": "Oxalato de Calcio Dihidratado",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 66.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 66.0
+      }
+    },
+    "short_name": "Oxalato_Calcio_Dihidrato"
+  },
+  "CP#": {
+    "name": "Fosfato de Calcio",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Fosfato_Calcio"
+  },
+  "AUC#": {
+    "name": "Urato de Amonio",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Urato_Amonio"
+  },
+  "CYSC#": {
+    "name": "Cistina",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Cistina"
+  },
+  "CC#": {
+    "name": "Carbonato de Calcio",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Carbonato_Calcio"
+  },
+  "UBilC#": {
+    "name": "Bilirrubina en Orina",
+    "unit": "",
+    "ranges": {
+      "canine": null,
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Bilirrubina_Orina"
+  },
+  "HYA#": {
+    "name": "Cilindros Hialinos",
+    "unit": "",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "Cilindros_Hialinos"
+  },
+  "GRA#": {
+    "name": "Cilindros Granulosos",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Cilindros_Granulosos"
+  },
+  "WAC#": {
+    "name": "Cilindros Leucocitarios",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Cilindros_Leucocitarios"
+  },
+  "URBC-C#": {
+    "name": "Cilindros Eritrocíticos",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Cilindros_Eritrociticos"
+  },
+  "RTC#": {
+    "name": "Cilindros Celulares/Renales",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Cilindros_Celulares"
+  },
+  "ALE#": {
+    "name": "Huevos de Nematodos",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Nematodos"
+  },
+  "ANE#": {
+    "name": "Huevos de Ancylostoma",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Ancylostoma"
+  },
+  "TRE#": {
+    "name": "Huevos de Trematodos",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Trematodos"
+  },
+  "DIP#": {
+    "name": "Huevos de Diphyllobothrium",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Diphyllobothrium"
+  },
+  "SPI#": {
+    "name": "Huevos de Spirometra",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Spirometra"
+  },
+  "TtE#": {
+    "name": "Huevos de Trichuris trichiura",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Trichuris_trichiura"
+  },
+  "CEE#": {
+    "name": "Huevos de Taenia",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Taenia"
+  },
+  "TRI#": {
+    "name": "Trichomonas spp.",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Trichomonas"
+  },
+  "FLA#": {
+    "name": "Giardia",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Giardia"
+  },
+  "COD#": {
+    "name": "Coccidia spp.",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Coccidia"
+  },
+  "COD0#": {
+    "name": "Coccidia spp. estadio 0",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Coccidia"
+  },
+  "COD1#": {
+    "name": "Coccidia spp. estadio 1",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Coccidia"
+  },
+  "COD2#": {
+    "name": "Coccidia spp. estadio 2",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Coccidia"
+  },
+  "Tg#": {
+    "name": "Toxoplasma gondii",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Toxoplasma"
+  },
+  "COS#": {
+    "name": "Cocos",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 20.0,
+        "max": 120.0
+      },
+      "feline": {
+        "min": 20.0,
+        "max": 120.0
+      }
+    },
+    "short_name": "Cocos"
+  },
+  "BACI#": {
+    "name": "Bacilos",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 80.0,
+        "max": 2200.0
+      },
+      "feline": {
+        "min": 80.0,
+        "max": 2200.0
+      }
+    },
+    "short_name": "Bacilos"
+  },
+  "C/B#": {
+    "name": "Coco/bacilo",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.01,
+        "max": 0.15
+      },
+      "feline": {
+        "min": 0.01,
+        "max": 0.15
+      }
+    },
+    "short_name": "Coco/bacilo"
+  },
+  "CAM#": {
+    "name": "Campylobacter spp.",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Campylobacter"
+  },
+  "BAC#": {
+    "name": "Bacterias",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 6.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 6.0
+      }
+    },
+    "short_name": "Bacterias"
+  },
+  "SS1#": {
+    "name": "Salmonella spp. tipo 1",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Salmonella"
+  },
+  "SS2#": {
+    "name": "Salmonella spp. tipo 2",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Salmonella"
+  },
+  "YEA#": {
+    "name": "Levaduras",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 10.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 10.0
+      }
+    },
+    "short_name": "Levaduras"
+  },
+  "RBC#": {
+    "name": "Eritrocitos",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Eritrocitos"
+  },
+  "WBC#": {
+    "name": "Leucocitos",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Leucocitos"
+  },
+  "EPC#": {
+    "name": "Celulas Epiteliales",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "Celulas"
+  },
+  "STA#": {
+    "name": "Almidón no digerido",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 2.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 2.0
+      }
+    },
+    "short_name": "Almidon"
+  },
+  "LFAT#": {
+    "name": "Grasa ligera",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.2
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.2
+      }
+    },
+    "short_name": "Grasa"
+  },
+  "PLA#": {
+    "name": "Fibra vegetal",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.1
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.1
+      }
+    },
+    "short_name": "Fibra"
+  },
+  "AF#": {
+    "name": "Grasa",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.1
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.1
+      }
+    },
+    "short_name": "Grasa"
+  },
+  "ALP": {
+    "name": "Fosfatasa Alcalina",
+    "unit": "U/L",
+    "ranges": {
+      "canine": {
+        "min": 20.0,
+        "max": 150.0
+      },
+      "feline": {
+        "min": 10.0,
+        "max": 80.0
+      }
+    },
+    "short_name": "Fosfatasa_Alcalina"
+  },
+  "ALT": {
+    "name": "Alanina Aminotransferasa",
+    "unit": "U/L",
+    "ranges": {
+      "canine": {
+        "min": 10.0,
+        "max": 100.0
+      },
+      "feline": {
+        "min": 10.0,
+        "max": 100.0
+      }
+    },
+    "short_name": "ALT"
+  },
+  "AST": {
+    "name": "Aspartato Aminotransferasa",
+    "unit": "U/L",
+    "ranges": {
+      "canine": {
+        "min": 10.0,
+        "max": 50.0
+      },
+      "feline": {
+        "min": 10.0,
+        "max": 50.0
+      }
+    },
+    "short_name": "AST"
+  },
+  "GGT": {
+    "name": "Gamma-Glutamil Transferasa",
+    "unit": "U/L",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 10.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 10.0
+      }
+    },
+    "short_name": "GGT"
+  },
+  "CPK": {
+    "name": "Creatina Quinasa",
+    "unit": "U/L",
+    "ranges": {
+      "canine": {
+        "min": 50.0,
+        "max": 200.0
+      },
+      "feline": {
+        "min": 50.0,
+        "max": 250.0
+      }
+    },
+    "short_name": "CPK"
+  },
+  "v-LIP": {
+    "name": "Lipasa Veterinaria",
+    "unit": "U/L",
+    "ranges": {
+      "canine": {
+        "min": 200.0,
+        "max": 800.0
+      },
+      "feline": {
+        "min": 100.0,
+        "max": 600.0
+      }
+    },
+    "short_name": "Lipasa_Veterinaria"
+  },
+  "v-AMY": {
+    "name": "Amilasa Veterinaria",
+    "unit": "U/L",
+    "ranges": {
+      "canine": {
+        "min": 400.0,
+        "max": 1500.0
+      },
+      "feline": {
+        "min": 500.0,
+        "max": 1500.0
+      }
+    },
+    "short_name": "Amilasa_Veterinaria"
+  },
+  "LDH": {
+    "name": "Deshidrogenasa Láctica",
+    "unit": "U/L",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 200.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 200.0
+      }
+    },
+    "short_name": "LDH"
+  },
+  "BUN": {
+    "name": "Nitrógeno Ureico",
+    "unit": "mg/dL",
+    "ranges": {
+      "canine": {
+        "min": 15.0,
+        "max": 35.0
+      },
+      "feline": {
+        "min": 15.0,
+        "max": 35.0
+      }
+    },
+    "short_name": "Nitrogeno_Ureico"
+  },
+  "UA": {
+    "name": "Ácido Úrico",
+    "unit": "mg/dL",
+    "ranges": {
+      "canine": {
+        "min": 2.0,
+        "max": 9.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.5
+      }
+    },
+    "short_name": "Acido_Urico"
+  },
+  "BUNCRE": {
+    "name": "Relación BUN/CRE",
+    "unit": "",
+    "ranges": {
+      "canine": {
+        "min": 10.0,
+        "max": 27.0
+      },
+      "feline": {
+        "min": 10.0,
+        "max": 30.0
+      }
+    },
+    "short_name": "Relacion_BUN_CRE"
+  },
+  "UREA": {
+    "name": "Urea",
+    "unit": "mg/dL",
+    "ranges": {
+      "canine": {
+        "min": 32.1,
+        "max": 74.9
+      },
+      "feline": {
+        "min": 32.1,
+        "max": 74.9
+      }
+    },
+    "short_name": "Urea"
+  },
+  "CRE": {
+    "name": "Creatinina",
+    "unit": "mg/dL",
+    "ranges": {
+      "canine": {
+        "min": 0.6,
+        "max": 1.6
+      },
+      "feline": {
+        "min": 0.8,
+        "max": 2.0
+      }
+    },
+    "short_name": "Creatinina"
+  },
+  "GLU": {
+    "name": "Glucosa",
+    "unit": "mg/dL",
+    "ranges": {
+      "canine": {
+        "min": 70.0,
+        "max": 110.0
+      },
+      "feline": {
+        "min": 70.0,
+        "max": 150.0
+      }
+    },
+    "short_name": "Glucosa"
+  },
+  "IP": {
+    "name": "Fósforo Inorgánico",
+    "unit": "mg/dL",
+    "ranges": {
+      "canine": {
+        "min": 2.5,
+        "max": 6.0
+      },
+      "feline": {
+        "min": 3.0,
+        "max": 6.5
+      }
+    },
+    "short_name": "Fosforo_Inorganico"
+  },
+  "Ca": {
+    "name": "Calcio Total",
+    "unit": "mg/dL",
+    "ranges": {
+      "canine": {
+        "min": 9.0,
+        "max": 11.5
+      },
+      "feline": {
+        "min": 8.5,
+        "max": 10.5
+      }
+    },
+    "short_name": "Calcio_Total"
+  },
+  "TP": {
+    "name": "Proteína Total",
+    "unit": "g/dL",
+    "ranges": {
+      "canine": {
+        "min": 5.5,
+        "max": 7.5
+      },
+      "feline": {
+        "min": 6.0,
+        "max": 8.0
+      }
+    },
+    "short_name": "Proteina_Total"
+  },
+  "ALB": {
+    "name": "Albúmina",
+    "unit": "g/dL",
+    "ranges": {
+      "canine": {
+        "min": 2.5,
+        "max": 4.0
+      },
+      "feline": {
+        "min": 2.5,
+        "max": 4.0
+      }
+    },
+    "short_name": "Albumina"
+  },
+  "TCHO": {
+    "name": "Colesterol Total",
+    "unit": "mg/dL",
+    "ranges": {
+      "canine": {
+        "min": 130.0,
+        "max": 300.0
+      },
+      "feline": {
+        "min": 80.0,
+        "max": 220.0
+      }
+    },
+    "short_name": "Colesterol_Total"
+  },
+  "TG": {
+    "name": "Triglicéridos",
+    "unit": "mg/dL",
+    "ranges": {
+      "canine": {
+        "min": 20.0,
+        "max": 110.0
+      },
+      "feline": {
+        "min": 20.0,
+        "max": 110.0
+      }
+    },
+    "short_name": "Trigliceridos"
+  },
+  "TBIL": {
+    "name": "Bilirrubina Total",
+    "unit": "mg/dL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.5
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.5
+      }
+    },
+    "short_name": "Bilirrubina_Total"
+  },
+  "NH3": {
+    "name": "Amoníaco",
+    "unit": "µg/dL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 100.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 100.0
+      }
+    },
+    "short_name": "Amoniaco"
+  },
+  "Na": {
+    "name": "Sodio",
+    "unit": "mEq/L",
+    "ranges": {
+      "canine": {
+        "min": 140.0,
+        "max": 155.0
+      },
+      "feline": {
+        "min": 145.0,
+        "max": 155.0
+      }
+    },
+    "short_name": "Sodio"
+  },
+  "K": {
+    "name": "Potasio",
+    "unit": "mEq/L",
+    "ranges": {
+      "canine": {
+        "min": 3.5,
+        "max": 5.5
+      },
+      "feline": {
+        "min": 3.5,
+        "max": 5.5
+      }
+    },
+    "short_name": "Potasio"
+  },
+  "Cl": {
+    "name": "Cloruro",
+    "unit": "mEq/L",
+    "ranges": {
+      "canine": {
+        "min": 105.0,
+        "max": 115.0
+      },
+      "feline": {
+        "min": 115.0,
+        "max": 125.0
+      }
+    },
+    "short_name": "Cloruro"
+  },
+  "RBC_PLT": {
+    "name": "Distribución RBC PLT",
+    "unit": "",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "Distribucion_RBC_PLT"
+  },
+  "NRBC#": {
+    "name": "Eritrocitos Nucleados",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "NRBC"
+  },
+  "NRBC%": {
+    "name": "Eritrocitos Nucleados %",
+    "unit": "%",
+    "ranges": {
+      "canine": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "feline": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "short_name": "NRBC_Pct"
+  },
+  "IRF": {
+    "name": "Fracción de Reticulocitos Inmaduros",
+    "unit": "%",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "IRF"
+  },
+  "LFR": {
+    "name": "Fracción de Reticulocitos de Baja Fluorescencia",
+    "unit": "%",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "LFR"
+  },
+  "MFR": {
+    "name": "Fracción de Reticulocitos de Media Fluorescencia",
+    "unit": "%",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "MFR"
+  },
+  "HFR": {
+    "name": "Fracción de Reticulocitos de Alta Fluorescencia",
+    "unit": "%",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "HFR"
+  },
+  "PLT-I": {
+    "name": "Plaquetas Inmaduras",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "PLT-I"
+  },
+  "PLT-O": {
+    "name": "Plaquetas Ópticas",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "PLT-O"
+  },
+  "PLT-F": {
+    "name": "Plaquetas Fluorescentes",
+    "unit": "x10^3/µL",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "PLT-F"
+  },
+  "IPF": {
+    "name": "Fracción de Plaquetas Inmaduras",
+    "unit": "%",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "IPF"
+  },
+  "FECES": {
+    "name": "Heces",
+    "unit": "",
+    "ranges": {
+      "canine": null,
+      "feline": null
+    },
+    "short_name": "Heces"
+  },
+  "_groups": {
+    "QUÍMICA SANGUÍNEA": [
+      "ALP",
+      "ALT",
+      "AST",
+      "GGT",
+      "CPK",
+      "v-LIP",
+      "v-AMY",
+      "LDH",
+      "BUN",
+      "UREA",
+      "CRE",
+      "BUNCRE",
+      "GLU",
+      "IP",
+      "Ca",
+      "UA",
+      "TP",
+      "ALB",
+      "TCHO",
+      "TG",
+      "TBIL",
+      "NH3",
+      "Na",
+      "K",
+      "Cl"
+    ],
+    "Línea Blanca": [
+      "WBC",
+      "NEU#",
+      "NST#",
+      "NSG#",
+      "NSH#",
+      "LYM#",
+      "MON#",
+      "EOS#",
+      "BAS#",
+      "NEU%",
+      "NST/WBC%",
+      "NST/NEU%",
+      "NSG%",
+      "NSH/WBC%",
+      "NSH/NEU%",
+      "LYM%",
+      "MON%",
+      "EOS%",
+      "BAS%",
+      "LUC#",
+      "LUC%",
+      "IG#",
+      "IG%"
+    ],
+    "Línea Roja": [
+      "RBC",
+      "HGB",
+      "HCT",
+      "MCV",
+      "MCH",
+      "MCHC",
+      "RDW-CV",
+      "RDW-SD",
+      "RET#",
+      "RET%",
+      "HDW-CV",
+      "HDW-SD",
+      "ETG#",
+      "ETG%",
+      "SPH#",
+      "SPH%",
+      "NRBC#",
+      "NRBC%",
+      "IRF",
+      "LFR",
+      "MFR",
+      "HFR",
+      "RBC_PLT"
+    ],
+    "Plaquetas": [
+      "PLT",
+      "MPV",
+      "PDW",
+      "PCT",
+      "APLT#",
+      "P-LCC",
+      "P-LCR",
+      "PLT-I",
+      "PLT-O",
+      "PLT-F",
+      "IPF"
+    ],
+    "COPROLÓGICOS": [
+      "ALE#",
+      "ANE#",
+      "TRE#",
+      "DIP#",
+      "SPI#",
+      "TtE#",
+      "CEE#",
+      "TRI#",
+      "FLA#",
+      "COD#",
+      "COD0#",
+      "COD1#",
+      "COD2#",
+      "Tg#"
+    ],
+    "MICROBIOTA": [
+      "COS#",
+      "BACI#",
+      "C/B#",
+      "CAM#",
+      "BAC#",
+      "SS1#",
+      "SS2#",
+      "YEA#"
+    ],
+    "CÉLULAS Y SANGRE": [
+      "RBC#",
+      "WBC#",
+      "EPC#"
+    ],
+    "DIGESTIBILIDAD": [
+      "STA#",
+      "LFAT#",
+      "PLA#",
+      "AF#"
+    ]
+  }
 }

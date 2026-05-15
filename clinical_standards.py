@@ -1106,7 +1106,7 @@ _DEFAULT_VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
         'unit': 'mg/dL',
         'ranges': {
             'canine': {'min': 2.0, 'max': 9.0},
-            'feline': {'min': 0.5, 'max': 7.0},
+            'feline': {'min': 0.0, 'max': 0.5},
         },
         'short_name': 'Acido_Urico'
     },
