@@ -1696,12 +1696,12 @@
     "unit": "mg/dL",
     "ranges": {
       "canine": {
-        "min": 32.1,
-        "max": 74.9
+        "min": 17.0,
+        "max": 60.0
       },
       "feline": {
-        "min": 32.1,
-        "max": 74.9
+        "min": 17.0,
+        "max": 42.0
       }
     },
     "short_name": "Urea"

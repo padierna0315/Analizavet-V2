@@ -1123,8 +1123,8 @@ _DEFAULT_VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
         'name': 'Urea',
         'unit': 'mg/dL',
         'ranges': {
-            'canine': {'min': 32.1, 'max': 74.9},
-            'feline': {'min': 32.1, 'max': 74.9},
+            'canine': {'min': 17.0, 'max': 60.0},
+            'feline': {'min': 17.0, 'max': 42.0},
         },
         'short_name': 'Urea'
     },
