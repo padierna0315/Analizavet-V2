@@ -1373,6 +1373,10 @@ STANDARDS_MAPPING: Dict[str, str] = {
     'T-CHO': 'TCHO',
     'T-BIL': 'TBIL',
 
+    # Fujifilm NX600 short codes (sin guión, ej: vLIP-PS → vLIP)
+    'vLIP': 'v-LIP',
+    'vAMY': 'v-AMY',
+
     # Fecal aliases
     'TXE#': 'ANE#',
     'GIA#': 'FLA#',
@@ -1420,6 +1424,7 @@ CHEMISTRY_CODES = {
     'ALP', 'ALT', 'AST', 'GGT', 'CPK', 'v-LIP', 'v-AMY', 'LDH',
     'BUN', 'CRE', 'GLU', 'IP', 'Ca', 'TP', 'ALB', 'TCHO', 'TG', 'TBIL', 'NH3',
     'Na', 'K', 'Cl', 'UA',
+    'vLIP', 'vAMY',
 }
 
 # ── Agrupamiento de parámetros por sección ──────────────────────────────────
