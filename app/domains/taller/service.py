@@ -405,6 +405,7 @@ class TallerService:
                 "age_display": patient.age_display,
                 "owner_name": patient.owner_name,
                 "breed": patient.breed,
+                "doctor_name": patient.doctor_name,
             } if patient else None,
             "lab_values": lab_values_sorted,
             "images": [

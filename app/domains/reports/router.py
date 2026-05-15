@@ -49,9 +49,11 @@ async def download_pdf(
     patient_name = _sanitize_patient_name(data["patient"]["name"] or "")
     owner_name_raw = (data["patient"]["owner_name"] or "").strip()
     owner_name = _sanitize_person_name(owner_name_raw) if owner_name_raw else "Sin_tutor"
-    doctor_name_raw = data["test_result"].get("doctor_name") or ""
+    doctor_name_raw = (data["test_result"].get("doctor_name") or "").strip()
+    if not doctor_name_raw:
+        doctor_name_raw = (data["patient"].get("doctor_name") or "").strip()
     doctor_name = _sanitize_person_name(doctor_name_raw) if doctor_name_raw else "Sin_medico"
-    filename = f"{patient_name}+{owner_name}+{doctor_name}.pdf"
+    filename = f"{patient_name}-{owner_name}-{doctor_name}.pdf"
 
     pdf_bytes = _report_service.generate_pdf_sync(data)
 
