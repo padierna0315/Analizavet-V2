@@ -261,6 +261,44 @@ class TallerService:
                 "group": group,
             })
 
+        # ── Inject BUN/CRE ratio virtual value if both present ────────
+        cre_lv = next(
+            (lv for lv in lab_values if _clean_parameter_code(lv.parameter_code) == "CRE"),
+            None,
+        )
+        bun_lv_check = next(
+            (lv for lv in lab_values if _clean_parameter_code(lv.parameter_code) == "BUN"),
+            None,
+        )
+        if bun_lv_check and cre_lv and bun_lv_check.numeric_value and cre_lv.numeric_value and cre_lv.numeric_value > 0:
+            bun_cre_ratio = round(bun_lv_check.numeric_value / cre_lv.numeric_value, 2)
+            ratio_ref = get_reference_range("BUNCRE", species)
+            try:
+                ratio_flag_result = self._flagging.flag_value(
+                    parameter="BUNCRE",
+                    value=bun_cre_ratio,
+                    unit="",
+                    species=species,
+                )
+                ratio_flag = ratio_flag_result.flag
+            except ValueError:
+                ratio_flag = "NORMAL"
+
+            new_summary[ratio_flag] += 1
+
+            lab_values_list.append({
+                "id": None,  # virtual
+                "parameter_code": "BUN/CRE",
+                "parameter_name_es": "Relación BUN/CRE",
+                "raw_value": str(bun_cre_ratio),
+                "numeric_value": bun_cre_ratio,
+                "unit": "",
+                "reference_range": ratio_ref,
+                "flag": ratio_flag,
+                "machine_flag": None,
+                "group": get_parameter_group("BUNCRE"),
+            })
+
         # ── Inject UREA virtual value if BUN is present ──────────────
         bun_lv = next(
             (lv for lv in lab_values if _clean_parameter_code(lv.parameter_code) == "BUN"),

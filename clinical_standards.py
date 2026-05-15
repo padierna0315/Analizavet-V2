@@ -1110,6 +1110,15 @@ _DEFAULT_VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
         },
         'short_name': 'Acido_Urico'
     },
+    'BUNCRE': {
+        'name': 'Relación BUN/CRE',
+        'unit': '',
+        'ranges': {
+            'canine': {'min': 10.0, 'max': 27.0},
+            'feline': {'min': 10.0, 'max': 30.0},
+        },
+        'short_name': 'Relacion_BUN_CRE'
+    },
     'UREA': {
         'name': 'Urea',
         'unit': 'mg/dL',
@@ -1417,7 +1426,7 @@ CHEMISTRY_CODES = {
 PARAMETER_GROUPS = {
     "QUÍMICA SANGUÍNEA": [
         "ALP", "ALT", "AST", "GGT", "CPK", "v-LIP", "v-AMY", "LDH",
-        "BUN", "UREA", "CRE", "GLU", "IP", "Ca", "UA", "TP", "ALB", "TCHO", "TG",
+        "BUN", "UREA", "CRE", "BUNCRE", "GLU", "IP", "Ca", "UA", "TP", "ALB", "TCHO", "TG",
         "TBIL", "NH3", "Na", "K", "Cl",
     ],
     "Línea Blanca": [

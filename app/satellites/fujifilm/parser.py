@@ -90,7 +90,7 @@ def parse_fujifilm_message(raw: str) -> List[FujifilmReading]:
         # then capture value+unit (may include spaces), then comma, then next field.
         # The raw value is extracted from the combined field.
         pattern = re.compile(
-            r'([A-Z0-9]+(?:-[A-Z]+)?)-PS\s*,\s*=\s*,\s*([^,]+?)\s*,\s*([^,]+)'
+            r'([A-Za-z0-9]+(?:-[A-Za-z]+)?)-PS\s*,\s*=\s*,\s*([^,]+?)\s*,\s*([^,]+)'
         )
         
         # The file may contain multiple concatenated messages.
@@ -148,8 +148,8 @@ def parse_fujifilm_message(raw: str) -> List[FujifilmReading]:
                 if not raw_val or raw_val.strip() == "" or set(raw_val.strip()) == {"*"}:
                     continue
                 
-                # Validate against CHEMISTRY_CODES
-                if param_code_stripped not in CHEMISTRY_CODES:
+                # Validate against CHEMISTRY_CODES (case-insensitive)
+                if param_code_stripped.upper() not in {c.upper() for c in CHEMISTRY_CODES}:
                     continue
                 
                 reading = FujifilmReading(
