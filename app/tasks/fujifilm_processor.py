@@ -24,6 +24,7 @@ from app.database import AsyncSessionLocal
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domains.reception.schemas import RawPatientInput, PatientSource
 from app.domains.reception.service import ReceptionService
+from app.domains.reception.normalizer import _extract_name_and_code
 
 # NEW IMPORTS FOR FUJIFILM PROCESSING
 from clinical_standards import VETERINARY_STANDARDS, get_parameter_name
@@ -101,6 +102,12 @@ def process_fujifilm_message(data: dict):
             logfire.warning("Fujifilm: empty patient_name — nothing to process")
             return
 
+        # Extraer session_code del nombre si la máquina lo incluye.
+        # Ej: "F2 ORION" → name="ORION", code="F2"
+        # Así la recepción puede buscar por código en lugar de solo nombre,
+        # evitando mezclar pacientes con igual nombre (3 Orions distintos).
+        _parsed_name, _code = _extract_name_and_code(raw_string)
+
         received_at_str = data.get("received_at")
         if received_at_str:
             try:
@@ -115,7 +122,7 @@ def process_fujifilm_message(data: dict):
 
         reception_input = RawPatientInput(
             raw_string=raw_string,
-            session_code=None,
+            session_code=_code,  # F2, A4, C2, etc. o None si no hay código
             source=PatientSource(source_value),
             received_at=received_at,
         )

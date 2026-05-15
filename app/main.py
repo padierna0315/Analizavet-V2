@@ -34,6 +34,12 @@ if settings.LOGFIRE_ENABLED:
 # Estado MLLP — en módulo separado para compartir entre main.py y routers/mllp.py
 import app.mllp_state as mllp_state
 
+# ── Dramatiq Broker ──────────────────────────────────────────────────────────────
+# Importar broker ANTES de que cualquier actor envíe mensajes, para que use
+# RedisBroker (no StubBroker por defecto). Así los mensajes van a Redis y el
+# worker dedicado los procesa en segundo plano, sin bloquear Uvicorn.
+import app.tasks.broker  # noqa: F401
+
 # ── Lifespan ───────────────────────────────────────────────────────────────────
 
 @asynccontextmanager

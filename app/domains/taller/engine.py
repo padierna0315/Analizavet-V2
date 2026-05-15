@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 import logfire
@@ -17,8 +16,11 @@ class TallerFlaggingEngine:
     1. Receive TestResult ID + raw values + species
     2. Flag each value with ClinicalFlaggingService
     3. Save LabValue rows to DB
-    4. Update TestResult counts + status → "listo"
+    4. Update TestResult counts
     5. Return FlagBatchResult with summary
+
+    NOTE: Status stays "pendiente" so the TestResult appears in the Taller
+    dashboard. The user manually marks as "listo" when done reviewing.
     """
 
     def __init__(self):
@@ -89,11 +91,9 @@ class TallerFlaggingEngine:
         test_result.flag_normal_count = (test_result.flag_normal_count or 0) + summary["NORMAL"]
         test_result.flag_bajo_count = (test_result.flag_bajo_count or 0) + summary["BAJO"]
 
-        # Only set status to "listo" once (guard against re-triggering)
-        if test_result.status != "listo":
-            test_result.status = "listo"
-            test_result.processed_at = datetime.now(timezone.utc)
-
+        # Status permanece "pendiente" para que aparezca en el Taller.
+        # El usuario marca manualmente como "listo" desde la UI cuando
+        # termina de revisar y descargar el PDF.
         session.add(test_result)
 
         await session.commit()
@@ -108,7 +108,7 @@ class TallerFlaggingEngine:
             test_result_id=request.test_result_id,
             flagged_values=flagged,
             summary=summary,
-            status="listo",
+            status="listo",  # batch completado (no es el status del TestResult en DB)
         )
 
     async def _get_test_result(

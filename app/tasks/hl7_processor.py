@@ -132,9 +132,10 @@ async def _async_process_pipeline(parsed_msg: ParsedOzelleMessage, source: str):
     # 1. Prepare Reception Input
     # Pasar especie/sexo extraídos del HL7 (PID[10]/PID[8]) para que el normalizador
     # los use en lugar de "Desconocida" cuando el paciente tiene código corto.
+    # sample_id se pasa como session_code para vincular por código y no solo por nombre.
     reception_input = RawPatientInput(
         raw_string=parsed_msg.raw_patient_string,
-        session_code=None,
+        session_code=parsed_msg.sample_id,  # F2, A4, C2, etc. desde PID[3] o prefijo del nombre
         source=source_enum,
         received_at=parsed_msg.received_at,
         species_override=parsed_msg.species,

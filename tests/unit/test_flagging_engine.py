@@ -100,10 +100,9 @@ async def test_flag_updates_test_result_status(session):
     )
     await engine.flag_test_result(request, session)
 
-    # Refresh and check
+    # Refresh and check — status stays "pendiente" para aparecer en el Taller
     await session.refresh(tr)
-    assert tr.status == "listo"
-    assert tr.processed_at is not None
+    assert tr.status == "pendiente"
 
 
 @pytest.mark.asyncio
@@ -208,7 +207,7 @@ async def test_flag_counts_additive(session):
 
     When flag_test_result is called multiple times with different values,
     the counts should be ADDITIVE (existing + new), not overwritten.
-    The status should only be set to "listo" on the FIRST call.
+    Status stays "pendiente" — el usuario marca "listo" manualmente.
     """
     tr = await create_test_result(session)
     engine = TallerFlaggingEngine()
@@ -232,9 +231,8 @@ async def test_flag_counts_additive(session):
     assert tr.flag_bajo_count == 1
     assert tr.flag_alto_count == 0
     assert tr.flag_normal_count == 0
-    assert tr.status == "listo"  # First call sets status
-    first_processed_at = tr.processed_at
-    assert first_processed_at is not None
+    # Status permanece "pendiente" — se marca como "listo" manualmente desde el Taller
+    assert tr.status == "pendiente"
 
     # Second call: WBC=14.26 is NORMAL for Felino (range 2.8-17.0)
     vals_2 = [RawLabValueInput(
@@ -256,10 +254,8 @@ async def test_flag_counts_additive(session):
     assert tr.flag_normal_count == 1  # from second call — ADDED
     assert tr.flag_alto_count == 0
 
-    # Status should NOT have changed (already "listo" from first call)
-    assert tr.status == "listo"
-    # processed_at should still be the first call's timestamp
-    assert tr.processed_at == first_processed_at
+    # Status should still be "pendiente"
+    assert tr.status == "pendiente"
 
 
 @pytest.mark.asyncio
