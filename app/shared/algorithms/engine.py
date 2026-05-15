@@ -21,9 +21,14 @@ class ClinicalAlgorithmsEngine:
         self._registry = AlgorithmRegistry()
 
     async def apply_algorithms(
-        self, test_result_id: int, session: AsyncSession
+        self, test_result_id: int, session: AsyncSession, species: str = "Canino"
     ) -> dict:
         """Run all algorithms for a TestResult and persist the results.
+
+        Args:
+            test_result_id: ID of the TestResult to process.
+            session: Async DB session.
+            species: Species string ("Canino" or "Felino") for reference range lookup.
 
         Returns:
             dict with:
@@ -43,8 +48,8 @@ class ClinicalAlgorithmsEngine:
         )
         lab_values = list(lv_result.scalars().all())
 
-        # 2. Run registry
-        algorithm_results, algorithm_errors = self._registry.run_all(lab_values)
+        # 2. Run registry (pass species for clinical_standards lookup)
+        algorithm_results, algorithm_errors = self._registry.run_all(lab_values, species)
 
         # 3. Persist new LabValues to DB
         new_values = []

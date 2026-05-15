@@ -346,8 +346,9 @@ class TallerService:
         # ── Generate clinical interpretations from flagged values ──────────
         # Run the AlgorithmRegistry in-memory (no DB writes — pure computation)
         # to produce interpretations for derived values (ratios, indices, etc.).
+        # Species is passed so algorithms use clinical_standards for flags/ranges.
         registry = AlgorithmRegistry()
-        algo_results, _algo_errors = registry.run_all(lab_values)
+        algo_results, _algo_errors = registry.run_all(lab_values, species)
 
         interpretations = []
         for ar in algo_results:

@@ -1119,6 +1119,42 @@ _DEFAULT_VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
         },
         'short_name': 'Relacion_BUN_CRE'
     },
+    'RATIO_NA_K': {
+        'name': 'Ratio Na:K',
+        'unit': 'ratio',
+        'ranges': {
+            'canine': {'min': 27.0, 'max': 40.0},
+            'feline': {'min': 27.0, 'max': 40.0},
+        },
+        'short_name': 'Ratio_Na_K'
+    },
+    'RATIO_BUN_CRE': {
+        'name': 'Ratio BUN/Creatinina',
+        'unit': 'ratio',
+        'ranges': {
+            'canine': {'min': 10.0, 'max': 27.0},
+            'feline': {'min': 10.0, 'max': 30.0},
+        },
+        'short_name': 'Ratio_BUN_CRE'
+    },
+    'INDICE_MENTZER': {
+        'name': 'Índice de Mentzer',
+        'unit': 'ratio',
+        'ranges': {
+            'canine': {'min': 13.0, 'max': 999.0},
+            'feline': {'min': 13.0, 'max': 999.0},
+        },
+        'short_name': 'Indice_Mentzer'
+    },
+    'CALCIO_CORREGIDO': {
+        'name': 'Calcio Corregido',
+        'unit': 'mg/dL',
+        'ranges': {
+            'canine': {'min': 8.5, 'max': 10.5},
+            'feline': {'min': 8.5, 'max': 10.5},
+        },
+        'short_name': 'Calcio_Corregido'
+    },
     'UREA': {
         'name': 'Urea',
         'unit': 'mg/dL',
@@ -1425,6 +1461,8 @@ CHEMISTRY_CODES = {
     'BUN', 'CRE', 'GLU', 'IP', 'Ca', 'TP', 'ALB', 'TCHO', 'TG', 'TBIL', 'NH3',
     'Na', 'K', 'Cl', 'UA',
     'vLIP', 'vAMY',
+    # Algoritmos calculados
+    'RATIO_NA_K', 'RATIO_BUN_CRE', 'INDICE_MENTZER', 'CALCIO_CORREGIDO',
 }
 
 # ── Agrupamiento de parámetros por sección ──────────────────────────────────
@@ -1433,6 +1471,7 @@ PARAMETER_GROUPS = {
         "ALP", "ALT", "AST", "GGT", "CPK", "v-LIP", "v-AMY", "LDH",
         "BUN", "UREA", "CRE", "BUNCRE", "GLU", "IP", "Ca", "UA", "TP", "ALB", "TCHO", "TG",
         "TBIL", "NH3", "Na", "K", "Cl",
+        "RATIO_NA_K", "RATIO_BUN_CRE", "INDICE_MENTZER", "CALCIO_CORREGIDO",
     ],
     "Línea Blanca": [
         "WBC", "NEU#", "NST#", "NSG#", "NSH#",
