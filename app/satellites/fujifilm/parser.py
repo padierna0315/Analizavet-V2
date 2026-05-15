@@ -90,7 +90,7 @@ def parse_fujifilm_message(raw: str) -> List[FujifilmReading]:
         # then capture value+unit (may include spaces), then comma, then next field.
         # The raw value is extracted from the combined field.
         pattern = re.compile(
-            r'([A-Za-z0-9]+(?:-[A-Za-z]+)?)-PS\s*,\s*=\s*,\s*([^,]+?)\s*,\s*([^,]+)'
+            r'([A-Za-z0-9]+(?:-[A-Za-z]+)?)-PS\s*,\s*[<>=]\s*,\s*([^,]+?)\s*,\s*([^,]+)'
         )
         
         # The file may contain multiple concatenated messages.

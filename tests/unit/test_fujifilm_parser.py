@@ -155,6 +155,26 @@ class TestParseFujifilmMessageEdgeCases:
         assert "CRE" in codes
         assert "ALT" in codes
 
+    def test_less_than_operator_ua_below_detection(self):
+        """UA-PS with '<' operator (below detection limit) should still parse."""
+        line = "R,NORMAL,14-05-2026,18:43,982,CHIMUELO,,15,9,999,01,06,CRE-PS,=,0.68,mg/dl,01,0.80,1.80,L,UA-PS,<,0.5,mg/dl,01,0.0,0.5,  #"
+        result = parse_fujifilm_message(line)
+        codes = {r.parameter_code for r in result}
+        assert "UA" in codes, "UA debe aparecer aunque use operador <"
+        ua = [r for r in result if r.parameter_code == "UA"][0]
+        assert ua.raw_value == "0.5"
+        assert "CRE" in codes
+
+    def test_less_than_operator_ggt_below_detection(self):
+        """GGT-PS with '<' operator should also parse correctly."""
+        line = "R,NORMAL,14-05-2026,18:43,982,CHIMUELO,,15,9,999,01,06,CRE-PS,=,0.68,mg/dl,01,0.80,1.80,L,GGT-PS,<,10,U/l,01,0,10,"
+        result = parse_fujifilm_message(line)
+        codes = {r.parameter_code for r in result}
+        assert "GGT" in codes, "GGT debe aparecer aunque use operador <"
+        ggt = [r for r in result if r.parameter_code == "GGT"][0]
+        assert ggt.raw_value == "10"
+        assert "CRE" in codes
+
 
 class TestParseFujifilmMessageChemistryCodes:
     """Verify integration with CHEMISTRY_CODES from clinical_standards."""
