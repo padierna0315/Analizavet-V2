@@ -129,3 +129,28 @@ def test_missing_tutor_no_age():
 def test_source_carried_through():
     result = parse_patient_string("kitty felina 2a Laura", PatientSource.LIS_FILE)
     assert result.source == PatientSource.LIS_FILE
+
+
+# ── Code-prefix extraction (widened pattern: ^[A-Z]\d+) ─────────────────
+
+def test_code_prefix_short_code_fujifilm():
+    """A1 code prefix — fujifilm source (no species/age from parser)."""
+    result = parse_patient_string("A1 LULU", PatientSource.LIS_FUJIFILM)
+    assert result.name == "Lulu"
+    assert result.species == "Desconocida"
+    assert result.source == PatientSource.LIS_FUJIFILM
+
+
+def test_code_prefix_multi_digit_code():
+    """A105 — three-digit code, previously rejected by \d{1,2}."""
+    result = parse_patient_string("A105 BUDDY", PatientSource.LIS_FUJIFILM)
+    assert result.name == "Buddy"
+    assert result.species == "Desconocida"
+    assert result.source == PatientSource.LIS_FUJIFILM
+
+
+def test_code_prefix_no_code_falls_through():
+    """String without code prefix follows standard parsing."""
+    result = parse_patient_string("kitty felina 2a Laura", PatientSource.LIS_OZELLE)
+    assert result.name == "Kitty"
+    assert result.species == "Felino"

@@ -1,6 +1,6 @@
 import re
-from app.domains.reception.schemas import NormalizedPatient, PatientSource
 
+from app.domains.reception.schemas import NormalizedPatient, PatientSource
 
 _SPECIES_MAP = {
     "canino": ("Canino", "Macho"),
@@ -9,7 +9,7 @@ _SPECIES_MAP = {
     "felina": ("Felino", "Hembra"),
 }
 
-_AGE_PATTERN = re.compile(r'^(\d+)(a|m)$', re.IGNORECASE)
+_AGE_PATTERN = re.compile(r"^(\d+)(a|m)$", re.IGNORECASE)
 
 # TODO Ruta B: lookup por ID (Registro de Turnos)
 # _ID_PATTERN = re.compile(r'^[A-Z]\d+$')
@@ -27,13 +27,13 @@ def parse_patient_string(
     return _parse_from_string(raw, source, species_override, sex_override)
 
 
-# ── Código patrón: letra mayúscula + 1-2 dígitos (e.g. "A1", "M12") ──
-_CODE_PATTERN = re.compile(r'^[A-Z]\d{1,2}$')
+# ── Código patrón: letra mayúscula + uno o más dígitos (e.g. "A1", "M12", "A105") ──
+_CODE_PATTERN = re.compile(r"^[A-Z]\d+$")
 
 
 def _extract_name_and_code(raw: str) -> tuple[str, str | None]:
     """Extract patient name and optional code prefix.
-    
+
     "LULU"        → ("LULU", None)
     "A1 LULU"     → ("LULU", "A1")
     "M12 rocky"   → ("rocky", "M12")
@@ -102,7 +102,7 @@ def _parse_from_string(
     if age_match:
         age_value = int(age_match.group(1))
         age_letter = age_match.group(2).lower()
-        if age_letter == 'a':
+        if age_letter == "a":
             age_unit = "años"
             age_display = f"{age_value} año" if age_value == 1 else f"{age_value} años"
         else:
