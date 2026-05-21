@@ -12,6 +12,7 @@ from app.domains.taller.service import TallerService
 from app.domains.patients.models import Patient
 from app.domains.exam_order.models import ExamOrder
 from app.shared.models.patient_archive import PatientArchive
+from app.shared.models.raw_data_log import RawDataLog
 
 router = APIRouter(prefix="/reports", tags=["Reportes"])
 _report_service = ReportService()
@@ -71,9 +72,35 @@ async def download_pdf(
     species = data["patient"]["species"]
     session_code = data["patient"].get("session_code")
 
-    # Phase 1: Archive — serialize full data dict to JSON and INSERT
+    # Phase 1: Archive — include RawDataLog provenance in snapshot
     try:
-        snapshot_json = json.dumps(data, default=str, ensure_ascii=False)
+        # Fetch RawDataLog rows for this patient before retiring
+        raw_logs_stmt = (
+            select(RawDataLog)
+            .where(RawDataLog.patient_id == patient_id)
+            .order_by(RawDataLog.received_at.desc())
+        )
+        raw_logs_result = await session.execute(raw_logs_stmt)
+        raw_logs = raw_logs_result.scalars().all()
+
+        raw_data_logs_list = []
+        for rl in raw_logs:
+            raw_data_logs_list.append({
+                "id": rl.id,
+                "source": rl.source,
+                "raw_data": rl.raw_data,
+                "received_at": rl.received_at.isoformat() if rl.received_at else None,
+                "captured_at": rl.captured_at.isoformat() if rl.captured_at else None,
+                "processed_at": rl.processed_at.isoformat() if rl.processed_at else None,
+                "session_code": rl.session_code,
+                "status": rl.status,
+            })
+
+        # Enrich the snapshot with raw data provenance
+        data_with_provenance = dict(data)
+        data_with_provenance["raw_data_logs"] = raw_data_logs_list
+
+        snapshot_json = json.dumps(data_with_provenance, default=str, ensure_ascii=False)
         archive = PatientArchive(
             session_code=session_code,
             patient_name=patient_name_display,

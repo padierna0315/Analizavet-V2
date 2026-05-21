@@ -11,6 +11,7 @@ from app.shared.models.test_result import TestResult
 from app.shared.models.lab_value import LabValue # Added this
 from app.services.appsheet import AppSheetPatient
 from app.domains.exam_order.service import ExamOrderService
+from app.services.provenance_recorder import ProvenanceRecorder
 from sqlalchemy.orm import selectinload
 from sqlalchemy import delete
 import json
@@ -92,6 +93,30 @@ class ReceptionService:
         self._baul = BaulService()
         self._exam_order_service = ExamOrderService()
 
+    async def _try_link_raw_data(
+        self,
+        session: AsyncSession,
+        session_code: str | None,
+        patient_id: int,
+    ) -> None:
+        """Backfill RawDataLog.patient_id for rows captured before entity resolution.
+
+        Wrapped in try/except — linking failures never propagate.
+        """
+        if not session_code:
+            return
+        try:
+            await ProvenanceRecorder.link_to_patient(
+                session=session,
+                session_code=session_code,
+                patient_id=patient_id,
+            )
+        except Exception:
+            logfire.warning(
+                f"Lazy linking failed for session_code={session_code}",
+                _exc_info=True,
+            )
+
     async def receive(
         self, raw_input: RawPatientInput, session: AsyncSession
     ) -> BaulResult:
@@ -128,6 +153,11 @@ class ReceptionService:
             session.add(existing_patient)
             await session.commit()
             await session.refresh(existing_patient)
+
+            # Lazy linking: backfill RawDataLog.patient_id
+            await self._try_link_raw_data(
+                session, raw_input.session_code, existing_patient.id
+            )
 
             # Sanitize age fields from DB (defensive — Patient model has no cross-field validator)
             sanitized_has_age, sanitized_age_value, sanitized_age_unit, sanitized_age_display = \
@@ -210,6 +240,11 @@ class ReceptionService:
                 await session.commit()
                 await session.refresh(fuji_match)
 
+                # Lazy linking: backfill RawDataLog.patient_id for Fujifilm match
+                await self._try_link_raw_data(
+                    session, raw_input.session_code, fuji_match.id
+                )
+
                 # Sanitize age fields from DB (defensive — Patient model has no cross-field validator)
                 sanitized_has_age, sanitized_age_value, sanitized_age_unit, sanitized_age_display = \
                     _sanitize_patient_age(
@@ -275,6 +310,11 @@ class ReceptionService:
                 await session.commit()
                 await session.refresh(ozelle_match)
                 
+                # Lazy linking: backfill RawDataLog.patient_id for Ozelle match
+                await self._try_link_raw_data(
+                    session, raw_input.session_code, ozelle_match.id
+                )
+
                 # Sanitize age fields from DB
                 sanitized_has_age, sanitized_age_value, sanitized_age_unit, sanitized_age_display = \
                     _sanitize_patient_age(
@@ -362,6 +402,11 @@ class ReceptionService:
             await session.commit()
             await session.refresh(existing_patient)
             
+            # Lazy linking: backfill RawDataLog.patient_id for merge match
+            await self._try_link_raw_data(
+                session, raw_input.session_code, existing_patient.id
+            )
+
             logfire.info(
                 f"Paciente actualizado: {normalized.name} ({normalized.species}) "
                 f"- Tutor: {normalized.owner_name} [id={existing_patient.id}]"
@@ -384,6 +429,11 @@ class ReceptionService:
             session.add(newly_created_patient)
             await session.commit()
             await session.refresh(newly_created_patient)
+
+        # Lazy linking: backfill RawDataLog.patient_id for new patient
+        await self._try_link_raw_data(
+            session, raw_input.session_code, result.patient_id
+        )
 
         return result
 
@@ -435,6 +485,10 @@ class ReceptionService:
 
                 existing_patient.updated_at = datetime.now(timezone.utc)
                 session.add(existing_patient)
+                # Lazy linking for AppSheet sync update
+                await self._try_link_raw_data(
+                    session, ap.session_code, patient_id
+                )
             else:
                 # Crear nuevo paciente limpio y fresco
                 appsheet_type, appsheet_code = _resolve_appsheet_test_type(ap.test_type)
@@ -460,6 +514,10 @@ class ReceptionService:
                 session.add(new_patient)
                 await session.flush()  # Get patient ID before creating ExamOrder
                 patient_id = new_patient.id
+                # Lazy linking for AppSheet sync creation
+                await self._try_link_raw_data(
+                    session, ap.session_code, patient_id
+                )
 
             # ── Create/update ExamOrder from AppSheet data ─────────────
             order_data = {

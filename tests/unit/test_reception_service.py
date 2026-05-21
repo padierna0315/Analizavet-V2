@@ -857,6 +857,209 @@ async def test_ozelle_name_match_two_plus_patients_creates_new(mock_async_sessio
         assert result.patient_id != 40
 
 
+# ── Task 3.1: Lazy linking — ProvenanceRecorder.link_to_patient calls ──────
+
+FAKE_SESSION_CODE = "X9-20260501"
+FAKE_PATIENT_ID = 42
+
+
+@dataclass
+class MockBaulResultWithId:
+    patient_id: int
+    created: bool
+    patient: object
+
+
+async def _receive_and_assert_linked(
+    service: ReceptionService,
+    mock_session: AsyncMock,
+    source: PatientSource,
+    raw_string: str = "Firulais Canino 3a Owner",
+    session_code: str = FAKE_SESSION_CODE,
+) -> None:
+    """Helper: receive a patient and assert link_to_patient was called."""
+    mp = pytest.MonkeyPatch().context()
+    recorder_link_mock = AsyncMock()
+    mp.setattr(
+        "app.domains.reception.service.ProvenanceRecorder",
+        ProvenanceRecorderStub(link_mock=recorder_link_mock),
+    )
+    try:
+        existing = Patient(
+            id=FAKE_PATIENT_ID, name="Firulais", species="Canino", sex="Macho",
+            owner_name="Owner", has_age=True, age_value=3, age_unit="años",
+            age_display="3 años", source=source.value,
+            normalized_name="firulais", normalized_owner="owner",
+            sources_received=[source.value],
+        )
+        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
+        mp.setattr(service._baul, "register", AsyncMock())
+
+        raw_input = RawPatientInput(
+            raw_string=raw_string,
+            source=source,
+            session_code=session_code,
+            received_at=datetime.now(timezone.utc),
+        )
+        await service.receive(raw_input, mock_session)
+
+        recorder_link_mock.assert_awaited_once_with(
+            mock_session,
+            session_code=session_code,
+            patient_id=FAKE_PATIENT_ID,
+            test_result_id=None,
+        )
+    finally:
+        mp.undo()
+
+
+class ProvenanceRecorderStub:
+    """Stub that forwards record_sync/record_async but tracks link_to_patient."""
+
+    def __init__(self, link_mock: AsyncMock | None = None):
+        self.link_mock = link_mock or AsyncMock()
+
+    async def link_to_patient(self, *args, **kwargs):
+        await self.link_mock(*args, **kwargs)
+
+    @staticmethod
+    async def record_sync(*args, **kwargs):
+        pass
+
+    @staticmethod
+    async def record_async(*args, **kwargs):
+        return None
+
+
+@pytest.mark.asyncio
+async def test_link_to_patient_called_after_session_code_existing(mock_async_session):
+    """When lookup by session_code finds an existing patient, link_to_patient is called."""
+    service = ReceptionService()
+
+    existing = Patient(
+        id=FAKE_PATIENT_ID, name="Firulais", species="Canino", sex="Macho",
+        owner_name="Owner", has_age=True, age_value=3, age_unit="años",
+        age_display="3 años", source=PatientSource.APPSHEET.value,
+        normalized_name="firulais", normalized_owner="owner",
+        session_code=FAKE_SESSION_CODE,
+        sources_received=[PatientSource.APPSHEET.value],
+    )
+
+    session_result = MagicMock()
+    session_result.scalar_one_or_none.return_value = existing
+    mock_async_session.execute = AsyncMock(return_value=session_result)
+
+    mp = pytest.MonkeyPatch()
+    recorder_link_mock = AsyncMock()
+    stub = ProvenanceRecorderStub(link_mock=recorder_link_mock)
+    mp.setattr(
+        "app.domains.reception.service.ProvenanceRecorder.link_to_patient",
+        stub.link_to_patient,
+    )
+    try:
+        raw_input = RawPatientInput(
+            raw_string="Firulais Canino 3a Owner",
+            source=PatientSource.LIS_OZELLE,
+            session_code=FAKE_SESSION_CODE,
+            received_at=datetime.now(timezone.utc),
+        )
+        await service.receive(raw_input, mock_async_session)
+
+        recorder_link_mock.assert_awaited_once_with(
+            session=mock_async_session,
+            session_code=FAKE_SESSION_CODE,
+            patient_id=FAKE_PATIENT_ID,
+        )
+    finally:
+        mp.undo()
+
+
+@pytest.mark.asyncio
+async def test_link_to_patient_called_after_existing_patient_merge(mock_async_session):
+    """When _find_existing returns a match, link_to_patient is called."""
+    service = ReceptionService()
+
+    existing = Patient(
+        id=FAKE_PATIENT_ID, name="Firulais", species="Canino", sex="Macho",
+        owner_name="Owner", has_age=True, age_value=3, age_unit="años",
+        age_display="3 años", source=PatientSource.APPSHEET.value,
+        normalized_name="firulais", normalized_owner="owner",
+        sources_received=[PatientSource.APPSHEET.value],
+    )
+
+    mp = pytest.MonkeyPatch()
+    mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
+    mp.setattr(service._baul, "register", AsyncMock())
+    recorder_link_mock = AsyncMock()
+    stub = ProvenanceRecorderStub(link_mock=recorder_link_mock)
+    mp.setattr(
+        "app.domains.reception.service.ProvenanceRecorder.link_to_patient",
+        stub.link_to_patient,
+    )
+    try:
+        raw_input = RawPatientInput(
+            raw_string="Firulais Canino 3a Owner",
+            source=PatientSource.MANUAL,
+            session_code=FAKE_SESSION_CODE,
+            received_at=datetime.now(timezone.utc),
+        )
+        await service.receive(raw_input, mock_async_session)
+
+        recorder_link_mock.assert_awaited_once_with(
+            session=mock_async_session,
+            session_code=FAKE_SESSION_CODE,
+            patient_id=FAKE_PATIENT_ID,
+        )
+    finally:
+        mp.undo()
+
+
+@pytest.mark.asyncio
+async def test_link_to_patient_called_after_new_patient_created(mock_async_session):
+    """When a new patient is created via _baul.register, link_to_patient is called."""
+    service = ReceptionService()
+
+    new_patient = Patient(
+        id=FAKE_PATIENT_ID, name="NewPatient", species="Canino", sex="Macho",
+        owner_name="Owner", has_age=True, age_value=3, age_unit="años",
+        age_display="3 años", source=PatientSource.MANUAL.value,
+        normalized_name="newpatient", normalized_owner="owner",
+        sources_received=[],
+    )
+    mock_async_session.get.return_value = new_patient
+
+    mp = pytest.MonkeyPatch()
+    mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=None))
+    mp.setattr(
+        service._baul, "register",
+        AsyncMock(return_value=MockBaulResult(
+            patient_id=FAKE_PATIENT_ID, created=True, patient=new_patient,
+        )),
+    )
+    recorder_link_mock = AsyncMock()
+    stub = ProvenanceRecorderStub(link_mock=recorder_link_mock)
+    mp.setattr(
+        "app.domains.reception.service.ProvenanceRecorder.link_to_patient",
+        stub.link_to_patient,
+    )
+    try:
+        raw_input = RawPatientInput(
+            raw_string="NewPatient Canino 3a Owner",
+            source=PatientSource.MANUAL,
+            session_code=FAKE_SESSION_CODE,
+            received_at=datetime.now(timezone.utc),
+        )
+        await service.receive(raw_input, mock_async_session)
+
+        recorder_link_mock.assert_awaited_once_with(
+            session=mock_async_session,
+            session_code=FAKE_SESSION_CODE,
+            patient_id=FAKE_PATIENT_ID,
+        )
+    finally:
+        mp.undo()
+
+
 # ── Task 2.4: File source name fallback ────────────────────────────────────
 
 

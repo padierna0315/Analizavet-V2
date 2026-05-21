@@ -24,7 +24,22 @@
                 <p><strong>Registrado:</strong> {{ patient.created_at.strftime('%Y-%m-%d') }}</p>
             </div>
         </div>
+        <div style="padding: 0 1rem 1rem 1rem; border-top: 1px solid #e2e8f0; padding-top: 0.75rem;">
+            <button
+                class="btn btn-secondary"
+                style="font-size: 0.8rem; padding: 0.35rem 0.75rem;"
+                hx-get="/patients/{{ patient.id }}/raw-data"
+                hx-target="#raw-data-container"
+                hx-swap="outerHTML"
+                hx-indicator="#raw-data-spinner"
+            >
+                📋 Ver datos crudos
+            </button>
+            <span id="raw-data-spinner" class="htmx-indicator" style="font-size: 0.75rem; color: #64748b; margin-left: 0.5rem;">⏳ Cargando...</span>
+        </div>
     </div>
+
+    <div id="raw-data-container"></div>
 
     <div class="taller-left">
         <div class="panel-header">

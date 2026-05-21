@@ -56,7 +56,7 @@ async def sync_appsheet(
     """Sincroniza pacientes desde Google AppSheet."""
     try:
         service = AppSheetService()
-        patients = await service.fetch_active_patients()
+        patients = await service.fetch_active_patients(session=session)
         
         count = await _service.sync_from_appsheet(patients, session, reset=reset)
         
@@ -301,7 +301,7 @@ async def archive_all_patients(
     try:
         from app.services.appsheet import AppSheetService
         service = AppSheetService()
-        patients = await service.fetch_active_patients()
+        patients = await service.fetch_active_patients(session=session)
         sync_count = await _service.sync_from_appsheet(patients, session, reset=False)
         logfire.info(f"Post-archive sync: {sync_count} pacientes sincronizados")
     except Exception as e:

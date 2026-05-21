@@ -1,0 +1,47 @@
+{# Raw Data Provenance View — HTMX partial #}
+<div id="raw-data-container" class="raw-data-container" style="margin-top: 1.5rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; background: #f8fafc; padding: 1rem;">
+  <div class="panel-header" style="margin-bottom: 1rem;">
+    <h2>📋 Datos Crudos — Proveniencia</h2>
+    <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Mensajes originales capturados antes del procesamiento</p>
+  </div>
+
+  {% if not logs %}
+  <div style="text-align: center; color: #94a3b8; padding: 2rem;">
+    <p style="font-size: 1.2rem;">📭 Sin datos crudos registrados</p>
+    <p style="font-size: 0.85rem;">No hay mensajes originales capturados para este paciente.</p>
+  </div>
+  {% else %}
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem;">
+    {% for log in logs %}
+    <div class="raw-data-card" style="background: white; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        {% set source_labels = {"appsheet": "📊 AppSheet", "ozelle": "🧬 Ozelle (HL7)", "fujifilm": "🔬 Fujifilm"} %}
+        <strong style="font-size: 0.9rem; color: #1e293b;">{{ source_labels.get(log.source, log.source) }}</strong>
+        <span style="font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 0.75rem;
+          {% if log.status == 'linked' %}background: #d1fae5; color: #065f46;
+          {% elif log.status == 'archived' %}background: #e0e7ff; color: #3730a3;
+          {% else %}background: #fef3c7; color: #92400e;{% endif %}">
+          {{ log.status }}
+        </span>
+      </div>
+
+      <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem;">
+        {% if log.session_code %}
+        <span style="margin-right: 1rem;">🔑 {{ log.session_code }}</span>
+        {% endif %}
+        <span>📥 Recibido: {{ log.received_at }}</span>
+      </div>
+
+      <pre style="background: #1e293b; color: #e2e8f0; padding: 0.75rem; border-radius: 0.375rem; font-size: 0.7rem; line-height: 1.4; overflow-x: auto; max-height: 250px; overflow-y: auto; margin: 0; white-space: pre-wrap; word-break: break-all; font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;">{{ log.raw_data }}</pre>
+
+      <div style="font-size: 0.65rem; color: #94a3b8; margin-top: 0.5rem; display: flex; gap: 1rem;">
+        <span>Capturado: {{ log.captured_at }}</span>
+        {% if log.processed_at %}
+        <span>Vinculado: {{ log.processed_at }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
