@@ -97,7 +97,7 @@ async def test_process_fujifilm_message_valid_data(
     """Scenario: Test process_fujifilm_message with valid data."""
     data = {
         "internal_id": "908",
-        "patient_name": "POLO",
+        "patient_name": "F2 POLO",
         "parameter_code": "CRE",
         "raw_value": "0.87",
         "source": PatientSource.LIS_FUJIFILM.value,
@@ -116,8 +116,8 @@ async def test_process_fujifilm_message_valid_data(
         # Assertions on calls made within _async_process_pipeline should go here now
         mock_reception_service.receive.assert_awaited_once_with(
             RawPatientInput(
-                raw_string="POLO",
-                session_code=None,
+                raw_string="F2 POLO",
+                session_code="F2",
                 source=PatientSource.LIS_FUJIFILM,
                 received_at=reception_input.received_at # Use the actual received_at from the call
             ),
@@ -129,7 +129,7 @@ async def test_process_fujifilm_message_valid_data(
 
     mock_logfire[0].assert_any_call(
         "Processing Fujifilm reading",
-        patient_name="POLO",
+        patient_name="F2 POLO",
         internal_id="908",
         parameter="CRE",
         value="0.87",
@@ -143,7 +143,7 @@ async def test_process_fujifilm_message_missing_chemistry_values(
     """Scenario: Test process_fujifilm_message with missing chemistry values."""
     data = {
         "internal_id": "909",
-        "patient_name": "LUPO",
+        "patient_name": "F3 LUPO",
         "source": PatientSource.LIS_FUJIFILM.value,
     }
 
@@ -157,8 +157,8 @@ async def test_process_fujifilm_message_missing_chemistry_values(
 
         mock_reception_service.receive.assert_awaited_once_with(
             RawPatientInput(
-                raw_string="LUPO",
-                session_code=None,
+                raw_string="F3 LUPO",
+                session_code="F3",
                 source=PatientSource.LIS_FUJIFILM,
                 received_at=reception_input.received_at
             ),
@@ -167,15 +167,15 @@ async def test_process_fujifilm_message_missing_chemistry_values(
         mock_taller_service.create_test_result.assert_not_called()
         mock_taller_service.flag_and_store.assert_not_called()
 
+    mock_logfire[0].assert_any_call("Fujifilm: No parameter_code or raw_value provided, skipping lab value processing.")
     mock_logfire[0].assert_any_call(
         "Processing Fujifilm reading",
-        patient_name="LUPO",
+        patient_name="F3 LUPO",
         internal_id="909",
         parameter="",
         value="",
         source="LIS_FUJIFILM",
     )
-    mock_logfire[0].assert_any_call("Fujifilm: No parameter_code or raw_value provided, skipping lab value processing.")
 
 @pytest.mark.asyncio
 async def test_process_fujifilm_message_empty_patient_name(
@@ -206,7 +206,7 @@ async def test_process_fujifilm_message_invalid_received_at(
     """Test process_fujifilm_message with an invalid received_at format."""
     data = {
         "internal_id": "911",
-        "patient_name": "CANELA",
+        "patient_name": "F4 CANELA",
         "parameter_code": "CRE",
         "raw_value": "0.87",
         "source": PatientSource.LIS_FUJIFILM.value,
@@ -223,8 +223,8 @@ async def test_process_fujifilm_message_invalid_received_at(
 
         mock_reception_service.receive.assert_awaited_once_with(
             RawPatientInput(
-                raw_string="CANELA",
-                session_code=None,
+                raw_string="F4 CANELA",
+                session_code="F4",
                 source=PatientSource.LIS_FUJIFILM,
                 received_at=reception_input.received_at
             ),
@@ -236,7 +236,7 @@ async def test_process_fujifilm_message_invalid_received_at(
     mock_logfire[1].assert_any_call("Fujifilm: invalid received_at 'invalid-timestamp', using now()") # logfire.warning
     mock_logfire[0].assert_any_call(
         "Processing Fujifilm reading",
-        patient_name="CANELA",
+        patient_name="F4 CANELA",
         internal_id="911",
         parameter="CRE",
         value="0.87",
@@ -251,7 +251,7 @@ async def test_process_fujifilm_message_raw_value_asterisks(
     """Test process_fujifilm_message with raw_value as "****" should set it to None."""
     data = {
         "internal_id": "912",
-        "patient_name": "MAX",
+        "patient_name": "F5 MAX",
         "parameter_code": "CRE",
         "raw_value": "****",
         "source": PatientSource.LIS_FUJIFILM.value,
@@ -267,8 +267,8 @@ async def test_process_fujifilm_message_raw_value_asterisks(
 
         mock_reception_service.receive.assert_awaited_once_with(
             RawPatientInput(
-                raw_string="MAX",
-                session_code=None,
+                raw_string="F5 MAX",
+                session_code="F5",
                 source=PatientSource.LIS_FUJIFILM,
                 received_at=reception_input.received_at
             ),
@@ -279,7 +279,7 @@ async def test_process_fujifilm_message_raw_value_asterisks(
 
     mock_logfire[0].assert_any_call(
         "Processing Fujifilm reading",
-        patient_name="MAX",
+        patient_name="F5 MAX",
         internal_id="912",
         parameter="CRE",
         value=None, # It becomes None
@@ -900,7 +900,7 @@ async def test_process_fujifilm_message_extracts_upload_id(
     """
     data = {
         "internal_id": "908",
-        "patient_name": "POLO",
+        "patient_name": "F2 POLO",
         "parameter_code": "CRE",
         "raw_value": "0.87",
         "source": PatientSource.LIS_FUJIFILM.value,

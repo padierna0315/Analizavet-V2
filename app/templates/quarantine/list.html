@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Cuarentena — Analizavet{% endblock %}
+{% block content %}
+<div class="quarantine-page" style="max-width: 1200px; margin: 0 auto; padding: 1rem;">
+
+    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+        <h1 style="margin: 0; font-size: 1.5rem;">⚠ Cuarentena de Datos</h1>
+        <div id="quarantine-badge"
+             hx-get="/quarantine/count"
+             hx-trigger="load"
+             hx-swap="innerHTML"></div>
+    </div>
+
+    {% if not items %}
+    <div style="text-align: center; padding: 3rem; color: #6b7280;">
+        <p style="font-size: 1.2rem;">✅ Sin elementos en cuarentena</p>
+        <p style="font-size: 0.9rem;">Los datos rechazados por el sistema aparecerán aquí.</p>
+    </div>
+    {% else %}
+    <div class="quarantine-table-wrapper" style="overflow-x: auto;">
+        <table class="quarantine-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f1f5f9; text-align: left;">
+                    <th style="padding: 0.75rem; border-bottom: 2px solid #cbd5e1;">Fecha</th>
+                    <th style="padding: 0.75rem; border-bottom: 2px solid #cbd5e1;">Origen</th>
+                    <th style="padding: 0.75rem; border-bottom: 2px solid #cbd5e1;">Motivo</th>
+                    <th style="padding: 0.75rem; border-bottom: 2px solid #cbd5e1;">Datos</th>
+                    <th style="padding: 0.75rem; border-bottom: 2px solid #cbd5e1; text-align: center;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr id="quarantine-row-{{ item.id }}" style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 0.75rem; white-space: nowrap; font-size: 0.85rem; color: #64748b;">
+                        {{ item.received_at.strftime('%d/%m/%Y %H:%M') if item.received_at else '-' }}
+                    </td>
+                    <td style="padding: 0.75rem;">
+                        <span class="source-badge source-{{ item.source }}" style="
+                            display: inline-block;
+                            padding: 0.15rem 0.5rem;
+                            border-radius: 4px;
+                            font-size: 0.8rem;
+                            font-weight: 600;
+                            {% if item.source == 'ozelle' %}
+                            background: #dbeafe; color: #1e40af;
+                            {% elif item.source == 'fujifilm' %}
+                            background: #fce7f3; color: #9d174d;
+                            {% else %}
+                            background: #d1fae5; color: #065f46;
+                            {% endif %}
+                        ">{{ item.source }}</span>
+                    </td>
+                    <td style="padding: 0.75rem; font-size: 0.85rem;"
+                        data-reason="{{ item.rejection_reason }}">
+                        {% if item.rejection_reason == 'missing_code' %}
+                        🔍 Sin código
+                        {% elif item.rejection_reason == 'invalid_code' %}
+                        ❌ Código inválido
+                        {% elif item.rejection_reason == 'temporal_mismatch' %}
+                        ⏱ Desfase temporal
+                        {% else %}
+                        {{ item.rejection_reason }}
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.75rem; max-width: 350px;">
+                        <pre style="
+                            margin: 0;
+                            font-size: 0.75rem;
+                            background: #f8fafc;
+                            padding: 0.5rem;
+                            border-radius: 4px;
+                            overflow-x: auto;
+                            max-height: 80px;
+                            white-space: pre-wrap;
+                            word-break: break-all;
+                        ">{{ item.raw_data[:500] }}{% if item.raw_data|length > 500 %}...{% endif %}</pre>
+                    </td>
+                    <td style="padding: 0.75rem; text-align: center; white-space: nowrap;">
+                        <button
+                            hx-get="/quarantine/{{ item.id }}/review-modal"
+                            hx-target="#modal-container"
+                            hx-swap="innerHTML"
+                            style="
+                                background: #3b82f6;
+                                color: white;
+                                border: none;
+                                border-radius: 4px;
+                                padding: 0.35rem 0.75rem;
+                                font-size: 0.8rem;
+                                cursor: pointer;
+                                margin-right: 0.4rem;
+                            ">Forzar código</button>
+                        <button
+                            hx-post="/quarantine/{{ item.id }}/discard"
+                            hx-confirm="¿Descartar este ítem? Los datos no se eliminarán pero dejarán de aparecer aquí."
+                            hx-target="#quarantine-row-{{ item.id }}"
+                            hx-swap="outerHTML"
+                            style="
+                                background: #ef4444;
+                                color: white;
+                                border: none;
+                                border-radius: 4px;
+                                padding: 0.35rem 0.75rem;
+                                font-size: 0.8rem;
+                                cursor: pointer;
+                            ">Descartar</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

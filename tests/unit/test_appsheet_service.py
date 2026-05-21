@@ -16,7 +16,7 @@ async def test_fetch_active_patients_success():
             "Doctora": "Aura",
             "Categoria_Examen": "Examen de sangre",
             "Examen_Especifico": "Perfil Básico (PQ1)",
-            "Nombre_Mascota": "Lucas",
+            "Nombre_Mascota": "A1 Lucas",
             "Especie": "Felino",
             "Sexo": "Macho",
             "Edad_Numero": "13",
@@ -38,7 +38,7 @@ async def test_fetch_active_patients_success():
         assert len(patients) == 1
         assert isinstance(patients[0], AppSheetPatient)
         assert patients[0].session_code == "A1"
-        assert patients[0].name == "Lucas"
+        assert patients[0].name == "A1 Lucas"
         assert patients[0].species == "Felino"
         assert patients[0].vet_name == "Aura"
 
@@ -51,7 +51,7 @@ async def test_fetch_active_patients_with_rows_key():
                 "Doctora": "Aura",
                 "Categoria_Examen": "Examen de sangre",
                 "Examen_Especifico": "Perfil Básico (PQ1)",
-                "Nombre_Mascota": "Sasha",
+                "Nombre_Mascota": "A2 Sasha",
                 "Especie": "Felino",
                 "Sexo": "Hembra",
                 "Edad_Numero": "2",
@@ -73,7 +73,7 @@ async def test_fetch_active_patients_with_rows_key():
 
         assert len(patients) == 1
         assert patients[0].session_code == "A2"
-        assert patients[0].name == "Sasha"
+        assert patients[0].name == "A2 Sasha"
 
 @pytest.mark.asyncio
 async def test_fetch_active_patients_empty():
@@ -117,7 +117,7 @@ async def test_fetch_with_session_records_provenance():
             "Doctora": "Aura",
             "Categoria_Examen": "Examen de sangre",
             "Examen_Especifico": "Perfil Básico (PQ1)",
-            "Nombre_Mascota": "Lucas",
+            "Nombre_Mascota": "A1 Lucas",
             "Especie": "Felino",
             "Sexo": "Macho",
             "Edad_Numero": "13",
@@ -162,7 +162,7 @@ async def test_fetch_without_session_no_provenance():
             "Doctora": "Aura",
             "Categoria_Examen": "",
             "Examen_Especifico": "",
-            "Nombre_Mascota": "Max",
+            "Nombre_Mascota": "B2 Max",
             "Especie": "Canino",
             "Sexo": "Macho",
             "Edad_Numero": "5",
@@ -185,7 +185,7 @@ async def test_fetch_without_session_no_provenance():
             patients = await service.fetch_active_patients()  # No session
 
             assert len(patients) == 1
-            assert patients[0].name == "Max"
+            assert patients[0].name == "B2 Max"
             # Provenance was NOT called
             mock_record.assert_not_called()
 
@@ -199,7 +199,7 @@ async def test_fetch_provenance_failure_still_returns_patients():
             "Doctora": "Aura",
             "Categoria_Examen": "",
             "Examen_Especifico": "",
-            "Nombre_Mascota": "Luna",
+            "Nombre_Mascota": "C3 Luna",
             "Especie": "Felino",
             "Sexo": "Hembra",
             "Edad_Numero": "1",
@@ -226,7 +226,7 @@ async def test_fetch_provenance_failure_still_returns_patients():
 
             # Must still return patients despite recording failure
             assert len(patients) == 1
-            assert patients[0].name == "Luna"
+            assert patients[0].name == "C3 Luna"
             assert patients[0].session_code == "C3"
 
 

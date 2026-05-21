@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel import select
@@ -12,6 +12,7 @@ from app.shared.models.lab_value import LabValue # Added this
 from app.services.appsheet import AppSheetPatient
 from app.domains.exam_order.service import ExamOrderService
 from app.services.provenance_recorder import ProvenanceRecorder
+from app.shared.models.data_quarantine import DataQuarantine
 from sqlalchemy.orm import selectinload
 from sqlalchemy import delete
 import json
@@ -138,6 +139,47 @@ class ReceptionService:
             existing_patient = None
 
         if existing_patient:
+            # ── Temporal isolation check (R7) ──────────────────────────────
+            # Prevent data from a different session era from attaching to an
+            # existing patient that shares the same session_code.  5-second
+            # tolerance covers clock skew and batch upload timing.
+            tolerance = timedelta(seconds=5)
+            # Normalize to naive for comparison — SQLite may strip timezone info.
+            received_naive = raw_input.received_at.replace(tzinfo=None) \
+                if raw_input.received_at.tzinfo is not None \
+                else raw_input.received_at
+            created_naive = existing_patient.created_at.replace(tzinfo=None) \
+                if existing_patient.created_at.tzinfo is not None \
+                else existing_patient.created_at
+            if received_naive < created_naive - tolerance:
+                logfire.error(
+                    "Temporal mismatch: data received {received_at} "
+                    "but patient created {created_at} "
+                    "(session_code={code})".format(
+                        received_at=raw_input.received_at,
+                        created_at=existing_patient.created_at,
+                        code=lookup_code,
+                    )
+                )
+                try:
+                    q = DataQuarantine(
+                        source=raw_input.source.value,
+                        raw_data=raw_input.raw_string,
+                        received_at=raw_input.received_at,
+                        rejection_reason="temporal_mismatch",
+                    )
+                    session.add(q)
+                    await session.commit()
+                except Exception:
+                    logfire.warning(
+                        "Failed to insert quarantine record for temporal mismatch",
+                        _exc_info=True,
+                    )
+                # Do NOT attach to this patient — force creation of a new one.
+                existing_patient = None
+            # ── end temporal check ─────────────────────────────────────────
+
+        if existing_patient:
             logfire.info(
                 f"Paciente encontrado por código corto: {existing_patient.name} "
                 f"({existing_patient.session_code}) [id={existing_patient.id}]"
@@ -212,147 +254,6 @@ class ReceptionService:
         
         norm_name = _normalize_for_comparison(normalized.name)
         norm_owner = _normalize_for_comparison(normalized.owner_name)
-        
-        # ── FUJIFILM: buscar por nombre únicamente ──────────────────────
-        # La máquina solo envía el nombre, sin especie/edad/tutor.
-        # Si ya existe un paciente con ese nombre, lo vinculamos.
-        if raw_input.source == PatientSource.LIS_FUJIFILM:
-            stmt = select(Patient).where(Patient.normalized_name == norm_name)
-            result = await session.execute(stmt)
-            fuji_matches = result.scalars().all()
-
-            if len(fuji_matches) == 1:
-                fuji_match = fuji_matches[0]
-
-                logfire.info(
-                    f"Fujifilm: paciente encontrado por nombre: {fuji_match.name} "
-                    f"[id={fuji_match.id}]"
-                )
-                new_source = PatientSource.LIS_FUJIFILM.value
-                if new_source not in fuji_match.sources_received:
-                    fuji_match.sources_received.append(new_source)
-                    flag_modified(fuji_match, "sources_received")
-                # Backfill session_code si vino en el mensaje y el paciente no tiene
-                if raw_input.session_code and not fuji_match.session_code:
-                    fuji_match.session_code = raw_input.session_code
-                fuji_match.updated_at = datetime.now(timezone.utc)
-                session.add(fuji_match)
-                await session.commit()
-                await session.refresh(fuji_match)
-
-                # Lazy linking: backfill RawDataLog.patient_id for Fujifilm match
-                await self._try_link_raw_data(
-                    session, raw_input.session_code, fuji_match.id
-                )
-
-                # Sanitize age fields from DB (defensive — Patient model has no cross-field validator)
-                sanitized_has_age, sanitized_age_value, sanitized_age_unit, sanitized_age_display = \
-                    _sanitize_patient_age(
-                        fuji_match.has_age,
-                        fuji_match.age_value,
-                        fuji_match.age_unit,
-                        fuji_match.age_display,
-                    )
-
-                # Write-back: heal inconsistent DB data
-                if (fuji_match.has_age != sanitized_has_age or
-                    fuji_match.age_value != sanitized_age_value):
-                    fuji_match.has_age = sanitized_has_age
-                    fuji_match.age_value = sanitized_age_value
-                    fuji_match.age_unit = sanitized_age_unit
-                    fuji_match.age_display = sanitized_age_display
-                    session.add(fuji_match)
-                    await session.commit()
-                    await session.refresh(fuji_match)
-
-                normalized = NormalizedPatient(
-                    name=fuji_match.name,
-                    species=fuji_match.species,
-                    sex=fuji_match.sex,
-                    has_age=sanitized_has_age,
-                    age_value=sanitized_age_value,
-                    age_unit=sanitized_age_unit,
-                    age_display=sanitized_age_display,
-                    owner_name=fuji_match.owner_name,
-                    source=raw_input.source,
-                )
-                return BaulResult(
-                    patient_id=fuji_match.id,
-                    created=False,
-                    patient=normalized,
-                )
-
-            # 0 or >=2 matches → fall through to normal flow (creará paciente con "Desconocida")
-        
-        # ── OZELLE / FILE: buscar por nombre únicamente ────────────────────
-        if raw_input.source in (PatientSource.LIS_OZELLE, PatientSource.LIS_FILE):
-            stmt = select(Patient).where(Patient.normalized_name == norm_name)
-            result = await session.execute(stmt)
-            ozelle_matches = result.scalars().all()
-
-            if len(ozelle_matches) == 1:
-                ozelle_match = ozelle_matches[0]
-
-                logfire.info(
-                    f"Ozelle/File: paciente encontrado por nombre: {ozelle_match.name} "
-                    f"[id={ozelle_match.id}]"
-                )
-                # Add source
-                new_source = raw_input.source.value
-                if new_source not in ozelle_match.sources_received:
-                    ozelle_match.sources_received.append(new_source)
-                    flag_modified(ozelle_match, "sources_received")
-                # Backfill session_code si vino en el mensaje y el paciente no tiene
-                if raw_input.session_code and not ozelle_match.session_code:
-                    ozelle_match.session_code = raw_input.session_code
-                ozelle_match.updated_at = datetime.now(timezone.utc)
-                session.add(ozelle_match)
-                await session.commit()
-                await session.refresh(ozelle_match)
-                
-                # Lazy linking: backfill RawDataLog.patient_id for Ozelle match
-                await self._try_link_raw_data(
-                    session, raw_input.session_code, ozelle_match.id
-                )
-
-                # Sanitize age fields from DB
-                sanitized_has_age, sanitized_age_value, sanitized_age_unit, sanitized_age_display = \
-                    _sanitize_patient_age(
-                        ozelle_match.has_age,
-                        ozelle_match.age_value,
-                        ozelle_match.age_unit,
-                        ozelle_match.age_display,
-                    )
-                
-                # Write-back: heal inconsistent DB data
-                if (ozelle_match.has_age != sanitized_has_age or 
-                    ozelle_match.age_value != sanitized_age_value):
-                    ozelle_match.has_age = sanitized_has_age
-                    ozelle_match.age_value = sanitized_age_value
-                    ozelle_match.age_unit = sanitized_age_unit
-                    ozelle_match.age_display = sanitized_age_display
-                    session.add(ozelle_match)
-                    await session.commit()
-                    await session.refresh(ozelle_match)
-                
-                normalized = NormalizedPatient(
-                    name=ozelle_match.name,
-                    species=ozelle_match.species,
-                    sex=ozelle_match.sex,
-                    has_age=sanitized_has_age,
-                    age_value=sanitized_age_value,
-                    age_unit=sanitized_age_unit,
-                    age_display=sanitized_age_display,
-                    owner_name=ozelle_match.owner_name,
-                    source=raw_input.source,
-                )
-                return BaulResult(
-                    patient_id=ozelle_match.id,
-                    created=False,
-                    patient=normalized,
-                )
-
-            # 0 or >=2 matches → fall through to normal flow (dedup or creation)
         
         # Check if patient already exists using deduplication key
         existing_patient = await self._baul._find_existing(

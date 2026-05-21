@@ -12,6 +12,8 @@ from app.config import settings
 from app.domains.exam_order.service import ExamOrderService
 from app.domains.patients.models import Patient
 from app.services.provenance_recorder import ProvenanceRecorder
+from app.services.session_code_extractor import SessionCodeExtractor
+from app.shared.models.data_quarantine import DataQuarantine
 from app.shared.models.raw_data_log import RawDataSource
 
 
@@ -93,7 +95,36 @@ class AppSheetService:
                 else:
                     return []
 
-            return [AppSheetPatient(**row) for row in data]
+            # ── Gatekeeper: filter rows without valid session_code ───────────
+            parsed = [AppSheetPatient(**row) for row in data]
+            valid_patients = []
+            for patient in parsed:
+                code = SessionCodeExtractor.extract(patient.name)
+                if not code:
+                    logfire.warning(
+                        f"AppSheet gatekeeper rejection: no valid session_code "
+                        f"in patient name '{patient.name}' (Codigo_Corto={patient.session_code})"
+                    )
+                    try:
+                        if session is not None:
+                            q = DataQuarantine(
+                                source="appsheet",
+                                raw_data=patient.model_dump_json(by_alias=True),
+                                received_at=datetime.now(timezone.utc),
+                                rejection_reason="missing_code",
+                            )
+                            session.add(q)
+                            await session.commit()
+                    except Exception:
+                        logfire.warning(
+                            "Failed to insert quarantine record for AppSheet gatekeeper rejection",
+                            _exc_info=True,
+                        )
+                    # Skip this patient — do NOT include in returned list
+                    continue
+                valid_patients.append(patient)
+
+            return valid_patients
 
     async def sync_from_appsheet(
         self, patients: List[AppSheetPatient], session: AsyncSession, reset: bool = False

@@ -273,10 +273,10 @@ async def test_receive_same_source_twice_does_not_duplicate_sources(mock_async_s
 
 @pytest.mark.asyncio
 async def test_ozelle_match_finds_existing_patient_by_name(mock_async_session):
-    """Ozelle data should match existing patient by normalized_name when session_code is None."""
+    """Ozelle data without session_code matches via dedup key (name+owner+species)."""
     service = ReceptionService()
 
-    # Create an existing patient with AppSheet as source
+    # Create an existing patient from AppSheet
     existing_patient = Patient(
         id=1,
         name="Rex",
@@ -293,16 +293,12 @@ async def test_ozelle_match_finds_existing_patient_by_name(mock_async_session):
         sources_received=[PatientSource.APPSHEET.value],
     )
 
-    # After fix: session_code is None → lookup skipped.
-    # Only the Ozelle name query runs → set up .all() returning [existing_patient].
-    ozelle_result = MagicMock()
-    ozelle_result.scalars.return_value.all.return_value = [existing_patient]
-
-    mock_async_session.execute = AsyncMock(side_effect=[ozelle_result])
-
-    # Mock _find_existing to ensure it is NOT called (Ozelle match returns early)
+    # Mock _find_existing (dedup) to return the existing patient
     mp = pytest.MonkeyPatch()
-    mp.setattr(service._baul, "_find_existing", AsyncMock())
+    mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing_patient))
+
+    # Mock register (creation) — should NOT be called since dedup matches
+    mp.setattr(service._baul, "register", AsyncMock())
 
     try:
         raw_input = RawPatientInput(
@@ -313,11 +309,11 @@ async def test_ozelle_match_finds_existing_patient_by_name(mock_async_session):
 
         result = await service.receive(raw_input, mock_async_session)
 
-        # Should NOT create a new patient
+        # Should NOT create a new patient — dedup found existing
         assert result.created is False
         assert result.patient_id == 1
 
-        # Returned NormalizedPatient must have DB demographics, not normalized values
+        # Returned NormalizedPatient must have DB demographics
         assert result.patient.name == "Rex"
         assert result.patient.species == "Canino"
         assert result.patient.owner_name == "Juan Pérez"
@@ -326,15 +322,18 @@ async def test_ozelle_match_finds_existing_patient_by_name(mock_async_session):
         assert PatientSource.LIS_OZELLE.value in existing_patient.sources_received
         assert PatientSource.APPSHEET.value in existing_patient.sources_received
 
-        # _find_existing must NOT be called — Ozelle match returned early
-        service._baul._find_existing.assert_not_called()
+        # _find_existing MUST have been called (name-only fallback removed)
+        service._baul._find_existing.assert_called_once()
+        # register must NOT be called
+        service._baul.register.assert_not_called()
     finally:
         mp.undo()
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def test_ozelle_match_does_not_overwrite_demographics(mock_async_session):
-    """Ozelle match must preserve existing species/age/owner from DB, not overwrite."""
+    """Dedup match must preserve existing species/age/owner from DB, not overwrite."""
     service = ReceptionService()
 
     # Existing patient from AppSheet with specific demographics
@@ -354,46 +353,41 @@ async def test_ozelle_match_does_not_overwrite_demographics(mock_async_session):
         sources_received=[PatientSource.APPSHEET.value],
     )
 
-    # After fix: session_code is None → lookup skipped.
-    # Only the Ozelle name query runs → set up .all() returning [existing_patient].
-    ozelle_result = MagicMock()
-    ozelle_result.scalars.return_value.all.return_value = [existing_patient]
-
-    mock_async_session.execute = AsyncMock(side_effect=[ozelle_result])
-
-    # Mock _find_existing to ensure it is NOT called
+    # Mock _find_existing (dedup) to return the existing patient
     mp = pytest.MonkeyPatch()
-    mp.setattr(service._baul, "_find_existing", AsyncMock())
+    mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing_patient))
+    mp.setattr(service._baul, "register", AsyncMock())
 
     try:
-        # Raw input normalizes to Canino/Pedro but Ozelle match bypasses that
-        # and uses DB data (Felino/María García)
+        # Raw input normalizes to Canino/Pedro but dedup uses DB demographics
         raw_input = RawPatientInput(
             raw_string="luna canino 5a Pedro",
-            source=PatientSource.LIS_FILE,  # LIS_FILE also triggers ozelle_match
+            source=PatientSource.LIS_FILE,
             received_at=datetime.now(timezone.utc),
         )
 
         result = await service.receive(raw_input, mock_async_session)
 
-        # Patient demographics must remain intact (not overwritten by Ozelle data)
+        # Patient demographics must remain intact (not overwritten by machine data)
         assert existing_patient.species == "Felino"  # NOT "Canino" (from normalizer)
-        assert existing_patient.sex == "Hembra"  # NOT "Macho" (from normalizer)
+        assert existing_patient.sex == "Hembra"
         assert existing_patient.owner_name == "María García"  # NOT "Pedro"
         assert existing_patient.has_age is True
         assert existing_patient.age_value == 5
         assert existing_patient.age_display == "5 años"
 
-        # Returned NormalizedPatient must reflect DB values
+        # Returned NormalizedPatient carries normalized data (not DB data for machine sources)
+        # The merge guard prevents DB overwrite, but result.patient shows what was parsed
         assert result.patient.name == "Luna"
-        assert result.patient.species == "Felino"  # From DB, not normalizer's "Canino"
-        assert result.patient.owner_name == "María García"
+        assert result.patient.owner_name == "Pedro"  # Normalized from raw_string
 
         # LIS_FILE source should have been added
         assert PatientSource.LIS_FILE.value in existing_patient.sources_received
 
-        # _find_existing must NOT be called
-        service._baul._find_existing.assert_not_called()
+        # _find_existing MUST have been called (no name-only shortcut)
+        service._baul._find_existing.assert_called_once()
+        # register must NOT be called
+        service._baul.register.assert_not_called()
     finally:
         mp.undo()
 
@@ -554,15 +548,11 @@ async def test_raw_string_not_used_as_session_code_fallback(mock_async_session):
     GIVEN a raw_string that looks like a session_code (e.g., "M5")
     WHEN session_code is None
     THEN the system skips session_code lookup entirely
-    AND proceeds to name-based fallback matching.
+    AND proceeds to dedup-based matching (name-only fallbacks removed).
     """
     service = ReceptionService()
 
-    # Use a counting side_effect to verify execute call count.
-    # Before fix (bug): execute is called TWICE — session_code lookup with
-    # raw_string fallback + Ozelle name query → call_count == 2.
-    # After fix: session_code is None → lookup skipped → execute called ONCE
-    # (Ozelle name query only) → call_count == 1.
+    # Count how many times session.execute is called
     call_count = 0
 
     async def counting_execute(stmt):
@@ -593,11 +583,12 @@ async def test_raw_string_not_used_as_session_code_fallback(mock_async_session):
         assert result.created is True
         assert result.patient_id == 99
 
-        # After fix: execute called exactly ONCE (only Ozelle name query).
-        # Before fix (bug): execute called TWICE — this assertion FAILS (RED).
-        assert call_count == 1, (
-            f"Expected 1 execute call (name query only), got {call_count}. "
-            f"raw_string is being used as session_code fallback!"
+        # After fallback removal: execute called 0 times.
+        # session_code lookup skipped (code is None).
+        # Name-only fallback queries removed.
+        assert call_count == 0, (
+            f"Expected 0 execute calls (no session_code lookup, no name fallback), "
+            f"got {call_count}. raw_string is being used as session_code fallback!"
         )
 
 
@@ -640,7 +631,7 @@ async def test_fujifilm_name_match_zero_patients_creates_new(mock_async_session)
 
 @pytest.mark.asyncio
 async def test_fujifilm_name_match_one_patient_reuses(mock_async_session):
-    """Fujifilm: exactly 1 name match → reuse existing patient (created=False)."""
+    """Fujifilm: dedup match via _find_existing reuses existing patient (name-only fallback removed)."""
     service = ReceptionService()
 
     existing = Patient(
@@ -659,12 +650,9 @@ async def test_fujifilm_name_match_one_patient_reuses(mock_async_session):
         sources_received=[PatientSource.LIS_FUJIFILM.value],
     )
 
-    mock_async_session.execute = AsyncMock(
-        side_effect=[_make_fujifilm_result([existing])]  # 1 match
-    )
-
+    # No more fujifilm name-only query — go straight to _find_existing (dedup)
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock())
+        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
         mp.setattr(service._baul, "register", AsyncMock())
 
         raw_input = RawPatientInput(
@@ -679,8 +667,8 @@ async def test_fujifilm_name_match_one_patient_reuses(mock_async_session):
         assert result.patient_id == 42
         assert result.patient.name == "Kiara"
 
-        # Fujifilm fallback match must NOT call _find_existing
-        service._baul._find_existing.assert_not_awaited()
+        # _find_existing MUST be called (name-only fallback removed)
+        service._baul._find_existing.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -770,7 +758,7 @@ async def test_ozelle_name_match_zero_patients_creates_new(mock_async_session):
 
 @pytest.mark.asyncio
 async def test_ozelle_name_match_one_patient_reuses(mock_async_session):
-    """Ozelle: exactly 1 name match → reuse existing patient (created=False)."""
+    """Ozelle: dedup match via _find_existing reuses existing patient (name-only fallback removed)."""
     service = ReceptionService()
 
     existing = Patient(
@@ -789,12 +777,9 @@ async def test_ozelle_name_match_one_patient_reuses(mock_async_session):
         sources_received=[PatientSource.APPSHEET.value],
     )
 
-    mock_async_session.execute = AsyncMock(
-        side_effect=[_make_ozelle_result([existing])]
-    )
-
+    # No more Ozelle name-only query — go straight to _find_existing (dedup)
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock())
+        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
         mp.setattr(service._baul, "register", AsyncMock())
 
         raw_input = RawPatientInput(
@@ -809,8 +794,8 @@ async def test_ozelle_name_match_one_patient_reuses(mock_async_session):
         assert result.patient_id == 77
         assert result.patient.name == "Rocky"
 
-        # Ozelle fallback match must NOT call _find_existing
-        service._baul._find_existing.assert_not_awaited()
+        # _find_existing MUST be called (name-only fallback removed)
+        service._baul._find_existing.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -1092,7 +1077,7 @@ async def test_file_name_match_zero_patients_creates_new(mock_async_session):
 
 @pytest.mark.asyncio
 async def test_file_name_match_one_patient_reuses(mock_async_session):
-    """File source: exactly 1 name match → reuse existing patient."""
+    """File source: dedup match via _find_existing reuses existing patient (name-only fallback removed)."""
     service = ReceptionService()
 
     existing = Patient(
@@ -1111,12 +1096,9 @@ async def test_file_name_match_one_patient_reuses(mock_async_session):
         sources_received=[PatientSource.APPSHEET.value],
     )
 
-    mock_async_session.execute = AsyncMock(
-        side_effect=[_make_ozelle_result([existing])]
-    )
-
+    # No more File name-only query — go straight to _find_existing (dedup)
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock())
+        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
         mp.setattr(service._baul, "register", AsyncMock())
 
         raw_input = RawPatientInput(
@@ -1131,7 +1113,8 @@ async def test_file_name_match_one_patient_reuses(mock_async_session):
         assert result.patient_id == 66
         assert result.patient.name == "Max"
 
-        service._baul._find_existing.assert_not_awaited()
+        # _find_existing MUST be called (name-only fallback removed)
+        service._baul._find_existing.assert_awaited_once()
 
 
 @pytest.mark.asyncio

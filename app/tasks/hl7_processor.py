@@ -11,6 +11,7 @@ import anyio
 import redis
 import re
 import uuid
+from datetime import datetime, timezone
 
 from sqlmodel import Session, create_engine
 from app.database import AsyncSessionLocal
@@ -20,6 +21,8 @@ from app.satellites.ozelle.hl7_parser import parse_hl7_message, HL7ParsingError,
 # from app.domains.reception.service import ReceptionService # Moved to inside function
 from app.domains.taller.service import TallerService # Moved to inside function
 from app.config import settings # Import settings
+from app.services.session_code_extractor import SessionCodeExtractor
+from app.shared.models.data_quarantine import DataQuarantine
 
 
 
@@ -127,6 +130,34 @@ async def _async_process_pipeline(parsed_msg: ParsedOzelleMessage, source: str):
     """
 
     logfire.info(f"Iniciando pipeline para paciente: '{parsed_msg.raw_patient_string}'")
+
+    # ── Gatekeeper: validate session_code before entering the pipeline ─────
+    # Try extraction from patient name first, then fall back to PID[3] sample_id.
+    code = SessionCodeExtractor.extract(parsed_msg.raw_patient_string or "")
+    if not code and parsed_msg.sample_id:
+        code = SessionCodeExtractor.extract(parsed_msg.sample_id)
+    if not code:
+        logfire.warning(
+            f"Ozelle gatekeeper rejection: no valid session_code in "
+            f"'{parsed_msg.raw_patient_string}' (sample_id={parsed_msg.sample_id})"
+        )
+        try:
+            with Session(sync_engine) as sync_session:
+                q = DataQuarantine(
+                    source=source,
+                    raw_data=parsed_msg.raw_patient_string or "",
+                    received_at=parsed_msg.received_at or datetime.now(timezone.utc),
+                    rejection_reason="missing_code",
+                )
+                sync_session.add(q)
+                sync_session.commit()
+        except Exception:
+            logfire.warning(
+                "Failed to insert quarantine record for Ozelle gatekeeper rejection",
+                _exc_info=True,
+            )
+        return  # Skip this patient entirely
+    # ── end gatekeeper ─────────────────────────────────────────────────────
 
     source_enum = PatientSource(source)
     # 1. Prepare Reception Input

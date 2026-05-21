@@ -22,9 +22,13 @@ logger = logging.getLogger(__name__)
 
 from app.database import AsyncSessionLocal
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.config import settings
+from sqlmodel import Session, create_engine, select
 from app.domains.reception.schemas import RawPatientInput, PatientSource
 from app.domains.reception.service import ReceptionService
 from app.domains.reception.normalizer import _extract_name_and_code
+from app.services.session_code_extractor import SessionCodeExtractor
+from app.shared.models.data_quarantine import DataQuarantine
 
 # NEW IMPORTS FOR FUJIFILM PROCESSING
 from clinical_standards import VETERINARY_STANDARDS, get_parameter_name
@@ -37,7 +41,6 @@ from app.domains.exam_order.service import ExamOrderService
 from app.shared.models.test_result import TestResult
 from app.shared.models.lab_value import LabValue
 from app.shared.catalogs.appsheet_exam_catalog import EXAM_CATALOG
-from sqlmodel import select
 
 
 # ── Module-level service instances (shared across actor invocations) ─────────
@@ -51,6 +54,10 @@ def _reception_service() -> ReceptionService:
 def _taller_service() -> TallerService:
     """Provide a TallerService instance for this actor invocation."""
     return TallerService()
+
+
+# Synchronous engine for gatekeeper quarantine writes
+sync_engine = create_engine(settings.DATABASE_URL, echo=False)
 
 
 # ── Dramatiq Actor ───────────────────────────────────────────────────────────
@@ -107,6 +114,32 @@ def process_fujifilm_message(data: dict):
         # Así la recepción puede buscar por código en lugar de solo nombre,
         # evitando mezclar pacientes con igual nombre (3 Orions distintos).
         _parsed_name, _code = _extract_name_and_code(raw_string)
+
+        # ── Gatekeeper: validate session_code before entering the pipeline ─
+        code = SessionCodeExtractor.extract(raw_string)
+        if not code:
+            logfire.warning(
+                f"Fujifilm gatekeeper rejection: no valid session_code in "
+                f"'{raw_string}'"
+            )
+            try:
+                received_at_for_q = datetime.now(timezone.utc)
+                with Session(sync_engine) as sync_session:
+                    q = DataQuarantine(
+                        source=source_value,
+                        raw_data=raw_string,
+                        received_at=received_at_for_q,
+                        rejection_reason="missing_code",
+                    )
+                    sync_session.add(q)
+                    sync_session.commit()
+            except Exception:
+                logfire.warning(
+                    "Failed to insert quarantine record for Fujifilm gatekeeper rejection",
+                    _exc_info=True,
+                )
+            return  # Skip this reading entirely
+        # ── end gatekeeper ─────────────────────────────────────────────────
 
         received_at_str = data.get("received_at")
         if received_at_str:

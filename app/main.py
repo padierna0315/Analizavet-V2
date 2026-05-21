@@ -15,6 +15,7 @@ from app.domains.editor.router import router as editor_router
 from app.domains.exam_order.router import router as exam_order_router
 from app.domains.jornada.router import router as jornada_router
 from app.domains.provenance.router import router as provenance_router
+from app.domains.quarantine.router import router as quarantine_router
 from app.logging_config import setup_logging
 from app.config import settings
 from app.satellites.ozelle import OzelleAdapter
@@ -105,6 +106,7 @@ app.include_router(editor_router)
 app.include_router(exam_order_router)
 app.include_router(jornada_router)
 app.include_router(provenance_router)
+app.include_router(quarantine_router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/images", StaticFiles(directory=settings.IMAGES_DIR), name="images")
