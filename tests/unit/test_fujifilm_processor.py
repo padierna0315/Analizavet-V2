@@ -876,7 +876,7 @@ async def test_handle_uploaded_file_fujifilm_uses_init_upload_counter(
     with (
         patch('app.satellites.fujifilm.parser.parse_fujifilm_message', return_value=fake_records),
         patch('app.tasks.fujifilm_processor.process_fujifilm_message') as mock_actor,
-        patch('app.domains.reception.service.init_upload_counter') as mock_init,
+        patch('app.domains.reception.upload_handler.init_upload_counter') as mock_init,
     ):
         service = ReceptionService()
         await service.handle_uploaded_file(

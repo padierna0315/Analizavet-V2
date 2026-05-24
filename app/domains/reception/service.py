@@ -6,18 +6,15 @@ from app.domains.reception.schemas import RawPatientInput, BaulResult, PatientSo
 from app.domains.reception.normalizer import parse_patient_string
 from app.domains.reception.baul import BaulService
 from app.domains.patients.models import Patient
-from app.tasks.hl7_processor import process_hl7_message, process_uploaded_batch, set_upload_status, init_upload_counter
+
 from app.shared.models.test_result import TestResult
 from app.shared.models.lab_value import LabValue # Added this
 from app.services.appsheet import AppSheetPatient
 from app.domains.exam_order.service import ExamOrderService
 from app.services.provenance_recorder import ProvenanceRecorder
 from app.shared.models.data_quarantine import DataQuarantine
-from sqlalchemy.orm import selectinload
 from sqlalchemy import delete
-import json
 import logfire
-import uuid
 
 
 from app.domains.reception.helpers import (
@@ -26,6 +23,7 @@ from app.domains.reception.helpers import (
     _resolve_test_type_from_exam_types,
 )
 from app.domains.reception.query_service import WaitingRoomQueryService
+from app.domains.reception.upload_handler import FileUploadHandler
 
 
 class ReceptionService:
@@ -42,6 +40,7 @@ class ReceptionService:
         self._archive = PatientArchiveService()
         self._delete = PatientDeleteService()
         self._query = WaitingRoomQueryService()
+        self._upload = FileUploadHandler(receive_fn=self.receive)
 
     async def _try_link_raw_data(
         self,
@@ -548,88 +547,8 @@ class ReceptionService:
         return target_tr
 
     async def handle_uploaded_file(self, file_content: bytes, file_type: str, session: AsyncSession) -> str:
-        """
-        Routes uploaded file content to the correct parser/handler based on file_type.
-        Returns the upload_id for status tracking.
-        """
-        logfire.info(f"Handling uploaded file of type {file_type}")
-        
-        content_str = file_content.decode('utf-8', errors='ignore')
-        upload_id = str(uuid.uuid4()) # Generate a unique ID for this upload
-        set_upload_status(upload_id, "processing") # Set initial status to Redis
-
-        match file_type:
-            case "ozelle":
-                # Procesar directamente — los archivos son pequeños y el parsing es rápido
-                from app.tasks.hl7_processor import split_hl7_batch
-                from app.satellites.ozelle.hl7_parser import parse_hl7_message, HeartbeatMessageException, HL7ParsingError
-                from app.tasks.hl7_processor import _async_process_pipeline
-                
-                messages = split_hl7_batch(content_str)
-                count = 0
-                for msg in messages:
-                    try:
-                        parsed = parse_hl7_message(msg, "LIS_OZELLE")
-                        await _async_process_pipeline(parsed, "LIS_OZELLE")
-                        count += 1
-                    except HeartbeatMessageException:
-                        continue
-                    except (HL7ParsingError, Exception) as e:
-                        logfire.error(f"Error procesando mensaje del batch: {e}")
-                        continue
-                
-                set_upload_status(upload_id, f"complete:{count}")
-                logfire.info(f"Procesados {count} pacientes del archivo Ozelle.")
-            
-            case "fujifilm":
-                from app.satellites.fujifilm.parser import parse_fujifilm_message, FujifilmReading
-                from app.tasks.fujifilm_processor import process_fujifilm_message
-
-                records = parse_fujifilm_message(content_str)
-                count = 0
-                batch_received_at = datetime.now(timezone.utc).isoformat()  # mismo timestamp para todo el batch
-                for record in records:
-                    # 'record' is a FujifilmReading object
-                    process_fujifilm_message.send({
-                        "internal_id": record.internal_id,
-                        "patient_name": record.patient_name,
-                        "parameter_code": record.parameter_code,
-                        "raw_value": record.raw_value,
-                        "source": PatientSource.LIS_FUJIFILM.value,
-                        "received_at": batch_received_at,
-                        "upload_id": upload_id,
-                    })
-                    count += 1
-                # Use counter-based tracking so "complete" reflects actual processing
-                init_upload_counter(upload_id, count)
-                logfire.info(f"Enqueued {count} Fujifilm records for Dramatiq processing.")
-            
-            case "json":
-                try:
-                    data = json.loads(content_str)
-                    if "raw_string" not in data:
-                        raise ValueError("El archivo JSON para bautizar debe contener la clave 'raw_string'.")
-                    
-                    raw_input = RawPatientInput(
-                        raw_string=data["raw_string"],
-                        source='MANUAL',
-                        received_at=datetime.now(timezone.utc)
-                    )
-                    await self.receive(raw_input, session)
-                    logfire.info("Processed JSON baptism file.")
-
-                except json.JSONDecodeError:
-                    raise ValueError("El archivo JSON está malformado.")
-                except Exception as e:
-                    logfire.error(f"Error processing JSON file: {e}")
-                    raise ValueError(f"Error inesperado al procesar el archivo JSON: {e}")
-            
-            case _:
-                # If file_type is unknown, set error status and raise exception
-                set_upload_status(upload_id, f"error:Tipo de archivo no soportado: '{file_type}'")
-                raise ValueError(f"Tipo de archivo no soportado: '{file_type}'")
-        
-        return upload_id # Return the upload_id for the frontend to poll
+        """Delegates to FileUploadHandler."""
+        return await self._upload.handle_uploaded_file(file_content, file_type, session)
 
     # ── Archiving (soft-hide via status flag) ──────────────────────────
 
