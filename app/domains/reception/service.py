@@ -33,8 +33,13 @@ class ReceptionService:
     """
 
     def __init__(self):
+        from app.domains.reception.archive_service import PatientArchiveService
+        from app.domains.reception.delete_service import PatientDeleteService
+
         self._baul = BaulService()
         self._exam_order_service = ExamOrderService()
+        self._archive = PatientArchiveService()
+        self._delete = PatientDeleteService()
 
     async def _try_link_raw_data(
         self,
@@ -460,41 +465,8 @@ class ReceptionService:
     async def delete_patient_from_waiting_room(
         self, patient_id: int, session: AsyncSession
     ) -> bool:
-        """
-        Deletes a patient record from the database.
-
-        Returns True if the patient was found and deleted, False otherwise.
-        """
-        logfire.info(f"Attempting to delete patient with id={patient_id}")
-
-        # Cargar toda la cadena en memoria para que el cascade ORM funcione:
-        # Patient → TestResult → LabValue / PatientImage
-        from sqlalchemy import select as sa_select
-        from sqlalchemy.orm import selectinload
-        from app.shared.models.test_result import TestResult
-        from app.shared.models.lab_value import LabValue
-        from app.shared.models.patient_image import PatientImage
-        stmt = (
-            sa_select(Patient)
-            .where(Patient.id == patient_id)
-            .options(
-                selectinload(Patient.test_results).options(
-                    selectinload(TestResult.lab_values),
-                    selectinload(TestResult.images),
-                )
-            )
-        )
-        result = await session.execute(stmt)
-        patient = result.scalar_one_or_none()
-
-        if patient:
-            await session.delete(patient)
-            await session.commit()
-            logfire.info(f"Successfully deleted patient with id={patient_id}")
-            return True
-        else:
-            logfire.warning(f"Patient with id={patient_id} not found for deletion.")
-            return False
+        """Delegates to PatientDeleteService."""
+        return await self._delete.delete_patient_from_waiting_room(patient_id, session)
 
     async def inject_patient_to_taller(
         self, patient_id: int, session: AsyncSession
@@ -718,103 +690,20 @@ class ReceptionService:
     # ── Archiving (soft-hide via status flag) ──────────────────────────
 
     async def archive_all_active(self, session: AsyncSession) -> int:
-        """Set waiting_room_status='archived' for all active patients.
-
-        Returns the number of patients archived.
-        """
-        from sqlalchemy import update as sa_update
-
-        stmt = (
-            sa_update(Patient)
-            .where(Patient.waiting_room_status == "active")
-            .values(waiting_room_status="archived", updated_at=datetime.now(timezone.utc))
-        )
-        result = await session.execute(stmt)
-        await session.commit()
-
-        count = result.rowcount if hasattr(result, "rowcount") else 0
-        logfire.info(f"Archived {count} patients (active → archived)")
-        return count
+        """Delegates to PatientArchiveService."""
+        return await self._archive.archive_all_active(session)
 
     async def restore_all_archived(self, session: AsyncSession) -> int:
-        """Set waiting_room_status='active' for all archived patients.
-
-        Returns the number of patients restored.
-        """
-        from sqlalchemy import update as sa_update
-
-        stmt = (
-            sa_update(Patient)
-            .where(Patient.waiting_room_status == "archived")
-            .values(waiting_room_status="active", updated_at=datetime.now(timezone.utc))
-        )
-        result = await session.execute(stmt)
-        await session.commit()
-
-        count = result.rowcount if hasattr(result, "rowcount") else 0
-        logfire.info(f"Restored {count} patients (archived → active)")
-        return count
+        """Delegates to PatientArchiveService."""
+        return await self._archive.restore_all_archived(session)
 
     async def restore_single_archived(self, patient_id: int, session: AsyncSession) -> bool:
-        """Set a single patient's status back to 'active'.
-
-        Returns True if the patient was found and updated, False if not found.
-        Idempotent: if already active, still returns True.
-        """
-        patient = await session.get(Patient, patient_id)
-        if not patient:
-            return False
-
-        patient.waiting_room_status = "active"
-        patient.updated_at = datetime.now(timezone.utc)
-        session.add(patient)
-        await session.commit()
-        logfire.info(f"Restored patient {patient_id} (→ active)")
-        return True
+        """Delegates to PatientArchiveService."""
+        return await self._archive.restore_single_archived(patient_id, session)
 
     async def get_archived_patients(self, session: AsyncSession) -> list[dict]:
-        """Get all archived patients formatted for display."""
-        from app.shared.models.test_result import TestResult
-
-        query = (
-            select(Patient)
-            .where(Patient.waiting_room_status == "archived")
-            .order_by(Patient.updated_at.desc())
-        )
-        result = await session.execute(query)
-        patients = result.scalars().all()
-
-        patients_data = []
-        for patient in patients:
-            # Get latest TestResult id for this patient
-            tr_query = (
-                select(TestResult.id)
-                .where(TestResult.patient_id == patient.id)
-                .order_by(TestResult.id.desc())
-                .limit(1)
-            )
-            tr_result = await session.execute(tr_query)
-            latest_result_id = tr_result.scalar_one_or_none()
-
-            patients_data.append({
-                "id": patient.id,
-                "name": patient.name,
-                "species": patient.species,
-                "sex": patient.sex,
-                "owner_name": patient.owner_name,
-                "age_display": patient.age_display,
-                "session_code": patient.session_code,
-                "waiting_room_status": patient.waiting_room_status,
-                "sources_received": list(patient.sources_received or []),
-                "appsheet_test_type": patient.appsheet_test_type,
-                "appsheet_test_type_code": patient.appsheet_test_type_code,
-                "result_id": latest_result_id,
-                "created_at": patient.created_at.isoformat() if patient.created_at else None,
-                "updated_at": patient.updated_at.isoformat() if patient.updated_at else None,
-                "source": patient.source,
-            })
-
-        return patients_data
+        """Delegates to PatientArchiveService."""
+        return await self._archive.get_archived_patients(session)
 
     async def get_single_patient_for_card(
         self, patient_id: int, session: AsyncSession
