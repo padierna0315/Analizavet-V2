@@ -3,7 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domains.patients.models import Patient
 from app.domains.reception.schemas import RawPatientInput, PatientSource, NormalizedPatient
-from app.domains.reception.service import ReceptionService, _sanitize_patient_age
+from app.domains.reception.service import ReceptionService
+from app.domains.reception.helpers import _sanitize_patient_age
 import json
 from datetime import datetime, timezone
 from dataclasses import dataclass
