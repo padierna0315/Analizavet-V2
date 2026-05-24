@@ -94,8 +94,8 @@ async def test_receive_new_patient_creates_record(mock_async_session):
     # Mock the BaulService _find_existing to return None (no existing patient)
     # and register to return a new patient
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, '_find_existing', AsyncMock(return_value=None))
-        mp.setattr(service._baul, 'register', AsyncMock(return_value=baul_register_return_value))
+        mp.setattr(service._intake._baul, '_find_existing', AsyncMock(return_value=None))
+        mp.setattr(service._intake._baul, 'register', AsyncMock(return_value=baul_register_return_value))
 
 
         # Execute
@@ -139,8 +139,8 @@ async def test_receive_existing_patient_updates_demographic_data(mock_async_sess
     
     # Mock the _find_existing method to return our existing patient
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, '_find_existing', AsyncMock(return_value=existing_patient))
-        mp.setattr(service._baul, 'register', AsyncMock())  # Should not be called
+        mp.setattr(service._intake._baul, '_find_existing', AsyncMock(return_value=existing_patient))
+        mp.setattr(service._intake._baul, 'register', AsyncMock())  # Should not be called
         
         # Execute - receive JSON data with different demographic info
         raw_input = RawPatientInput(
@@ -201,8 +201,8 @@ async def test_receive_existing_patient_ozelle_data_preserved(mock_async_session
     
     # Mock the _find_existing method to return our existing patient
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, '_find_existing', AsyncMock(return_value=existing_patient))
-        mp.setattr(service._baul, 'register', AsyncMock())  # Should not be called
+        mp.setattr(service._intake._baul, '_find_existing', AsyncMock(return_value=existing_patient))
+        mp.setattr(service._intake._baul, 'register', AsyncMock())  # Should not be called
         
         # Execute - receive JSON data
         raw_input = RawPatientInput(
@@ -247,8 +247,8 @@ async def test_receive_same_source_twice_does_not_duplicate_sources(mock_async_s
     
     # Mock the _find_existing method to return our existing patient
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, '_find_existing', AsyncMock(return_value=existing_patient))
-        mp.setattr(service._baul, 'register', AsyncMock())  # Should not be called
+        mp.setattr(service._intake._baul, '_find_existing', AsyncMock(return_value=existing_patient))
+        mp.setattr(service._intake._baul, 'register', AsyncMock())  # Should not be called
         
         # Execute - receive Ozelle data twice
         raw_input = RawPatientInput(
@@ -296,10 +296,10 @@ async def test_ozelle_match_finds_existing_patient_by_name(mock_async_session):
 
     # Mock _find_existing (dedup) to return the existing patient
     mp = pytest.MonkeyPatch()
-    mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing_patient))
+    mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=existing_patient))
 
     # Mock register (creation) — should NOT be called since dedup matches
-    mp.setattr(service._baul, "register", AsyncMock())
+    mp.setattr(service._intake._baul, "register", AsyncMock())
 
     try:
         raw_input = RawPatientInput(
@@ -324,9 +324,9 @@ async def test_ozelle_match_finds_existing_patient_by_name(mock_async_session):
         assert PatientSource.APPSHEET.value in existing_patient.sources_received
 
         # _find_existing MUST have been called (name-only fallback removed)
-        service._baul._find_existing.assert_called_once()
+        service._intake._baul._find_existing.assert_called_once()
         # register must NOT be called
-        service._baul.register.assert_not_called()
+        service._intake._baul.register.assert_not_called()
     finally:
         mp.undo()
 
@@ -356,8 +356,8 @@ async def test_ozelle_match_does_not_overwrite_demographics(mock_async_session):
 
     # Mock _find_existing (dedup) to return the existing patient
     mp = pytest.MonkeyPatch()
-    mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing_patient))
-    mp.setattr(service._baul, "register", AsyncMock())
+    mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=existing_patient))
+    mp.setattr(service._intake._baul, "register", AsyncMock())
 
     try:
         # Raw input normalizes to Canino/Pedro but dedup uses DB demographics
@@ -386,9 +386,9 @@ async def test_ozelle_match_does_not_overwrite_demographics(mock_async_session):
         assert PatientSource.LIS_FILE.value in existing_patient.sources_received
 
         # _find_existing MUST have been called (no name-only shortcut)
-        service._baul._find_existing.assert_called_once()
+        service._intake._baul._find_existing.assert_called_once()
         # register must NOT be called
-        service._baul.register.assert_not_called()
+        service._intake._baul.register.assert_not_called()
     finally:
         mp.undo()
 
@@ -423,8 +423,8 @@ async def test_ozelle_match_fallthrough_when_name_does_not_match(mock_async_sess
     mock_async_session.execute = AsyncMock(side_effect=[ozelle_no_match])
 
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing_patient))
-        mp.setattr(service._baul, "register", AsyncMock())
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=existing_patient))
+        mp.setattr(service._intake._baul, "register", AsyncMock())
 
         raw_input = RawPatientInput(
             raw_string="rex canino 3a Juan Pérez",
@@ -439,7 +439,7 @@ async def test_ozelle_match_fallthrough_when_name_does_not_match(mock_async_sess
         assert result.patient_id == 1
 
         # _find_existing MUST have been called (Ozelle match didn't find by name)
-        service._baul._find_existing.assert_awaited_once()
+        service._intake._baul._find_existing.assert_awaited_once()
 
         # Merge guard should protect demographics for LIS_OZELLE
         assert existing_patient.species == "Canino"
@@ -475,8 +475,8 @@ async def test_fujifilm_merge_guard_protects_demographics(mock_async_session):
     mock_async_session.execute = AsyncMock(side_effect=[fuji_no_match])
 
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing_patient))
-        mp.setattr(service._baul, "register", AsyncMock())
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=existing_patient))
+        mp.setattr(service._intake._baul, "register", AsyncMock())
 
         # Raw string that normalizes to DIFFERENT demographics than existing
         raw_input = RawPatientInput(
@@ -564,12 +564,12 @@ async def test_raw_string_not_used_as_session_code_fallback(mock_async_session):
     mock_async_session.execute = AsyncMock(side_effect=counting_execute)
 
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=None))
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=None))
         mock_register = AsyncMock(return_value=MockBaulResult(
             patient_id=99, created=True,
             patient=MagicMock(name="M5 Test Name"),
         ))
-        mp.setattr(service._baul, "register", mock_register)
+        mp.setattr(service._intake._baul, "register", mock_register)
 
         raw_input = RawPatientInput(
             raw_string="M5 Test Name Canino 3a Owner",
@@ -613,8 +613,8 @@ async def test_fujifilm_name_match_zero_patients_creates_new(mock_async_session)
     )
 
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=None))
-        mp.setattr(service._baul, "register", AsyncMock(return_value=MockBaulResult(
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=None))
+        mp.setattr(service._intake._baul, "register", AsyncMock(return_value=MockBaulResult(
             patient_id=50, created=True, patient=MagicMock(name="Fuji Zero"),
         )))
 
@@ -653,8 +653,8 @@ async def test_fujifilm_name_match_one_patient_reuses(mock_async_session):
 
     # No more fujifilm name-only query — go straight to _find_existing (dedup)
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
-        mp.setattr(service._baul, "register", AsyncMock())
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=existing))
+        mp.setattr(service._intake._baul, "register", AsyncMock())
 
         raw_input = RawPatientInput(
             raw_string="Kiara",
@@ -669,7 +669,7 @@ async def test_fujifilm_name_match_one_patient_reuses(mock_async_session):
         assert result.patient.name == "Kiara"
 
         # _find_existing MUST be called (name-only fallback removed)
-        service._baul._find_existing.assert_awaited_once()
+        service._intake._baul._find_existing.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -698,8 +698,8 @@ async def test_fujifilm_name_match_two_plus_patients_creates_new(mock_async_sess
     )
 
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=None))
-        mp.setattr(service._baul, "register", AsyncMock(return_value=MockBaulResult(
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=None))
+        mp.setattr(service._intake._baul, "register", AsyncMock(return_value=MockBaulResult(
             patient_id=99, created=True, patient=MagicMock(name="Kiara"),
         )))
 
@@ -740,8 +740,8 @@ async def test_ozelle_name_match_zero_patients_creates_new(mock_async_session):
     )
 
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=None))
-        mp.setattr(service._baul, "register", AsyncMock(return_value=MockBaulResult(
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=None))
+        mp.setattr(service._intake._baul, "register", AsyncMock(return_value=MockBaulResult(
             patient_id=55, created=True, patient=MagicMock(name="Ozelle Zero"),
         )))
 
@@ -780,8 +780,8 @@ async def test_ozelle_name_match_one_patient_reuses(mock_async_session):
 
     # No more Ozelle name-only query — go straight to _find_existing (dedup)
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
-        mp.setattr(service._baul, "register", AsyncMock())
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=existing))
+        mp.setattr(service._intake._baul, "register", AsyncMock())
 
         raw_input = RawPatientInput(
             raw_string="Rocky Canino 4a Carlos",
@@ -796,7 +796,7 @@ async def test_ozelle_name_match_one_patient_reuses(mock_async_session):
         assert result.patient.name == "Rocky"
 
         # _find_existing MUST be called (name-only fallback removed)
-        service._baul._find_existing.assert_awaited_once()
+        service._intake._baul._find_existing.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -824,8 +824,8 @@ async def test_ozelle_name_match_two_plus_patients_creates_new(mock_async_sessio
     )
 
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=None))
-        mp.setattr(service._baul, "register", AsyncMock(return_value=MockBaulResult(
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=None))
+        mp.setattr(service._intake._baul, "register", AsyncMock(return_value=MockBaulResult(
             patient_id=99, created=True, patient=MagicMock(name="Luna"),
         )))
 
@@ -867,7 +867,7 @@ async def _receive_and_assert_linked(
     mp = pytest.MonkeyPatch().context()
     recorder_link_mock = AsyncMock()
     mp.setattr(
-        "app.domains.reception.service.ProvenanceRecorder",
+        "app.domains.reception.intake_service.ProvenanceRecorder",
         ProvenanceRecorderStub(link_mock=recorder_link_mock),
     )
     try:
@@ -878,8 +878,8 @@ async def _receive_and_assert_linked(
             normalized_name="firulais", normalized_owner="owner",
             sources_received=[source.value],
         )
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
-        mp.setattr(service._baul, "register", AsyncMock())
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=existing))
+        mp.setattr(service._intake._baul, "register", AsyncMock())
 
         raw_input = RawPatientInput(
             raw_string=raw_string,
@@ -939,7 +939,7 @@ async def test_link_to_patient_called_after_session_code_existing(mock_async_ses
     recorder_link_mock = AsyncMock()
     stub = ProvenanceRecorderStub(link_mock=recorder_link_mock)
     mp.setattr(
-        "app.domains.reception.service.ProvenanceRecorder.link_to_patient",
+        "app.domains.reception.intake_service.ProvenanceRecorder.link_to_patient",
         stub.link_to_patient,
     )
     try:
@@ -974,12 +974,12 @@ async def test_link_to_patient_called_after_existing_patient_merge(mock_async_se
     )
 
     mp = pytest.MonkeyPatch()
-    mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
-    mp.setattr(service._baul, "register", AsyncMock())
+    mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=existing))
+    mp.setattr(service._intake._baul, "register", AsyncMock())
     recorder_link_mock = AsyncMock()
     stub = ProvenanceRecorderStub(link_mock=recorder_link_mock)
     mp.setattr(
-        "app.domains.reception.service.ProvenanceRecorder.link_to_patient",
+        "app.domains.reception.intake_service.ProvenanceRecorder.link_to_patient",
         stub.link_to_patient,
     )
     try:
@@ -1015,9 +1015,9 @@ async def test_link_to_patient_called_after_new_patient_created(mock_async_sessi
     mock_async_session.get.return_value = new_patient
 
     mp = pytest.MonkeyPatch()
-    mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=None))
+    mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=None))
     mp.setattr(
-        service._baul, "register",
+        service._intake._baul, "register",
         AsyncMock(return_value=MockBaulResult(
             patient_id=FAKE_PATIENT_ID, created=True, patient=new_patient,
         )),
@@ -1025,7 +1025,7 @@ async def test_link_to_patient_called_after_new_patient_created(mock_async_sessi
     recorder_link_mock = AsyncMock()
     stub = ProvenanceRecorderStub(link_mock=recorder_link_mock)
     mp.setattr(
-        "app.domains.reception.service.ProvenanceRecorder.link_to_patient",
+        "app.domains.reception.intake_service.ProvenanceRecorder.link_to_patient",
         stub.link_to_patient,
     )
     try:
@@ -1059,8 +1059,8 @@ async def test_file_name_match_zero_patients_creates_new(mock_async_session):
     )
 
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=None))
-        mp.setattr(service._baul, "register", AsyncMock(return_value=MockBaulResult(
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=None))
+        mp.setattr(service._intake._baul, "register", AsyncMock(return_value=MockBaulResult(
             patient_id=88, created=True, patient=MagicMock(name="File Zero"),
         )))
 
@@ -1099,8 +1099,8 @@ async def test_file_name_match_one_patient_reuses(mock_async_session):
 
     # No more File name-only query — go straight to _find_existing (dedup)
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
-        mp.setattr(service._baul, "register", AsyncMock())
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=existing))
+        mp.setattr(service._intake._baul, "register", AsyncMock())
 
         raw_input = RawPatientInput(
             raw_string="Max Canino 6a Pedro",
@@ -1115,7 +1115,7 @@ async def test_file_name_match_one_patient_reuses(mock_async_session):
         assert result.patient.name == "Max"
 
         # _find_existing MUST be called (name-only fallback removed)
-        service._baul._find_existing.assert_awaited_once()
+        service._intake._baul._find_existing.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -1143,8 +1143,8 @@ async def test_file_name_match_two_plus_patients_creates_new(mock_async_session)
     )
 
     with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=None))
-        mp.setattr(service._baul, "register", AsyncMock(return_value=MockBaulResult(
+        mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=None))
+        mp.setattr(service._intake._baul, "register", AsyncMock(return_value=MockBaulResult(
             patient_id=99, created=True, patient=MagicMock(name="Coco"),
         )))
 
