@@ -199,7 +199,7 @@ async def test_flag_nsh_canine_high(session):
     result = await engine.flag_test_result(request, session)
     assert result.status == "listo"
     assert result.flagged_values[0].flag == "ALTO"
-    assert result.flagged_values[0].reference_range == "0.0-0.4 x10^3/µL"
+    assert result.flagged_values[0].reference_range == "0.0 - 0.4 x10^3/µL"
 
 @pytest.mark.asyncio
 async def test_flag_counts_additive(session):
@@ -277,4 +277,4 @@ async def test_flag_nsh_canine_normal(session):
     result = await engine.flag_test_result(request, session)
     assert result.status == "listo"
     assert result.flagged_values[0].flag == "NORMAL"
-    assert result.flagged_values[0].reference_range == "0.0-0.4 x10^3/µL"
+    assert result.flagged_values[0].reference_range == "0.0 - 0.4 x10^3/µL"

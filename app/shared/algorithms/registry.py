@@ -15,17 +15,8 @@ REFERENCE RANGES and FLAGS are sourced from clinical_standards.py (single source
 from app.shared.models.lab_value import LabValue
 from app.shared.algorithms.unit_validation import get_validated_value
 from app.shared.algorithms.interpretations import INTERPRETATIONS
-from clinical_standards import VETERINARY_STANDARDS, STANDARDS_MAPPING
+from clinical_standards import evaluate_flag, get_reference_range
 from dataclasses import dataclass
-
-
-# Species name mapping (same as ClinicalFlaggingService)
-_SPECIES_MAP = {
-    "Canino": "canine",
-    "Canina": "canine",
-    "Felino": "feline",
-    "Felina": "feline",
-}
 
 
 @dataclass
@@ -81,40 +72,14 @@ class AlgorithmRegistry:
     # ── Helpers ──────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _get_species_key(species: str) -> str | None:
-        """Normalize DB species string to clinical_standards key."""
-        return _SPECIES_MAP.get(species, "canine")
-
-    @staticmethod
     def _build_reference_range(code: str, species: str) -> str:
-        """Build reference range string from clinical_standards (single source of truth)."""
-        resolved = STANDARDS_MAPPING.get(code, code)
-        param = VETERINARY_STANDARDS.get(resolved)
-        if not param:
-            return ""
-        species_key = _SPECIES_MAP.get(species, "canine")
-        ranges = param.get("ranges", {}).get(species_key)
-        if not ranges or "min" not in ranges or "max" not in ranges:
-            return ""
-        unit = param.get("unit", "")
-        return f"{ranges['min']} - {ranges['max']} {unit}".strip()
+        """Delegate to clinical_standards.get_reference_range (single source of truth)."""
+        return get_reference_range(code, species)
 
     @staticmethod
     def _determine_flag(code: str, value: float, species: str) -> str:
-        """Determine flag (ALTO/BAJO/NORMAL) from clinical_standards ranges."""
-        resolved = STANDARDS_MAPPING.get(code, code)
-        param = VETERINARY_STANDARDS.get(resolved)
-        if not param:
-            return "NORMAL"
-        species_key = _SPECIES_MAP.get(species, "canine")
-        ranges = param.get("ranges", {}).get(species_key)
-        if not ranges or "min" not in ranges or "max" not in ranges:
-            return "NORMAL"
-        if value < ranges["min"]:
-            return "BAJO"
-        if value > ranges["max"]:
-            return "ALTO"
-        return "NORMAL"
+        """Delegate to clinical_standards.evaluate_flag (single source of truth)."""
+        return evaluate_flag(code, value, species)["flag"]
 
     # ── Individual algorithms ────────────────────────────────────────────────
 

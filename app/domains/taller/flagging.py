@@ -1,75 +1,27 @@
 import logfire
 from app.domains.taller.schemas_flagging import FlagResult
-from clinical_standards import VETERINARY_STANDARDS, STANDARDS_MAPPING
+from clinical_standards import evaluate_flag, get_species_key
 
 class ClinicalFlaggingService:
-    SPECIES_MAP = {
-        "Canino": "canine",
-        "Canina": "canine",
-        "Felino": "feline",
-        "Felina": "feline"
-    }
-
-    def _get_species_key(self, species: str) -> str | None:
-        if species == "Desconocida":
-            return None
-        if species not in self.SPECIES_MAP:
-            raise ValueError(f"Especie desconocida: {species}")
-        return self.SPECIES_MAP[species]
 
     def flag_value(self, parameter: str, value: float, unit: str, species: str) -> FlagResult:
-        species_key = self._get_species_key(species)
-        
-        if species_key is None:
-            # No se puede evaluar flag sin especie conocida — NORMAL por defecto
-            return FlagResult(
-                parameter=parameter,
-                value=value,
-                unit=unit,
-                flag="NORMAL",
-                reference_range="N/D"
-            )
+        # Validate species: must be recognized (in SPECIES_MAP) or "Desconocida"
+        species_key = get_species_key(species)
+        if species_key is None and species != "Desconocida":
+            raise ValueError(f"Especie desconocida: {species}")
 
-        resolved_parameter = STANDARDS_MAPPING.get(parameter, parameter)
-        param_data = VETERINARY_STANDARDS.get(resolved_parameter)
-        if not param_data:
-            logfire.warning(f"Parameter {parameter} not found in standards")
-            return FlagResult(
-                parameter=parameter,
-                value=value,
-                unit=unit,
-                flag="NORMAL",
-                reference_range=""
-            )
+        result = evaluate_flag(parameter, value, species)
 
-        ranges = param_data["ranges"].get(species_key)
-        if not ranges:
-            logfire.warning(f"No reference range for {parameter} in {species}")
-            return FlagResult(
-                parameter=parameter,
-                value=value,
-                unit=unit,
-                flag="NORMAL",
-                reference_range=""
-            )
-
-        min_val = ranges["min"]
-        max_val = ranges["max"]
-        reference_range = f"{min_val}-{max_val} {param_data['unit']}"
-
-        if value < min_val:
-            flag = "BAJO"
-        elif value > max_val:
-            flag = "ALTO"
-        else:
-            flag = "NORMAL"
+        # Preserve warnings for missing parameter/ranges (spec requires warning parity)
+        if result["reference_range"] == "":
+            logfire.warning(f"Parameter {parameter} not found in standards or no reference range for {species}")
 
         return FlagResult(
             parameter=parameter,
             value=value,
             unit=unit,
-            flag=flag,
-            reference_range=reference_range
+            flag=result["flag"],
+            reference_range=result["reference_range"],
         )
 
     def flag_batch(self, values: list[dict], species: str) -> list[FlagResult]:
