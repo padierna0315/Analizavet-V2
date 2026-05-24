@@ -33,7 +33,7 @@ from app.shared.models.data_quarantine import DataQuarantine
 # NEW IMPORTS FOR FUJIFILM PROCESSING
 from clinical_standards import VETERINARY_STANDARDS, get_parameter_name
 from app.tasks.hl7_processor import decrement_upload_counter
-from app.core.reference import get_reference_range
+from clinical_standards import get_reference_range
 from app.domains.taller.service import TallerService
 from app.domains.taller.schemas import RawLabValueInput
 from app.domains.patients.models import Patient

@@ -6,7 +6,7 @@ from app.shared.models.test_result import TestResult
 from app.shared.models.lab_value import LabValue
 from app.domains.taller.flagging import ClinicalFlaggingService
 from app.domains.taller.schemas import FlagBatchRequest, FlagBatchResult, RawLabValueInput
-from app.core.reference import get_reference_range
+from clinical_standards import get_reference_range
 
 
 class TallerFlaggingEngine:
