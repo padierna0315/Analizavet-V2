@@ -1565,6 +1565,87 @@ def get_parameter_group(parameter_code: str) -> str:
     return "OTROS"
 
 
+# ── Canonical flag evaluation ──────────────────────────────────────────────
+
+SPECIES_MAP: dict[str, str] = {
+    "Canino": "canine",
+    "Canina": "canine",
+    "Felino": "feline",
+    "Felina": "feline",
+}
+
+
+def get_species_key(species: str) -> str | None:
+    """Normalize species string to canonical key.
+
+    "Canino"/"Canina" → "canine"
+    "Felino"/"Felina" → "feline"
+    "Desconocida" / anything unrecognized → None
+    Never raises.
+    """
+    if species == "Desconocida":
+        return None
+    return SPECIES_MAP.get(species)
+
+
+def get_reference_range(code: str, species: str) -> str:
+    """Resolve alias, lookup in VETERINARY_STANDARDS, return formatted range.
+
+    Returns "min - max unit" or "N/D". Never raises.
+    """
+    species_key = get_species_key(species)
+    if species_key is None:
+        return "N/D"
+
+    resolved_code = STANDARDS_MAPPING.get(code, code)
+    param = VETERINARY_STANDARDS.get(resolved_code)
+    if param is None:
+        return "N/D"
+
+    ranges = param.get("ranges", {})
+    species_range = ranges.get(species_key)
+    if species_range is None:
+        return "N/D"
+
+    unit = param.get("unit", "")
+    range_str = f"{species_range['min']} - {species_range['max']} {unit}"
+    return range_str.rstrip()
+
+
+def evaluate_flag(code: str, value: float, species: str) -> dict:
+    """Evaluate a lab value against veterinary reference ranges.
+
+    Returns {"flag": "ALTO"|"BAJO"|"NORMAL", "reference_range": str}.
+    Never raises.
+    """
+    species_key = get_species_key(species)
+    if species_key is None:
+        return {"flag": "NORMAL", "reference_range": "N/D"}
+
+    resolved_code = STANDARDS_MAPPING.get(code, code)
+    param = VETERINARY_STANDARDS.get(resolved_code)
+    if param is None:
+        return {"flag": "NORMAL", "reference_range": ""}
+
+    ranges = param.get("ranges", {})
+    species_range = ranges.get(species_key)
+    if species_range is None:
+        return {"flag": "NORMAL", "reference_range": ""}
+
+    unit = param.get("unit", "")
+    range_str = f"{species_range['min']} - {species_range['max']} {unit}"
+    reference_range = range_str.rstrip()
+
+    if value < species_range["min"]:
+        flag = "BAJO"
+    elif value > species_range["max"]:
+        flag = "ALTO"
+    else:
+        flag = "NORMAL"
+
+    return {"flag": flag, "reference_range": reference_range}
+
+
 def load_standards_from_json():
     """Load clinical standards from JSON file into VETERINARY_STANDARDS dict."""
     JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
