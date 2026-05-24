@@ -13,7 +13,7 @@ Uso típico:
     )
 """
 
-import html
+from app.template_engine import templates
 
 
 SUCCESS_ICON = "✓"
@@ -31,7 +31,7 @@ def _build_notification_html(
     Construye el HTML de una notificación toast con HTMX OOB swap.
 
     Args:
-        message: El mensaje a mostrar (escapado automáticamente)
+        message: El mensaje a mostrar (escapado automáticamente por Jinja2)
         notification_type: success | error | processing
         auto_dismiss: Si es True, la notificación se auto-desvanece
         extra_classes: Clases CSS adicionales
@@ -39,11 +39,12 @@ def _build_notification_html(
     Returns:
         Fragmento HTML con hx-swap-oob="true"
     """
-    escaped_message = html.escape(message)
-    dismiss_class = "auto-dismiss" if auto_dismiss else ""
-    all_classes = f"notification-toast {notification_type} {dismiss_class} {extra_classes}".strip()
-
-    return f'<div id="notification-container" hx-swap-oob="true"><div class="{all_classes}">{SUCCESS_ICON if notification_type == "success" else ERROR_ICON if notification_type == "error" else PROCESSING_ICON} {escaped_message}</div></div>'
+    return templates.get_template("notifications/partials/toast.html").render(
+        message=message,
+        notification_type=notification_type,
+        auto_dismiss=auto_dismiss,
+        extra_classes=extra_classes,
+    )
 
 
 def notify_success(message: str, auto_dismiss: bool = True) -> str:

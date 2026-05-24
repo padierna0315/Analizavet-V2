@@ -1,0 +1,2 @@
+{#- Notification toast with HTMX OOB swap -#}
+<div id="notification-container" hx-swap-oob="true"><div class="notification-toast {{ notification_type }}{% if auto_dismiss %} auto-dismiss{% endif %}{% if extra_classes %} {{ extra_classes }}{% endif %}">{% if notification_type == "success" %}✓{% elif notification_type == "error" %}✕{% elif notification_type == "processing" %}⟳{% endif %} {{ message }}</div></div>

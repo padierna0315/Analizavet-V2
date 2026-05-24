@@ -1,5 +1,3 @@
-import html as html_module
-import jinja2
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from fastapi.responses import HTMLResponse, Response
@@ -9,6 +7,7 @@ from babel.dates import format_date, Locale # Added for fecha_es
 
 
 from app.database import get_session
+from app.template_engine import templates
 from app.shared.models.patient_image import PatientImage
 from app.shared.models.test_result import TestResult
 from app.domains.patients.models import Patient
@@ -18,7 +17,6 @@ from app.domains.taller.schemas import (
     ImageUploadResult, RawLabValueInput,
 )
 from app.domains.taller.service import TallerService
-from app.domains.reports.filters import format_ref_range
 
 from app.domains.taller.doctors_router import router as doctors_router
 
@@ -92,21 +90,17 @@ async def taller_dashboard(
         has_pending = False
         reception_status = "Sistema de cola no disponible"
 
-    # Use Jinja2 to render the template
-    taller_env = jinja2.Environment(
-        loader=jinja2.FileSystemLoader("app/templates"),
-        autoescape=jinja2.select_autoescape(),
+    # Use shared Jinja2Templates from template_engine
+    return templates.TemplateResponse(
+        "taller/dashboard.html",
+        {
+            "request": request,
+            "adapters": adapters,
+            "has_pending_patients": has_pending,
+            "pending_patients": pending_patients,
+            "reception_status": reception_status,
+        },
     )
-    taller_env.filters["format_ref_range"] = format_ref_range
-    template = taller_env.get_template("taller/dashboard.html")
-    html = template.render(
-        request=request,
-        adapters=adapters,
-        has_pending_patients=has_pending,
-        pending_patients=pending_patients,
-        reception_status=reception_status,
-    )
-    return HTMLResponse(content=html)
 
 
 @router.post("/enrich", response_model=dict)
@@ -328,30 +322,16 @@ async def upload_images(
 
 
 def _render_algorithm_errors(errors: list[dict]) -> str:
-    """Render the 'Diagnóstico del Motor' panel HTML."""
+    """Render the 'Diagnóstico del Motor' panel HTML using template."""
     if not errors:
         return ""
-    html = (
-        '<div class="motor-errors" style="background:#fffbeb;border:1px solid #f59e0b;'
-        'padding:1rem;border-radius:0.5rem;margin-top:1rem;">'
-        '<h3 style="color:#b45309;margin-bottom:0.5rem;font-size:0.875rem;">'
-        '⚠️ Diagnóstico del Motor</h3>'
-        '<ul style="font-size:0.75rem;color:#92400e;padding-left:1.5rem;margin:0;">'
+    return templates.get_template("taller/partials/algorithm_errors.html").render(
+        errors=errors,
     )
-    for err in errors:
-        html += f"<li><strong>{err.get('algorithm','?')}:</strong> {err.get('reason','')}</li>"
-    html += "</ul></div>"
-    return html
 
 
 def _render_preview_html(data: dict, request: Request) -> str:
     """Render the right-panel preview HTML with patient, summary, and lab values."""
-    taller_env = jinja2.Environment(
-        loader=jinja2.FileSystemLoader("app/templates"),
-        autoescape=jinja2.select_autoescape(),
-    )
-    taller_env.filters["format_ref_range"] = format_ref_range
-    
     # Format date for 'fecha_es'
     test_result = data["test_result"]
     received_at = test_result["received_at"]
@@ -367,8 +347,7 @@ def _render_preview_html(data: dict, request: Request) -> str:
     data["request"] = request    # Add request to the data dictionary
     data["dt_received_at"] = dt_object # Add datetime object for template formatting
 
-    template = taller_env.get_template("report/report.html")
-    return template.render(**data)
+    return templates.get_template("report/report.html").render(**data)
 
 
 
@@ -391,10 +370,9 @@ async def toggle_image(
     await session.commit()
 
     checked = "checked" if img.is_included_in_report else ""
-    html = (
-        f'<input type="checkbox" '
-        f'hx-patch="/taller/images/{img.id}/toggle" '
-        f'hx-swap="outerHTML" {checked}>'
+    html = templates.get_template("taller/partials/image_toggle.html").render(
+        image_id=img.id,
+        checked=checked,
     )
     headers = {"HX-Trigger": "updatePreview"}
     return HTMLResponse(content=html, headers=headers)
@@ -434,36 +412,10 @@ async def get_pending_patients_fragment(
                 "test_type": test.test_type,
             })
 
-    # Render just the list HTML
-    html_parts = []
-    for patient in patients_list:
-        html_parts.append(f"""
-<div class="pending-patient-item"
-  hx-post="/taller/load-patient/{patient['test_id']}"
-  hx-target=".taller-workspace"
-  hx-swap="innerHTML">
-  <div class="pending-patient-info">
-    <div class="pending-patient-name">{html_module.escape(patient['name'])}</div>
-    <div class="pending-patient-meta">
-      {html_module.escape(patient['species'])} • Tutor: {html_module.escape(patient['owner_name'])} • {html_module.escape(patient['test_type'])}
-    </div>
-  </div>
-  <div class="pending-patient-actions">
-    <button class="btn-delete-patient"
-      hx-delete="/taller/pending-patient/{patient['patient_id']}"
-      hx-confirm="¿Eliminar de la cola?"
-      hx-swap="outerHTML swap:300ms"
-      hx-indicator="#delete-indicator-{patient['patient_id']}"
-      hx-disabled-elt="this"
-      onclick="event.stopPropagation()">
-      🗑️
-    </button>
-    <span id="delete-indicator-{patient['patient_id']}" class="htmx-indicator">...</span>
-  </div>
-</div>
-""")
-
-    html_content = "".join(html_parts) if html_parts else '<div class="reception-status-msg">No hay pacientes en cola</div>'
+    # Render just the list HTML using template
+    html_content = templates.get_template("taller/partials/pending_patients.html").render(
+        patients=patients_list,
+    )
     return HTMLResponse(content=html_content)
 
 
@@ -485,169 +437,40 @@ async def load_patient_workspace(
     _doctors_result = await session.execute(select(Doctor))
     doctors = _doctors_result.scalars().all()
 
-    # Render the two-column workspace HTML
-    patient = data["patient"]
-    test_result = data["test_result"]
-    lab_values = data["lab_values"]
-
-    e = html_module.escape
-    p_name = e(patient.get("name") or "")
-    p_species = e(patient.get("species") or "")
-    p_sex = e(patient.get("sex") or "")
-    p_age = e(patient.get("age_display") or "")
-    p_owner = e(patient.get("owner_name") or "")
-    p_breed = e(patient.get("breed") or "Mestizo")
-
-    # Build lab values rows
-    rows_html = ""
-    for lv in lab_values:
-        css_class = {
-            "ALTO": "flag-alto",
-            "BAJO": "flag-bajo",
-            "NORMAL": "flag-normal",
-        }.get(lv["flag"], "flag-normal")
-
-        rows_html += f"""
-<tr class="lab-row {css_class}">
-  <td>{e(lv['parameter_name_es'])}</td>
-  <td><input type="text" name="value_{e(lv['parameter_code'])}"
-    value="{e(str(lv['raw_value']))}" class="value-input-sm"
-    hx-indicator="#spinner-{lv['parameter_code']}"></td>
-  <td>{e(lv['unit'])}</td>
-  <td>{e(lv['reference_range'])}</td>
-  <td class="htmx-indicator" id="spinner-{lv['parameter_code']}">⟳</td>
-</tr>
-"""
-
-
-    # Campo de médico — dropdown con doctores disponibles
-    doctor_options = '<option value="">-- Seleccionar médico --</option>'
+    # Build doctors context for template
+    doctor_list = [{"id": d.id, "name": d.name} for d in doctors]
     current_doctor = test_result.get("doctor_name", "") or ""
-    for doc in doctors:
-        sel = "selected" if doc.name == current_doctor else ""
-        doctor_options += f'<option value="{e(doc.name)}" {sel}>{e(doc.name)}</option>'
 
-    doctor_field_html = f"""
-<div class="field-group" style="margin-bottom:1rem;">
-  <label style="font-weight:600; font-size:0.85rem; color:#555;">👨‍⚕️ Médico responsable</label>
-  <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.3rem;">
-    <select name="doctor_name" id="doctor-select"
-            hx-post="/taller/preview/{result_id}"
-            hx-trigger="change"
-            hx-target="#pdf-preview"
-            hx-swap="innerHTML"
-            style="flex:1; padding:0.35rem 0.5rem; border:1px solid #d1d5db; border-radius:6px;">
-      {doctor_options}
-    </select>
-    <button type="button"
-            hx-get="/taller/doctors/form-add"
-            hx-target="#doctor-modal"
-            hx-swap="innerHTML"
-            hx-disabled-elt="this"
-            title="Agregar médico"
-            style="padding:0.35rem 0.6rem; border:1px solid #d1d5db; border-radius:6px; background:white; cursor:pointer;">➕</button>
-  </div>
-  <div id="doctor-modal"></div>
-</div>
-"""
+    # Pre-process lab values to ensure all fields are strings for template
+    lab_values_for_template = []
+    for lv in lab_values:
+        lab_values_for_template.append({
+            "parameter_code": str(lv.get("parameter_code", "")),
+            "parameter_name_es": str(lv.get("parameter_name_es", "")),
+            "raw_value": str(lv.get("raw_value", "")),
+            "unit": str(lv.get("unit", "")),
+            "reference_range": str(lv.get("reference_range", "")),
+            "flag": str(lv.get("flag", "NORMAL")),
+        })
 
-    # Render the two-column workspace HTML (original inline pattern)
-    html_content = f"""
-<!-- Left: Patient Form -->
-<div class="workspace-left workspace-editor">
-  <div class="workspace-header">
-    📝 Datos del Paciente y Resultados
-  </div>
-  <div class="workspace-content">
-    <form class="patient-form" id="patient-form-{result_id}"
-          hx-post="/taller/preview/{result_id}"
-          hx-trigger="input changed delay:250ms, change"
-          hx-target="#pdf-preview"
-          hx-swap="innerHTML">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Nombre del Paciente</label>
-          <input type="text" name="patient_name" value="{p_name}"
-            style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
-        </div>
-        <div class="form-group">
-          <label>Especie</label>
-          <input type="text" value="{p_species}" readonly>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Sexo</label>
-          <input type="text" value="{p_sex}" readonly>
-        </div>
-        <div class="form-group">
-          <label>Edad</label>
-          <input type="text" name="age_display" value="{p_age}"
-            style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Tutor</label>
-          <input type="text" name="owner_name" value="{p_owner}"
-            style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
-        </div>
-        <div class="form-group">
-          <label>Raza</label>
-          <input type="text" name="breed" value="{p_breed}"
-            style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Tipo de Examen</label>
-          <input type="text" name="test_type" value="{e(test_result.get('test_type', ''))}"
-            style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
-        </div>
-      </div>
-
-      {doctor_field_html}
-
-      <div class="lab-values-section">
-        <table class="lab-values-table">
-          <thead>
-            <tr><th>Parámetro</th><th>Valor</th><th>Unidad</th><th>Referencia</th><th></th></tr>
-          </thead>
-          <tbody>
-            {rows_html}
-          </tbody>
-        </table>
-      </div>
-
-      <div style="margin-top: 1rem; display: flex; gap: 0.75rem;">
-        <a href="/reports/{result_id}/pdf"
-           target="_blank"
-           style="display:inline-block; padding:0.5rem 1rem; background:#2563eb; color:white; border-radius:0.375rem; text-decoration:none; font-weight:600; margin-bottom:1rem;">
-          📄 Descargar PDF
-        </a>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Right: PDF Preview -->
-<div class="workspace-right workspace-viewer">
-  <div class="workspace-header">
-    📄 Vista Previa del Informe
-  </div>
-  <div class="workspace-content">
-    <div class="pdf-preview-container" id="pdf-preview"
-         hx-get="/taller/preview/{result_id}"
-         hx-trigger="load"
-         hx-swap="innerHTML">
-      <div class="pdf-placeholder">
-        <div class="pdf-placeholder-icon">📄</div>
-        <p>Cargando vista previa...</p>
-      </div>
-    </div>
-  </div>
-</div>
-"""
+    # Render the two-column workspace HTML via template
+    html_content = templates.get_template("taller/partials/workspace.html").render(
+        result_id=result_id,
+        patient={
+            "name": patient.get("name") or "",
+            "species": patient.get("species") or "",
+            "sex": patient.get("sex") or "",
+            "age_display": patient.get("age_display") or "",
+            "owner_name": patient.get("owner_name") or "",
+            "breed": patient.get("breed") or "Mestizo",
+        },
+        test_result={
+            "test_type": test_result.get("test_type", ""),
+        },
+        lab_values=lab_values_for_template,
+        doctors=doctor_list,
+        current_doctor=current_doctor,
+    )
     return HTMLResponse(content=html_content)
 
 

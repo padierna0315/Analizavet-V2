@@ -1,0 +1,30 @@
+{#- Pending patients list fragment for taller dashboard -#}
+{%- if patients -%}
+{%- for patient in patients -%}
+<div class="pending-patient-item"
+  hx-post="/taller/load-patient/{{ patient.test_id }}"
+  hx-target=".taller-workspace"
+  hx-swap="innerHTML">
+  <div class="pending-patient-info">
+    <div class="pending-patient-name">{{ patient.name }}</div>
+    <div class="pending-patient-meta">
+      {{ patient.species }} • Tutor: {{ patient.owner_name }} • {{ patient.test_type }}
+    </div>
+  </div>
+  <div class="pending-patient-actions">
+    <button class="btn-delete-patient"
+      hx-delete="/taller/pending-patient/{{ patient.patient_id }}"
+      hx-confirm="¿Eliminar de la cola?"
+      hx-swap="outerHTML swap:300ms"
+      hx-indicator="#delete-indicator-{{ patient.patient_id }}"
+      hx-disabled-elt="this"
+      onclick="event.stopPropagation()">
+      🗑️
+    </button>
+    <span id="delete-indicator-{{ patient.patient_id }}" class="htmx-indicator">...</span>
+  </div>
+</div>
+{% endfor -%}
+{%- else -%}
+<div class="reception-status-msg">No hay pacientes en cola</div>
+{%- endif -%}

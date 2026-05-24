@@ -1,0 +1,4 @@
+{#- Image toggle checkbox with HTMX -#}
+<input type="checkbox"
+  hx-patch="/taller/images/{{ image_id }}/toggle"
+  hx-swap="outerHTML"{% if checked %} checked{% endif %}>

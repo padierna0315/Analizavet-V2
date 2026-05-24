@@ -1,7 +1,14 @@
-"""Jornada service — session tracking and daily report generation."""
+"""Jornada service — session tracking and daily report generation.
+
+SIMPLE MODE: All jornada data lives in a flat JSON file (data/jornada-session.json).
+- When a PDF is downloaded, a minimal entry is appended.
+- When the resumen is requested, the file is read, grouped, formatted, and CLEARED.
+No DB queries, no session markers, no complexity.
+"""
 
 import json
 import os
+from pathlib import Path
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -10,7 +17,11 @@ from sqlalchemy.orm import selectinload
 
 from app.shared.models.test_result import TestResult
 
+# Legacy marker (kept for backward compat, not used in simple mode)
 SESSION_MARKER = "/tmp/analizavet-session-start"
+
+# Simple jornada log — flat JSON file, independent from DB
+JORNADA_LOG_PATH = Path("data/jornada-session.json")
 
 # Category definitions: (key, icon_and_name, test_type_code_filter)
 _CATEGORIES = [
@@ -20,6 +31,55 @@ _CATEGORIES = [
     ("citoquimicos", "💛 Citoquímicos", "CITO"),
 ]
 
+
+# ── Simple jornada log helpers ─────────────────────────────────────────────────
+
+def _ensure_jornada_log_dir() -> None:
+    JORNADA_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def append_to_jornada_log(entry: dict) -> None:
+    """Append a minimal entry to the jornada log file.
+
+    Called from reports/router.py whenever a PDF is successfully downloaded.
+    The entry should contain: name, species, owner, doctor, test_type, test_type_code.
+    """
+    _ensure_jornada_log_dir()
+    log_data: list[dict] = []
+    if JORNADA_LOG_PATH.exists():
+        try:
+            with open(JORNADA_LOG_PATH, "r", encoding="utf-8") as f:
+                log_data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            log_data = []
+
+    # Enrich with timestamp
+    entry["downloaded_at"] = datetime.now(timezone.utc).isoformat()
+    entry["date"] = datetime.now(timezone.utc).date().isoformat()
+    log_data.append(entry)
+
+    with open(JORNADA_LOG_PATH, "w", encoding="utf-8") as f:
+        json.dump(log_data, f, ensure_ascii=False, indent=2)
+
+
+def read_jornada_log() -> list[dict]:
+    """Read all entries from the jornada log file."""
+    if not JORNADA_LOG_PATH.exists():
+        return []
+    try:
+        with open(JORNADA_LOG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def clear_jornada_log() -> None:
+    """Remove the jornada log file after the resumen has been generated."""
+    if JORNADA_LOG_PATH.exists():
+        JORNADA_LOG_PATH.unlink()
+
+
+# ── Legacy session marker (not used in simple mode) ──────────────────────────────
 
 def read_session_start() -> float | None:
     """Read the Unix timestamp from the session marker file.
@@ -148,17 +208,24 @@ def format_report(grouped: dict[str, list[dict]]) -> str:
     return "\n".join(parts)
 
 
-async def get_session_results(
+def get_jornada_results() -> dict[str, list[dict]]:
+    """Read the jornada log file and group entries by category.
+
+    SIMPLE MODE: No DB queries, no session markers. Just read the flat JSON file.
+    Returns grouped results ready for format_report().
+    """
+    entries = read_jornada_log()
+    return _group_results(entries)
+
+
+# ── Legacy DB-based query (kept for reference, not used in simple mode) ─────────
+
+async def get_session_results_legacy(
     session_start: float, db_session: AsyncSession
 ) -> dict[str, list[dict]]:
-    """Query TestResult rows and PatientArchive rows created after session_start and group by category.
+    """[LEGACY] Query TestResult rows and PatientArchive rows created after session_start.
 
-    Args:
-        session_start: Unix timestamp (seconds since epoch).
-        db_session: Async SQLAlchemy session.
-
-    Returns:
-        Dict mapping category_key -> list of result dicts.
+    Not used in simple mode. Kept for backward compatibility.
     """
     from app.shared.models.patient_archive import PatientArchive
 

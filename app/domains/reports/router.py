@@ -11,6 +11,7 @@ from app.domains.reports.service import ReportService
 from app.domains.taller.service import TallerService
 from app.domains.patients.models import Patient
 from app.domains.exam_order.models import ExamOrder
+from app.domains.jornada.service import append_to_jornada_log
 from app.shared.models.patient_archive import PatientArchive
 from app.shared.models.raw_data_log import RawDataLog
 
@@ -127,6 +128,18 @@ async def download_pdf(
             f"Patient {patient_name_display} (id={patient_id}) archived and retired. "
             f"Archive id={archive.id}"
         )
+
+        # ── SIMPLE JORNADA LOG: append minimal entry ──────────────────
+        # This is the ONLY place where jornada data is written.
+        # The resumen endpoint reads this file, formats the report, and clears it.
+        append_to_jornada_log({
+            "name": patient_name_display,
+            "species": species,
+            "owner": owner_name_display,
+            "doctor": doctor_name_raw or "Sin médico",
+            "test_type": data.get("test_result", {}).get("test_type") or "Examen",
+            "test_type_code": data.get("test_result", {}).get("test_type_code") or "",
+        })
     except Exception as e:
         await session.rollback()
         logfire.error(

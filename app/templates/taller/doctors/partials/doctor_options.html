@@ -1,0 +1,5 @@
+{#- Doctor dropdown options (used for select population after add/delete) -#}
+<option value="">-- Seleccionar médico --</option>
+{% for d in doctors -%}
+<option value="{{ d.name }}"{% if d.name == selected_name %} selected{% endif %}>{{ d.name }}</option>
+{% endfor -%}

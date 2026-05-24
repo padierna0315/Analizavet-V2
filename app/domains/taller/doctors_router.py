@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from app.database import get_session
 from app.shared.models.doctor import Doctor
+from app.template_engine import templates
 from fastapi.responses import HTMLResponse
 import logfire
 
@@ -11,11 +12,10 @@ router = APIRouter(prefix="/doctors", tags=["doctors"])
 
 
 def _build_options(doctors: list, selected_name: str = "") -> str:
-    html = '<option value="">-- Seleccionar médico --</option>'
-    for d in doctors:
-        sel = "selected" if d.name == selected_name else ""
-        html += f'<option value="{d.name}" {sel}>{d.name}</option>'
-    return html
+    return templates.get_template("taller/doctors/partials/doctor_options.html").render(
+        doctors=[{"id": d.id, "name": d.name} for d in doctors],
+        selected_name=selected_name,
+    )
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -59,29 +59,4 @@ async def delete_doctor(
 
 @router.get("/form-add", response_class=HTMLResponse)
 async def get_add_doctor_form():
-    return """
-    <div id="doctor-modal-content" class="modal-content">
-        <form hx-post="/taller/doctors/" hx-target="#doctor-select" hx-swap="innerHTML"
-              hx-indicator="find button[type=submit]"
-              hx-disabled-elt="find button[type=submit]">
-            <h3>Agregar Nuevo Médico</h3>
-            <label for="doctor_name">Nombre:</label>
-            <input type="text" name="name" required>
-            <label for="doctor_specialty">Especialidad (opcional):</label>
-            <input type="text" name="specialty">
-            <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
-              <button type="submit"
-                      style="padding:0.4rem 1rem; background:#2c5f2e; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600;">
-                Guardar
-              </button>
-              <button type="button"
-                      hx-get="/reception/close-modal"
-                      hx-target="#doctor-modal"
-                      hx-swap="innerHTML"
-                      style="padding:0.4rem 1rem; background:#e5e7eb; border:none; border-radius:6px; cursor:pointer;">
-                Cancelar
-              </button>
-            </div>
-        </form>
-    </div>
-    """
+    return templates.get_template("taller/doctors/partials/add_doctor_form.html").render()

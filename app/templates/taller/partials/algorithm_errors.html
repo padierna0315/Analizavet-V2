@@ -1,0 +1,11 @@
+{#- Algorithm errors panel (motor diagnosis) -#}
+{%- if errors -%}
+<div class="motor-errors" style="background:#fffbeb;border:1px solid #f59e0b;padding:1rem;border-radius:0.5rem;margin-top:1rem;">
+  <h3 style="color:#b45309;margin-bottom:0.5rem;font-size:0.875rem;">⚠️ Diagnóstico del Motor</h3>
+  <ul style="font-size:0.75rem;color:#92400e;padding-left:1.5rem;margin:0;">
+    {% for err in errors -%}
+    <li><strong>{{ err.get('algorithm', '?') }}:</strong> {{ err.get('reason', '') }}</li>
+    {% endfor -%}
+  </ul>
+</div>
+{%- endif -%}

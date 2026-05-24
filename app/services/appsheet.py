@@ -99,11 +99,11 @@ class AppSheetService:
             parsed = [AppSheetPatient(**row) for row in data]
             valid_patients = []
             for patient in parsed:
-                code = SessionCodeExtractor.extract(patient.name)
+                code = SessionCodeExtractor.extract(patient.session_code)
                 if not code:
                     logfire.warning(
                         f"AppSheet gatekeeper rejection: no valid session_code "
-                        f"in patient name '{patient.name}' (Codigo_Corto={patient.session_code})"
+                        f"in Codigo_Corto='{patient.session_code}' (patient='{patient.name}')"
                     )
                     try:
                         if session is not None:

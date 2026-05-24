@@ -1,39 +1,36 @@
-"""Jornada router — daily session summary endpoint."""
+"""Jornada router — daily session summary endpoint.
 
-from fastapi import APIRouter, Depends, Response
-from sqlalchemy.ext.asyncio import AsyncSession
+SIMPLE MODE: Reads from a flat JSON file (data/jornada-session.json) instead of the DB.
+When a PDF is downloaded, a minimal entry is appended. When the resumen is requested,
+the file is read, grouped, formatted into a text report, and then CLEARED.
+"""
 
-from app.database import get_session
+from fastapi import APIRouter, Response
+
 from app.domains.jornada.service import (
-    read_session_start,
-    get_session_results,
+    get_jornada_results,
     format_report,
+    clear_jornada_log,
 )
 
 router = APIRouter(prefix="/jornada", tags=["Jornada"])
 
 
 @router.get("/resumen")
-async def jornada_resumen(
-    session: AsyncSession = Depends(get_session),
-):
-    """Return a summary of today's test results since session start.
+async def jornada_resumen():
+    """Return a summary of today's downloaded PDFs.
 
-    The session start is determined by a marker file written by iniciar.sh.
-    Returns a plain text report grouped by test category.
+    Reads from the flat jornada log file (data/jornada-session.json),
+    groups entries by test category, formats a plain text report,
+    and CLEARS the log file after generating the report.
+
+    No DB queries, no session markers — simple and reliable.
     """
-    session_start = read_session_start()
-    if session_start is None:
-        return Response(
-            content="No hay sesión activa. Inicie el sistema con iniciar.sh.",
-            media_type="text/plain; charset=utf-8",
-            headers={
-                "Content-Disposition": 'attachment; filename="resumen-jornada.txt"'
-            },
-        )
-
-    grouped = await get_session_results(session_start, session)
+    grouped = get_jornada_results()
     report = format_report(grouped)
+
+    # Clear the log after generating the report
+    clear_jornada_log()
 
     return Response(
         content=report,

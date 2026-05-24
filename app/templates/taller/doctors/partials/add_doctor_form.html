@@ -1,0 +1,25 @@
+{#- Add doctor modal form -#}
+<div id="doctor-modal-content" class="modal-content">
+    <form hx-post="/taller/doctors/" hx-target="#doctor-select" hx-swap="innerHTML"
+          hx-indicator="find button[type=submit]"
+          hx-disabled-elt="find button[type=submit]">
+        <h3>Agregar Nuevo Médico</h3>
+        <label for="doctor_name">Nombre:</label>
+        <input type="text" name="name" required>
+        <label for="doctor_specialty">Especialidad (opcional):</label>
+        <input type="text" name="specialty">
+        <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+          <button type="submit"
+                  style="padding:0.4rem 1rem; background:#2c5f2e; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600;">
+            Guardar
+          </button>
+          <button type="button"
+                  hx-get="/reception/close-modal"
+                  hx-target="#doctor-modal"
+                  hx-swap="innerHTML"
+                  style="padding:0.4rem 1rem; background:#e5e7eb; border:none; border-radius:6px; cursor:pointer;">
+            Cancelar
+          </button>
+        </div>
+    </form>
+</div>

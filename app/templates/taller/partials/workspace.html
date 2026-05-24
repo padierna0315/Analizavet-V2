@@ -1,0 +1,129 @@
+{#- Two-column patient workspace: left form + right PDF preview -#}
+<!-- Left: Patient Form -->
+<div class="workspace-left workspace-editor">
+  <div class="workspace-header">
+    📝 Datos del Paciente y Resultados
+  </div>
+  <div class="workspace-content">
+    <form class="patient-form" id="patient-form-{{ result_id }}"
+          hx-post="/taller/preview/{{ result_id }}"
+          hx-trigger="input changed delay:250ms, change"
+          hx-target="#pdf-preview"
+          hx-swap="innerHTML">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nombre del Paciente</label>
+          <input type="text" name="patient_name" value="{{ patient.name }}"
+            style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
+        </div>
+        <div class="form-group">
+          <label>Especie</label>
+          <input type="text" value="{{ patient.species }}" readonly>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Sexo</label>
+          <input type="text" value="{{ patient.sex }}" readonly>
+        </div>
+        <div class="form-group">
+          <label>Edad</label>
+          <input type="text" name="age_display" value="{{ patient.age_display }}"
+            style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tutor</label>
+          <input type="text" name="owner_name" value="{{ patient.owner_name }}"
+            style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
+        </div>
+        <div class="form-group">
+          <label>Raza</label>
+          <input type="text" name="breed" value="{{ patient.breed }}"
+            style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo de Examen</label>
+          <input type="text" name="test_type" value="{{ test_result.test_type }}"
+            style="width:100%; padding:0.3rem; border:1px solid #d1d5db; border-radius:4px;">
+        </div>
+      </div>
+
+      <div class="field-group" style="margin-bottom:1rem;">
+        <label style="font-weight:600; font-size:0.85rem; color:#555;">👨‍⚕️ Médico responsable</label>
+        <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.3rem;">
+          <select name="doctor_name" id="doctor-select"
+                  hx-post="/taller/preview/{{ result_id }}"
+                  hx-trigger="change"
+                  hx-target="#pdf-preview"
+                  hx-swap="innerHTML"
+                  style="flex:1; padding:0.35rem 0.5rem; border:1px solid #d1d5db; border-radius:6px;">
+            <option value="">-- Seleccionar médico --</option>
+            {% for doc in doctors -%}
+            <option value="{{ doc.name }}"{% if doc.name == current_doctor %} selected{% endif %}>{{ doc.name }}</option>
+            {% endfor -%}
+          </select>
+          <button type="button"
+                  hx-get="/taller/doctors/form-add"
+                  hx-target="#doctor-modal"
+                  hx-swap="innerHTML"
+                  hx-disabled-elt="this"
+                  title="Agregar médico"
+                  style="padding:0.35rem 0.6rem; border:1px solid #d1d5db; border-radius:6px; background:white; cursor:pointer;">➕</button>
+        </div>
+        <div id="doctor-modal"></div>
+      </div>
+
+      <div class="lab-values-section">
+        <table class="lab-values-table">
+          <thead>
+            <tr><th>Parámetro</th><th>Valor</th><th>Unidad</th><th>Referencia</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for lv in lab_values -%}
+            {% set css_class = {"ALTO": "flag-alto", "BAJO": "flag-bajo", "NORMAL": "flag-normal"}.get(lv.flag, "flag-normal") -%}
+            <tr class="lab-row {{ css_class }}">
+              <td>{{ lv.parameter_name_es }}</td>
+              <td><input type="text" name="value_{{ lv.parameter_code }}"
+                value="{{ lv.raw_value }}" class="value-input-sm"
+                hx-indicator="#spinner-{{ lv.parameter_code }}"></td>
+              <td>{{ lv.unit }}</td>
+              <td>{{ lv.reference_range }}</td>
+              <td class="htmx-indicator" id="spinner-{{ lv.parameter_code }}">⟳</td>
+            </tr>
+            {% endfor -%}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top: 1rem; display: flex; gap: 0.75rem;">
+        <a href="/reports/{{ result_id }}/pdf"
+           target="_blank"
+           style="display:inline-block; padding:0.5rem 1rem; background:#2563eb; color:white; border-radius:0.375rem; text-decoration:none; font-weight:600; margin-bottom:1rem;">
+          📄 Descargar PDF
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Right: PDF Preview -->
+<div class="workspace-right workspace-viewer">
+  <div class="workspace-header">
+    📄 Vista Previa del Informe
+  </div>
+  <div class="workspace-content">
+    <div class="pdf-preview-container" id="pdf-preview"
+         hx-get="/taller/preview/{{ result_id }}"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+      <div class="pdf-placeholder">
+        <div class="pdf-placeholder-icon">📄</div>
+        <p>Cargando vista previa...</p>
+      </div>
+    </div>
+  </div>
+</div>
