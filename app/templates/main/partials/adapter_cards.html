@@ -1,0 +1,6 @@
+{% for adapter in adapters %}
+<div class="adapter-card">
+    <span class="adapter-icon">🩸</span>
+    <span class="adapter-name">{{ adapter.name }}</span>
+    <span class="adapter-status {{ 'active' if adapter.is_running else 'inactive' }}" title="{{ 'Conectado' if adapter.is_running else 'Desconectado' }}"></span>
+</div>{% endfor %}

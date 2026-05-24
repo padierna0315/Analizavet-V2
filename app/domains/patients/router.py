@@ -1,18 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import HTMLResponse
-import jinja2
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, func
 
 from app.database import get_session
 from app.domains.patients.models import Patient
 from app.shared.models.test_result import TestResult
+from app.template_engine import templates
 
 router = APIRouter(prefix="/patients", tags=["UI Pacientes"])
-_patients_env = jinja2.Environment(
-    loader=jinja2.FileSystemLoader("app/templates"),
-    autoescape=jinja2.select_autoescape(),
-)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -49,7 +45,7 @@ async def list_patients_page(
 
     template_name = "patients/list_fragment.html" if is_htmx else "patients/index.html"
 
-    template = _patients_env.get_template(template_name)
+    template = templates.env.get_template(template_name)
     html = template.render(
         request=request,
         patients=patients,
@@ -82,7 +78,7 @@ async def patient_detail_page(
     )
     test_results = tr_result.scalars().all()
 
-    template = _patients_env.get_template("patients/detail.html")
+    template = templates.env.get_template("patients/detail.html")
     html = template.render(
         request=request,
         patient=patient,

@@ -2,7 +2,6 @@ import logfire
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from app.domains.health.router import router as health_router
@@ -110,25 +109,22 @@ app.include_router(quarantine_router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/images", StaticFiles(directory=settings.IMAGES_DIR), name="images")
-templates = Jinja2Templates(directory="app/templates")
+from app.template_engine import templates
 
 
 @app.get("/api/adapters/status", response_class=HTMLResponse)
 async def get_adapters_status():
     """Return HTML status cards for all LIS adapters."""
     from app.mllp_state import adapters
-    html_cards = ""
-    for adapter in adapters:
-        name = adapter.get_source_name()
-        is_running = adapter.is_running()
-        status_class = "active" if is_running else "inactive"
-        status_text = "Conectado" if is_running else "Desconectado"
-        html_cards += f'''<div class="adapter-card">
-    <span class="adapter-icon">🩸</span>
-    <span class="adapter-name">{name}</span>
-    <span class="adapter-status {status_class}" title="{status_text}"></span>
-</div>'''
-    return html_cards
+    adapter_dicts = [
+        {
+            "name": a.get_source_name(),
+            "is_running": a.is_running(),
+        }
+        for a in adapters
+    ]
+    template = templates.env.get_template("main/partials/adapter_cards.html")
+    return HTMLResponse(content=template.render(adapters=adapter_dicts))
 
 
 # ── Global Exception Handlers ──────────────────────────────────────────────────
@@ -139,15 +135,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 
     # If it's an HTMX request or browser request, return HTML
     if "text/html" in request.headers.get("accept", "") or request.headers.get("hx-request"):
+        template = templates.env.get_template("main/partials/error_alert.html")
         return HTMLResponse(
-            content=f"""
-            <div style="background-color: #fef2f2; color: #991b1b; padding: 1rem; border-left: 4px solid #dc2626; margin: 1rem 0;">
-                <h3 style="margin-top: 0;">⚠️ Error del Sistema</h3>
-                <p>Ha ocurrido un problema inesperado. Por favor, intente nuevamente o contacte al administrador.</p>
-                <p style="font-size: 0.8em; color: #b91c1c; margin-bottom: 0;">Detalle técnico: {str(exc)}</p>
-            </div>
-            """,
-            status_code=500
+            content=template.render(request=request, detail=str(exc)),
+            status_code=500,
         )
 
     # Otherwise return JSON (for APIs)

@@ -1,19 +1,14 @@
 """Provenance router — Raw data view for patient audit trail."""
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
-import jinja2
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.database import get_session
 from app.shared.models.raw_data_log import RawDataLog
+from app.template_engine import templates
 
 router = APIRouter(tags=["Provenance"])
-
-_prov_env = jinja2.Environment(
-    loader=jinja2.FileSystemLoader("app/templates"),
-    autoescape=jinja2.select_autoescape(),
-)
 
 
 @router.get("/patients/{patient_id}/raw-data", response_class=HTMLResponse)
@@ -51,7 +46,7 @@ async def patient_raw_data_view(
             "status": log.status,
         })
 
-    template = _prov_env.get_template("provenance/raw_data_view.html")
+    template = templates.env.get_template("provenance/raw_data_view.html")
     html = template.render(
         request=request,
         patient_id=patient_id,
