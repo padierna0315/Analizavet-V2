@@ -1,0 +1,8 @@
+{#- OOB swap response for force-match and discard: delete row + update badge -#}
+<div id="quarantine-row-{{ quarantine_id }}" hx-swap-oob="delete"></div>
+<div id="quarantine-badge" hx-swap-oob="innerHTML">{% if pending_count > 0 %}<a href="/quarantine"
+   title="{{ pending_count }} elemento(s) en cuarentena"
+   style="color: #fbbf24; text-decoration: none; font-weight: bold;
+          padding: 0.35rem 0.75rem; background: rgba(251,191,36,0.15);
+          border-radius: 4px; font-size: 0.85rem; display: inline-flex;
+          align-items: center; gap: 0.3rem;">⚠ {{ pending_count }}</a>{% endif %}</div>

@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, Request
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse, Response
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, func
 from app.database import get_session
@@ -10,15 +9,12 @@ from app.shared.models.test_result import TestResult
 from app.domains.reception.service import ReceptionService
 from app.tasks.hl7_processor import get_upload_status
 from app.services.appsheet import AppSheetService
+from app.template_engine import templates
 import uuid
 import json
 from datetime import datetime, timezone
 
 import logfire
-
-
-# Initialize templates
-templates = Jinja2Templates(directory="app/templates")
 
 router = APIRouter(prefix="/reception", tags=["Recepción"])
 _service = ReceptionService()
@@ -61,14 +57,24 @@ async def sync_appsheet(
         count = await _service.sync_from_appsheet(patients, session, reset=reset)
         
         # Retornar mensaje de éxito con trigger para refrescar la grilla
+        tmpl = templates.env.get_template("reception/partials/sync_message.html")
+        html = tmpl.render(
+            message=f"✅ {count} paciente(s) sincronizado(s)",
+            type="success",
+        )
         return HTMLResponse(
-            content=f'<div class="sync-success">✅ {count} paciente(s) sincronizado(s)</div>',
+            content=html,
             headers={"HX-Trigger": "refreshReceptionGrid"}
         )
     except Exception as e:
         logfire.error(f"Error sincronizando con AppSheet: {e}")
+        tmpl = templates.env.get_template("reception/partials/sync_message.html")
+        html = tmpl.render(
+            message=f"❌ Error: {str(e)}",
+            type="error",
+        )
         return HTMLResponse(
-            content=f'<div class="sync-error">❌ Error: {str(e)}</div>',
+            content=html,
             status_code=500
         )
 
@@ -158,14 +164,11 @@ async def handle_upload(
         upload_id = await _service.handle_uploaded_file(file_content, file_type, session)
         
         # Return HTMX response that sets up polling
-        html = f'''
-        <div id="upload-status" 
-             hx-get="/reception/upload/{upload_id}/status"
-             hx-trigger="every 2s"
-             hx-swap="outerHTML">
-          ⏳ Procesando archivo...
-        </div>
-        '''
+        tmpl = templates.env.get_template("reception/partials/upload_status.html")
+        html = tmpl.render(
+            status="processing",
+            upload_id=upload_id,
+        )
         return HTMLResponse(content=html, status_code=202)
 
     except ValueError as e:
@@ -186,30 +189,40 @@ async def get_upload_status_endpoint(upload_id: str, request: Request):
 
     if status is None:
         # Not found — show error. This could happen if Redis key expired or upload_id was invalid.
-        return HTMLResponse('<div class="upload-error" id="upload-status">❌ Estado no encontrado (o expirado)</div>')
+        tmpl = templates.env.get_template("reception/partials/upload_status.html")
+        html = tmpl.render(status="not_found")
+        return HTMLResponse(html)
     
     if status == "processing":
         # Still processing — keep polling
-        return HTMLResponse(f'''
-        <div id="upload-status"
-             hx-get="/reception/upload/{upload_id}/status"
-             hx-trigger="every 2s"
-             hx-swap="outerHTML">
-          ⏳ Procesando archivo...
-        </div>
-        ''')
+        tmpl = templates.env.get_template("reception/partials/upload_status.html")
+        html = tmpl.render(
+            status="processing",
+            upload_id=upload_id,
+        )
+        return HTMLResponse(html)
     
     if status.startswith("complete:"):
         count = status.split(":")[1]
         # Trigger waiting room refresh + show success
+        tmpl = templates.env.get_template("reception/partials/upload_status.html")
+        html = tmpl.render(
+            status="complete",
+            count=count,
+        )
         return HTMLResponse(
-            f'<div class="upload-success" id="upload-status">✅ {count} paciente(s) cargado(s)</div>',
+            html,
             headers={"HX-Trigger": "refreshReceptionGrid"}
         )
     
     if status.startswith("error:"):
         msg = status.split(":", 1)[1]
-        return HTMLResponse(f'<div class="upload-error" id="upload-status">❌ Error: {msg}</div>')
+        tmpl = templates.env.get_template("reception/partials/upload_status.html")
+        html = tmpl.render(
+            status="error",
+            error=msg,
+        )
+        return HTMLResponse(html)
 
 
 
@@ -308,7 +321,10 @@ async def archive_all_patients(
         logfire.error(f"Error en sync post-archivo: {e}")
 
     return HTMLResponse(
-        content=f'<div class="sync-success">📦 {count} paciente(s) archivado(s)</div>',
+        content=templates.env.get_template("reception/partials/sync_message.html").render(
+            message=f"📦 {count} paciente(s) archivado(s)",
+            type="success",
+        ),
         headers={"HX-Trigger": "refreshReceptionGrid"}
     )
 
@@ -320,7 +336,10 @@ async def restore_all_patients(
     """Restore all archived patients back to active."""
     count = await _service.restore_all_archived(session)
     return HTMLResponse(
-        content=f'<div class="sync-success">🔄 {count} paciente(s) restaurado(s)</div>',
+        content=templates.env.get_template("reception/partials/sync_message.html").render(
+            message=f"🔄 {count} paciente(s) restaurado(s)",
+            type="success",
+        ),
         headers={"HX-Trigger": "refreshReceptionGrid"}
     )
 
@@ -337,7 +356,10 @@ async def restore_single_patient(
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
 
     return HTMLResponse(
-        content=f'<div class="sync-success">🔄 Paciente {patient_id} restaurado</div>',
+        content=templates.env.get_template("reception/partials/sync_message.html").render(
+            message=f"🔄 Paciente {patient_id} restaurado",
+            type="success",
+        ),
         headers={"HX-Trigger": "refreshReceptionGrid"}
     )
 
@@ -350,35 +372,13 @@ async def get_archived_patients(
     """Return the archived patients grid."""
     patients_data = await _service.get_archived_patients(session)
 
+    tmpl = templates.env.get_template("reception/partials/archived_grid.html")
     if not patients_data:
-        return HTMLResponse(
-            content='<p style="color: #6b7280; text-align: center; padding: 2rem;">📦 Sin resultados archivados</p>'
-        )
+        html = tmpl.render(patients=[], empty=True)
+    else:
+        html = tmpl.render(patients=patients_data, empty=False)
 
-    cards_html = ""
-    for p in patients_data:
-        session_label = f"{p['session_code']} - " if p.get("session_code") else ""
-        owner_label = f"<p>{p['owner_name']}</p>" if p.get("owner_name") else ""
-        cards_html += f"""
-        <div class="patient-card" id="patient-card-{p['id']}" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 0.5rem; padding: 1rem; opacity: 0.7;">
-          <p><strong>{session_label}{p['name']}</strong></p>
-          <p>{p['species']}</p>
-          {owner_label}
-          <button
-            hx-post="/reception/patient/{p['id']}/restore"
-            hx-target="#sync-status"
-            hx-swap="innerHTML"
-            hx-on::after-request="document.getElementById('patient-card-{p['id']}').remove(); if(document.querySelectorAll('.archived-grid .patient-card').length === 0) location.reload();"
-            style="margin-top: 0.5rem; background: #3b82f6; color: white; border: none; border-radius: 0.25rem; padding: 0.25rem 0.75rem; cursor: pointer;"
-          >
-            🔄 Restaurar
-          </button>
-        </div>
-        """
-
-    return HTMLResponse(
-        content=f'<div class="archived-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; padding: 1rem;">{cards_html}</div>'
-    )
+    return HTMLResponse(content=html)
 
 
 @router.get("/close-modal")

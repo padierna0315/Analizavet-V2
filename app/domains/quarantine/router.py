@@ -9,16 +9,15 @@ from datetime import datetime, timezone
 import logfire
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, select
 
 from app.database import get_session
 from app.services.session_code_extractor import SessionCodeExtractor
 from app.shared.models.data_quarantine import DataQuarantine, QuarantineStatus
+from app.template_engine import templates
 
 router = APIRouter(prefix="/quarantine", tags=["Quarantine"])
-templates = Jinja2Templates(directory="app/templates")
 
 
 # ── List pending items ─────────────────────────────────────────────────────
@@ -90,10 +89,9 @@ async def force_match(
     # Return OOB swap: remove the row + update the counter badge
     pending_count = await _pending_count(session)
 
-    return HTMLResponse(
-        content=f"""<div id="quarantine-row-{quarantine_id}" hx-swap-oob="delete"></div>
-<div id="quarantine-badge" hx-swap-oob="innerHTML">{_badge_html(pending_count)}</div>"""
-    )
+    tmpl = templates.env.get_template("quarantine/partials/oob_swap.html")
+    html = tmpl.render(quarantine_id=quarantine_id, pending_count=pending_count)
+    return HTMLResponse(content=html)
 
 
 # ── Review modal ─────────────────────────────────────────────────────────────
@@ -141,10 +139,9 @@ async def discard_item(
     # Return OOB swap: remove the row + update the counter badge
     pending_count = await _pending_count(session)
 
-    return HTMLResponse(
-        content=f"""<div id="quarantine-row-{quarantine_id}" hx-swap-oob="delete"></div>
-<div id="quarantine-badge" hx-swap-oob="innerHTML">{_badge_html(pending_count)}</div>"""
-    )
+    tmpl = templates.env.get_template("quarantine/partials/oob_swap.html")
+    html = tmpl.render(quarantine_id=quarantine_id, pending_count=pending_count)
+    return HTMLResponse(content=html)
 
 
 # ── Count badge ─────────────────────────────────────────────────────────────
@@ -157,7 +154,9 @@ async def quarantine_count(
 ):
     """Return badge HTML with pending quarantine item count."""
     count = await _pending_count(session)
-    return HTMLResponse(content=_badge_html(count))
+    tmpl = templates.env.get_template("quarantine/partials/badge.html")
+    html = tmpl.render(count=count)
+    return HTMLResponse(content=html)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -170,18 +169,3 @@ async def _pending_count(session: AsyncSession) -> int:
     )
     result = await session.execute(stmt)
     return result.scalar() or 0
-
-
-def _badge_html(count: int) -> str:
-    """Render the quarantine badge element with inline styles."""
-    if count == 0:
-        return ""
-    return (
-        f'<a href="/quarantine" '
-        f'title="{count} elemento(s) en cuarentena" '
-        f'style="color: #fbbf24; text-decoration: none; font-weight: bold; '
-        f'padding: 0.35rem 0.75rem; background: rgba(251,191,36,0.15); '
-        f'border-radius: 4px; font-size: 0.85rem; display: inline-flex; '
-        f'align-items: center; gap: 0.3rem;">'
-        f"⚠ {count}</a>"
-    )

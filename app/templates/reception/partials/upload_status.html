@@ -1,0 +1,15 @@
+{#- Upload status fragment: 4 variants (processing, complete, error, not_found) -#}
+{%- if status == "processing" -%}
+<div id="upload-status"
+     hx-get="/reception/upload/{{ upload_id }}/status"
+     hx-trigger="every 2s"
+     hx-swap="outerHTML">
+  ⏳ Procesando archivo...
+</div>
+{%- elif status == "complete" -%}
+<div class="upload-success" id="upload-status">✅ {{ count }} paciente(s) cargado(s)</div>
+{%- elif status == "error" -%}
+<div class="upload-error" id="upload-status">❌ Error: {{ error }}</div>
+{%- else -%}
+<div class="upload-error" id="upload-status">❌ Estado no encontrado (o expirado)</div>
+{%- endif -%}

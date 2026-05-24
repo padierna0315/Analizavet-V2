@@ -1,0 +1,6 @@
+{#- Success/error message for sync, archive, and restore endpoints -#}
+{%- if type == "success" -%}
+<div class="sync-success">{{ message }}</div>
+{%- elif type == "error" -%}
+<div class="sync-error">{{ message }}</div>
+{%- endif -%}

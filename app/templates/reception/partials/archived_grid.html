@@ -1,0 +1,23 @@
+{#- Archived patients grid with restore buttons -#}
+{%- if empty -%}
+<p style="color: #6b7280; text-align: center; padding: 2rem;">📦 Sin resultados archivados</p>
+{%- else -%}
+<div class="archived-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; padding: 1rem;">
+{% for p in patients %}
+<div class="patient-card" id="patient-card-{{ p.id }}" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 0.5rem; padding: 1rem; opacity: 0.7;">
+  <p><strong>{% if p.session_code %}{{ p.session_code }} - {% endif %}{{ p.name }}</strong></p>
+  <p>{{ p.species }}</p>
+  {% if p.owner_name %}<p>{{ p.owner_name }}</p>{% endif %}
+  <button
+    hx-post="/reception/patient/{{ p.id }}/restore"
+    hx-target="#sync-status"
+    hx-swap="innerHTML"
+    hx-on::after-request="document.getElementById('patient-card-{{ p.id }}').remove(); if(document.querySelectorAll('.archived-grid .patient-card').length === 0) location.reload();"
+    style="margin-top: 0.5rem; background: #3b82f6; color: white; border: none; border-radius: 0.25rem; padding: 0.25rem 0.75rem; cursor: pointer;"
+  >
+    🔄 Restaurar
+  </button>
+</div>
+{% endfor %}
+</div>
+{%- endif -%}

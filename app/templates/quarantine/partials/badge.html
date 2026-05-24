@@ -1,0 +1,9 @@
+{#- Quarantine count badge: renders anchor when count > 0, empty string otherwise -#}
+{%- if count > 0 -%}
+<a href="/quarantine"
+   title="{{ count }} elemento(s) en cuarentena"
+   style="color: #fbbf24; text-decoration: none; font-weight: bold;
+          padding: 0.35rem 0.75rem; background: rgba(251,191,36,0.15);
+          border-radius: 4px; font-size: 0.85rem; display: inline-flex;
+          align-items: center; gap: 0.3rem;">⚠ {{ count }}</a>
+{%- endif -%}
