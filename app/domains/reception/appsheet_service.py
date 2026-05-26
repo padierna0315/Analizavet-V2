@@ -8,6 +8,7 @@ from app.domains.patients.models import Patient
 from app.services.appsheet import AppSheetPatient
 from app.domains.exam_order.service import ExamOrderService
 from app.domains.reception.helpers import _resolve_appsheet_test_type
+from app.domains.reception.baul import _normalize_for_comparison
 from app.services.provenance_recorder import ProvenanceRecorder
 import logfire
 
@@ -53,8 +54,6 @@ class AppSheetSyncService:
         """Sincroniza pacientes desde AppSheet, creando o actualizando registros."""
         if reset:
             await self.clear_all_active_patients(session)
-
-        from app.domains.reception.baul import _normalize_for_comparison
 
         count = 0
         for ap in patients:

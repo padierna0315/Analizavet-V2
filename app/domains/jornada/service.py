@@ -7,7 +7,6 @@ No DB queries, no session markers, no complexity.
 """
 
 import json
-import os
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -16,9 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.shared.models.test_result import TestResult
-
-# Legacy marker (kept for backward compat, not used in simple mode)
-SESSION_MARKER = "/tmp/analizavet-session-start"
 
 # Simple jornada log — flat JSON file, independent from DB
 JORNADA_LOG_PATH = Path("data/jornada-session.json")
@@ -77,24 +73,6 @@ def clear_jornada_log() -> None:
     """Remove the jornada log file after the resumen has been generated."""
     if JORNADA_LOG_PATH.exists():
         JORNADA_LOG_PATH.unlink()
-
-
-# ── Legacy session marker (not used in simple mode) ──────────────────────────────
-
-def read_session_start() -> float | None:
-    """Read the Unix timestamp from the session marker file.
-
-    Returns the timestamp as a float (seconds since epoch),
-    or None if the marker file does not exist or cannot be read.
-    """
-    try:
-        with open(SESSION_MARKER) as f:
-            raw = f.read().strip()
-            if not raw:
-                return None
-            return float(raw)
-    except (FileNotFoundError, ValueError, OSError):
-        return None
 
 
 def _group_results(results: list[dict]) -> dict[str, list[dict]]:

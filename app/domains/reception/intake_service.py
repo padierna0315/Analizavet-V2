@@ -4,7 +4,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel import select
 from app.domains.reception.schemas import RawPatientInput, BaulResult, PatientSource, NormalizedPatient
 from app.domains.reception.normalizer import parse_patient_string
-from app.domains.reception.baul import BaulService
+from app.domains.reception.baul import BaulService, _normalize_for_comparison
 from app.domains.patients.models import Patient
 from app.shared.models.data_quarantine import DataQuarantine
 from app.services.provenance_recorder import ProvenanceRecorder
@@ -177,9 +177,6 @@ class PatientIntakeService:
             species_override=raw_input.species_override,
             sex_override=raw_input.sex_override,
         )
-        
-        # Import the normalization function for deduplication
-        from app.domains.reception.baul import _normalize_for_comparison
         
         norm_name = _normalize_for_comparison(normalized.name)
         norm_owner = _normalize_for_comparison(normalized.owner_name)
