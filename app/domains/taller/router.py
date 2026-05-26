@@ -433,6 +433,11 @@ async def load_patient_workspace(
             status_code=404
         )
 
+    # Extract nested data from the service response
+    test_result = data.get("test_result", {})
+    lab_values = data.get("lab_values", [])
+    patient = data.get("patient", {})
+
     # Fetch doctors for the dropdown
     _doctors_result = await session.execute(select(Doctor))
     doctors = _doctors_result.scalars().all()
