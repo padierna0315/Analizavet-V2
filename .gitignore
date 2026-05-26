@@ -76,3 +76,7 @@ settings.local.toml
 
 # Log files
 log_*.txt
+logs/
+
+# Jornada session data (runtime)
+data/jornada-session.json
