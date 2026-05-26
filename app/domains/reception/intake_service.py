@@ -70,42 +70,49 @@ class PatientIntakeService:
         if existing_patient:
             # ── Temporal isolation check (R7) ──────────────────────────────
             # Prevent data from a different session era from attaching to an
-            # existing patient that shares the same session_code.  5-second
-            # tolerance covers clock skew and batch upload timing.
-            tolerance = timedelta(seconds=5)
-            # Normalize to naive for comparison — SQLite may strip timezone info.
-            received_naive = raw_input.received_at.replace(tzinfo=None) \
-                if raw_input.received_at.tzinfo is not None \
-                else raw_input.received_at
-            created_naive = existing_patient.created_at.replace(tzinfo=None) \
-                if existing_patient.created_at.tzinfo is not None \
-                else existing_patient.created_at
-            if received_naive < created_naive - tolerance:
-                logfire.error(
-                    "Temporal mismatch: data received {received_at} "
-                    "but patient created {created_at} "
-                    "(session_code={code})".format(
-                        received_at=raw_input.received_at,
-                        created_at=existing_patient.created_at,
-                        code=lookup_code,
+            # existing patient that shares the same session_code.
+            # SKIPPED for machine sources (LIS_OZELLE, LIS_FUJIFILM, LIS_FILE)
+            # because machines can send data with timestamps from before
+            # patient registration (sample processed before vet registers patient).
+            if raw_input.source not in (
+                PatientSource.LIS_OZELLE,
+                PatientSource.LIS_FUJIFILM,
+                PatientSource.LIS_FILE,
+            ):
+                tolerance = timedelta(seconds=5)
+                # Normalize to naive for comparison — SQLite may strip timezone info.
+                received_naive = raw_input.received_at.replace(tzinfo=None) \
+                    if raw_input.received_at.tzinfo is not None \
+                    else raw_input.received_at
+                created_naive = existing_patient.created_at.replace(tzinfo=None) \
+                    if existing_patient.created_at.tzinfo is not None \
+                    else existing_patient.created_at
+                if received_naive < created_naive - tolerance:
+                    logfire.error(
+                        "Temporal mismatch: data received {received_at} "
+                        "but patient created {created_at} "
+                        "(session_code={code})".format(
+                            received_at=raw_input.received_at,
+                            created_at=existing_patient.created_at,
+                            code=lookup_code,
+                        )
                     )
-                )
-                try:
-                    q = DataQuarantine(
-                        source=raw_input.source.value,
-                        raw_data=raw_input.raw_string,
-                        received_at=raw_input.received_at,
-                        rejection_reason="temporal_mismatch",
-                    )
-                    session.add(q)
-                    await session.commit()
-                except Exception:
-                    logfire.warning(
-                        "Failed to insert quarantine record for temporal mismatch",
-                        _exc_info=True,
-                    )
-                # Do NOT attach to this patient — force creation of a new one.
-                existing_patient = None
+                    try:
+                        q = DataQuarantine(
+                            source=raw_input.source.value,
+                            raw_data=raw_input.raw_string,
+                            received_at=raw_input.received_at,
+                            rejection_reason="temporal_mismatch",
+                        )
+                        session.add(q)
+                        await session.commit()
+                    except Exception:
+                        logfire.warning(
+                            "Failed to insert quarantine record for temporal mismatch",
+                            _exc_info=True,
+                        )
+                    # Do NOT attach to this patient — force creation of a new one.
+                    existing_patient = None
             # ── end temporal check ─────────────────────────────────────────
 
         if existing_patient:
