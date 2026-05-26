@@ -86,6 +86,10 @@ EXAM_CATALOG: Dict[str, Dict] = {
             "Copro directo",
             "Coprologico Directo",
             "Coprológico Directo",
+            "Coprologico basico",
+            "Coprológico basico",
+            "Coprologico básico",
+            "Coprológico básico",
         ],
     },
     "COPROSC_SERIADO_2": {
