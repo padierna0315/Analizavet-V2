@@ -1,223 +1,545 @@
 #!/bin/bash
-set -e
+# Analizavet V2 — Iniciador robusto y a prueba de balas
+# Autor: Santiago | Uso: 1 veterinario, 2 máquinas
+#
+# Características:
+# - Limpieza exhaustiva de procesos previos
+# - Verificación paso a paso con rollback automático
+# - Logs separados para cada servicio
+# - Health checks reales antes de declarar éxito
+# - Session marker actualizado (modo simple: data/jornada-session.json)
 
-# MLLP siempre activo — controla Redis, Dramatiq y auto-inicio de adaptadores
+set -euo pipefail
 
-# Si no hay terminal (doble clic en GUI), abrir en Konsole
-if [ ! -t 0 ]; then
-    if command -v konsole &> /dev/null; then
-        konsole --noclose -e "$0" "$@"
-        exit 0
-    else
-        xterm -e "$0" "$@"
-        exit 0
+# ═════════════════════════════════════════════════════════════════════════════
+# CONFIGURACIÓN
+# ═════════════════════════════════════════════════════════════════════════════
+APP_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOGS_DIR="${APP_DIR}/logs"
+mkdir -p "${LOGS_DIR}"
+
+UVICORN_LOG="${LOGS_DIR}/uvicorn.log"
+DRAMATIQ_LOG="${LOGS_DIR}/dramatiq.log"
+REDIS_LOG="${LOGS_DIR}/redis.log"
+PIDFILE="${LOGS_DIR}/analizavet.pid"
+
+# Puertos
+PORT_UVICORN=8000
+PORT_REDIS=6379
+PORT_OZELLE=6000
+PORT_FUJIFILM=6001
+
+# Timeouts (segundos)
+TIMEOUT_REDIS=10
+TIMEOUT_UVICORN=30
+TIMEOUT_HEALTH=15
+
+# ═════════════════════════════════════════════════════════════════════════════
+# FUNCIONES AUXILIARES
+# ═════════════════════════════════════════════════════════════════════════════
+
+log() {
+    echo "[$(date '+%H:%M:%S')] $*"
+}
+
+error() {
+    echo "[$(date '+%H:%M:%S')] ❌ ERROR: $*" >&2
+}
+
+success() {
+    echo "[$(date '+%H:%M:%S')] ✅ $*"
+}
+
+warn() {
+    echo "[$(date '+%H:%M:%S')] ⚠️  $*"
+}
+
+# Matar proceso por nombre (con fuerza si es necesario)
+kill_by_name() {
+    local name="$1"
+    local pids
+    pids=$(pgrep -f "$name" 2>/dev/null || true)
+    if [ -n "$pids" ]; then
+        log "   Matando procesos '$name' (PIDs: $pids)..."
+        echo "$pids" | xargs kill -TERM 2>/dev/null || true
+        sleep 1
+        # Verificar si todavía viven
+        local survivors
+        survivors=$(pgrep -f "$name" 2>/dev/null || true)
+        if [ -n "$survivors" ]; then
+            log "   Forzando matanza de '$name' (PIDs: $survivors)..."
+            echo "$survivors" | xargs kill -KILL 2>/dev/null || true
+        fi
     fi
-fi
+}
 
-echo "🚀 Iniciando Analizavet V2 (Fase Desarrollo - uv)"
+# Verificar si un puerto está libre
+is_port_free() {
+    local port="$1"
+    ! lsof -ti :"$port" > /dev/null 2>&1
+}
 
-# ──────────────────────────────────────────────────
-# 0. LIMPIEZA TOTAL — siempre arrancar desde cero
-# ──────────────────────────────────────────────────
-echo "🧹 Limpiando procesos y puertos de ejecuciones anteriores..."
+# Esperar a que un puerto esté libre
+wait_for_port_free() {
+    local port="$1"
+    local timeout="${2:-5}"
+    local waited=0
+    while ! is_port_free "$port" && [ "$waited" -lt "$timeout" ]; do
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+    is_port_free "$port"
+}
 
-# Matar instancias previas de uvicorn
-for pid in $(lsof -ti tcp:8000 2>/dev/null); do
-    kill "$pid" 2>/dev/null && echo "   Proceso anterior en puerto 8000 eliminado (PID: $pid)"
-done
+# Verificar si Redis responde
+redis_ping() {
+    python3 -c "import redis; print(redis.Redis(host='localhost', port=${PORT_REDIS}).ping())" 2>/dev/null | grep -q "True"
+}
 
-# Matar instancias previas de Dramatiq
-pkill -f "dramatiq.*broker" 2>/dev/null && echo "   Worker Dramatiq anterior eliminado"
+# Verificar health del servidor
+server_health() {
+    curl -sf http://localhost:${PORT_UVICORN}/health > /dev/null 2>&1
+}
 
-# Liberar TODOS los puertos que usamos
-for port in 6000 6001 8000 9191 9200; do
-    fuser -k "${port}/tcp" 2>/dev/null || true
-done
-echo "   Puertos 6000, 6001, 8000, 9191, 9200 liberados"
+# Guardar PIDs
+save_pid() {
+    local name="$1"
+    local pid="$2"
+    echo "${name}:${pid}" >> "$PIDFILE"
+}
 
-# Eliminar contenedor Redis si existe de una sesión anterior
-if podman ps -a --filter "name=redis-analizavet" --format "{{.Names}}" 2>/dev/null | grep -q "redis-analizavet"; then
-    podman rm -f redis-analizavet 2>/dev/null && echo "   Contenedor Redis anterior eliminado"
-fi
+# Leer PID por nombre
+read_pid() {
+    local name="$1"
+    grep "^${name}:" "$PIDFILE" 2>/dev/null | cut -d: -f2 | tail -1
+}
 
-sleep 1
-echo "✅ Limpieza completa"
-# ──────────────────────────────────────────────────
-
-# 0.1. Instalar dependencias del sistema (WeasyPrint, etc)
-if command -v apt-get &> /dev/null; then
-    echo "🔍 Verificando dependencias del sistema (Debian/Ubuntu)..."
-    if ! dpkg -s libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info curl &> /dev/null; then
-        echo "📦 Instalando dependencias del sistema (requiere contraseña de administrador)..."
-        sudo apt-get update && sudo apt-get install -y libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info curl
-    else
-        echo "✅ Dependencias del sistema OK"
+# Rollback: matar todo lo que iniciamos
+rollback() {
+    error "Iniciando rollback — matando servicios iniciados..."
+    if [ -f "$PIDFILE" ]; then
+        while IFS=: read -r name pid; do
+            if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+                log "   Matando $name (PID: $pid)..."
+                kill -TERM "$pid" 2>/dev/null || true
+                sleep 1
+                kill -KILL "$pid" 2>/dev/null || true
+            fi
+        done < "$PIDFILE"
+        rm -f "$PIDFILE"
     fi
-elif command -v dnf &> /dev/null; then
-    echo "🔍 Verificando dependencias del sistema (Fedora)..."
-    if ! rpm -q cairo pango pango-devel gdk-pixbuf2 libffi-devel shared-mime-info curl &> /dev/null; then
-        echo "📦 Instalando dependencias del sistema (requiere contraseña de administrador)..."
-        sudo dnf install -y cairo pango pango-devel gdk-pixbuf2 libffi-devel shared-mime-info curl
-    else
-        echo "✅ Dependencias del sistema OK"
-    fi
-fi
-
-# 1. Verificar/instalar uv
-if ! command -v uv &> /dev/null; then
-    echo "📦 Instalando uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    source $HOME/.cargo/env
-fi
-
-# 2. Verificar Python 3.11
-if ! uv run python --version | grep -q "3.11"; then
-    echo "⚠️  Requiere Python 3.11. Instalando..."
-    uv python install 3.11
-fi
-
-# 3. Crear entorno virtual si no existe
-if [ ! -d ".venv" ]; then
-    echo "🔧 Creando entorno virtual..."
-    uv venv .venv
-fi
-
-# 4. Instalar dependencias desde pyproject.toml (uv.lock gestiona versiones exactas)
-echo "📥 Instalando dependencias..."
-uv sync
-
-# 4.1 Configurar archivo de secretos
-if [ ! -f ".secrets.toml" ]; then
-    echo "🔑 Configurando archivo de secretos inicial..."
-    if [ -f ".secrets.toml.example" ]; then
-        cp .secrets.toml.example .secrets.toml
-    else
-        touch .secrets.toml
-    fi
-fi
-
-# 4.2 Descargar navegadores para Playwright (necesario para los tests E2E)
-echo "🌐 Verificando navegadores de Playwright para tests..."
-uv run playwright install chromium
-
-# 5. Crear directorios necesarios antes de importar app.main (StaticFiles, etc.)
-if [ ! -d "images" ]; then
-    echo "📁 Creando directorio images/..."
-    mkdir -p images
-fi
-
-if [ ! -d "app/static" ]; then
-    echo "📁 Creando directorio static/..."
-    mkdir -p app/static/css app/static/js app/static/images
-fi
-
-# 6. Inicializar/Actualizar Base de Datos
-echo "🗄️ Actualizando esquema de base de datos..."
-DB_FILE="analizavet.db"
-if [ ! -f "$DB_FILE" ]; then
-    echo "🌱 Base de datos no encontrada. Creándola desde cero..."
-    uv run python -c "import asyncio; import app.main; from app.database import create_db_and_tables; asyncio.run(create_db_and_tables())"
-    echo "✅ Base de datos creada. Marcando migraciones como completadas..."
-    uv run alembic stamp head
-else
-    echo "🔄 Base de datos existente encontrada. Ejecutando migraciones..."
-    uv run alembic upgrade head
-fi
-
-# 7. Verificar Redis para Dramatiq (siempre necesario)
-echo "🔍 Verificando Redis..."
-if command -v podman &> /dev/null; then
-    # Podman-based Redis (Fedora, sin Redis nativo)
-    echo "📦 Iniciando Redis en contenedor Podman..."
+    # Limpiar contenedor Redis
     podman rm -f redis-analizavet 2>/dev/null || true
-    podman run -d --name redis-analizavet -p 6379:6379 docker.io/redis:7-alpine
-    sleep 2
-    # Verificar con Python (redis-cli no siempre está instalado)
-    if uv run python -c "import redis; redis.Redis(host='localhost', port=6379).ping()" 2>/dev/null; then
-        echo "✅ Redis iniciado correctamente (contenedor Podman)"
+    error "Rollback completo. Saliendo."
+}
+
+# ═════════════════════════════════════════════════════════════════════════════
+# LIMPIEZA EXHAUSTIVA
+# ═════════════════════════════════════════════════════════════════════════════
+
+cleanup() {
+    log "🧹 Limpieza exhaustiva..."
+    
+    # Limpiar archivo de PIDs previo
+    rm -f "$PIDFILE"
+    
+    # Matar procesos por nombre (con variaciones posibles)
+    kill_by_name "uvicorn.*app.main"
+    kill_by_name "dramatiq.*broker"
+    kill_by_name "dramatiq.*WorkerProcess"
+    
+    # Liberar puertos específicos
+    for port in "$PORT_UVICORN" "$PORT_REDIS" "$PORT_OZELLE" "$PORT_FUJIFILM" 9191 9200; do
+        if ! is_port_free "$port"; then
+            local pids
+            pids=$(lsof -ti tcp:"$port" 2>/dev/null || true)
+            if [ -n "$pids" ]; then
+                log "   Liberando puerto $port (PIDs: $pids)..."
+                echo "$pids" | xargs kill -KILL 2>/dev/null || true
+            fi
+        fi
+    done
+    
+    # Esperar a que los puertos estén realmente libres
+    local all_free=true
+    for port in "$PORT_UVICORN" "$PORT_REDIS"; do
+        if ! wait_for_port_free "$port" 5; then
+            warn "Puerto $port sigue ocupado después de limpieza"
+            all_free=false
+        fi
+    done
+    
+    # Limpiar contenedor Redis previo
+    if podman ps -a --format "{{.Names}}" 2>/dev/null | grep -q "redis-analizavet"; then
+        log "   Eliminando contenedor Redis anterior..."
+        podman rm -f redis-analizavet > /dev/null 2>&1 || true
+    fi
+    
+    if [ "$all_free" = true ]; then
+        success "Limpieza completa"
     else
-        echo "❌ No se pudo iniciar Redis en Podman"
+        warn "Algunos puertos no se liberaron completamente"
+    fi
+}
+
+# ═════════════════════════════════════════════════════════════════════════════
+# VERIFICACIONES PREVIAS
+# ═════════════════════════════════════════════════════════════════════════════
+
+prechecks() {
+    log "🔍 Verificaciones previas..."
+    
+    cd "$APP_DIR"
+    
+    # Verificar directorio
+    if [ ! -f "app/main.py" ]; then
+        error "No se encontró app/main.py — ¿estás en el directorio correcto?"
         exit 1
     fi
-elif command -v redis-server &> /dev/null; then
-    # Redis nativo (Debian/Ubuntu)
-    if ! redis-cli ping &> /dev/null; then
-        echo "⚠️  Redis no está corriendo. Iniciando Redis..."
-        redis-server --daemonize yes
-        sleep 2
-        if redis-cli ping | grep -q "PONG"; then
-            echo "✅ Redis iniciado correctamente"
-        else
-            echo "❌ No se pudo iniciar Redis"
-            exit 1
-        fi
+    
+    # Verificar uv
+    if ! command -v uv &> /dev/null; then
+        error "'uv' no encontrado. Instálalo: curl -LsSf https://astral.sh/uv/install.sh | sh"
+        exit 1
+    fi
+    
+    # Verificar .venv
+    if [ ! -d ".venv" ]; then
+        warn "Entorno virtual no encontrado. Creando..."
+        uv venv .venv
+    fi
+    
+    # Verificar dependencias Python
+    if ! uv run python -c "import fastapi" 2>/dev/null; then
+        warn "Dependencias Python no instaladas. Instalando..."
+        uv sync
+    fi
+    
+    # Verificar Podman o Redis nativo
+    if command -v podman &> /dev/null; then
+        success "Podman disponible"
+    elif command -v redis-server &> /dev/null; then
+        success "Redis nativo disponible"
     else
-        echo "✅ Redis ya está corriendo"
+        error "Se requiere Podman O redis-server. Instala: sudo dnf install podman"
+        exit 1
     fi
-else
-    echo "❌ No se encontró Podman ni Redis server."
-    echo "   Instala Podman: sudo dnf install podman"
-    exit 1
-fi
+    
+    success "Verificaciones OK"
+}
 
-# 8. Iniciar Dramatiq worker en segundo plano
-echo "🎭 Iniciando worker de Dramatiq..."
-DRAMATIQ_ENV="DRAMATIQ_PROMETHEUS_PORT=-1"
-uv run env "$DRAMATIQ_ENV" dramatiq app.tasks.broker:broker --threads 1 &
-DRAMATIQ_PID=$!
-sleep 3
+# ═════════════════════════════════════════════════════════════════════════════
+# INICIAR REDIS
+# ═════════════════════════════════════════════════════════════════════════════
 
-# Verify Dramatiq is running
-if kill -0 $DRAMATIQ_PID 2>/dev/null; then
-    echo "✅ Worker de Dramatiq iniciado (PID: $DRAMATIQ_PID)"
-else
-    echo "❌ Worker de Dramatiq falló al iniciar"
-    exit 1
-fi
-
-# 9. Iniciar servidor FastAPI
-echo "🌐 Iniciando servidor FastAPI..."
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-SERVER_PID=$!
-sleep 3
-
-# Verify uvicorn is running
-if kill -0 $SERVER_PID 2>/dev/null; then
-    echo "✅ Proceso FastAPI iniciado (PID: $SERVER_PID)"
-else
-    echo "❌ Proceso FastAPI falló al iniciar"
-    exit 1
-fi
-
-# Verify uvicorn responds to health checks
-echo "⏳ Esperando servidor..."
-for i in {1..30}; do
-    if curl -s http://localhost:8000/health &> /dev/null; then
-        echo "✅ Servidor FastAPI corriendo en http://localhost:8000"
-        echo "🔥 Logfire activo — observa los logs en esta terminal"
-        break
+start_redis() {
+    log "🟥 Iniciando Redis..."
+    
+    if command -v redis-server &> /dev/null && redis-cli ping &> /dev/null; then
+        success "Redis nativo ya está corriendo"
+        return 0
     fi
-    sleep 0.5
-done
+    
+    if command -v podman &> /dev/null; then
+        # Usar Podman
+        podman run -d --replace --name redis-analizavet \
+            -p "${PORT_REDIS}:${PORT_REDIS}" \
+            docker.io/redis:7-alpine > /dev/null 2>&1
+        
+        # Esperar a que Redis responda
+        local waited=0
+        while ! redis_ping && [ "$waited" -lt "$TIMEOUT_REDIS" ]; do
+            sleep 0.5
+            waited=$((waited + 1))
+        done
+        
+        if redis_ping; then
+            success "Redis corriendo (Podman)"
+            return 0
+        else
+            error "Redis no respondió después de ${TIMEOUT_REDIS}s"
+            return 1
+        fi
+    fi
+    
+    error "No se pudo iniciar Redis"
+    return 1
+}
 
-# 10. Marcar inicio de sesión para la jornada
-date +%s > /tmp/analizavet-session-start
-echo "🕒 Sesión de jornada iniciada"
+# ═════════════════════════════════════════════════════════════════════════════
+# INICIAR DRAMATIQ
+# ═════════════════════════════════════════════════════════════════════════════
 
-# 11. Abrir Firefox (sin bloquear terminal - skill-santiago Regla #4)
-echo "🦊 Abriendo navegador..."
-nohup firefox --new-tab http://localhost:8000 > /dev/null 2>&1 &
+start_dramatiq() {
+    log "🎭 Iniciando worker de Dramatiq..."
+    
+    # Verificar que Redis esté vivo
+    if ! redis_ping; then
+        error "Redis no está disponible — no se puede iniciar Dramatiq"
+        return 1
+    fi
+    
+    # Iniciar con nohup para que sobreviva a la terminal
+    nohup bash -c "cd '${APP_DIR}' && DRAMATIQ_PROMETHEUS_PORT=-1 .venv/bin/dramatiq app.tasks.broker:broker --threads 1" \
+        > "$DRAMATIQ_LOG" 2>&1 &
+    local pid=$!
+    
+    # Esperar a que el proceso esté realmente vivo
+    local waited=0
+    while ! kill -0 "$pid" 2>/dev/null && [ "$waited" -lt 5 ]; do
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+    
+    if kill -0 "$pid" 2>/dev/null; then
+        save_pid "dramatiq" "$pid"
+        success "Dramatiq iniciado (PID: $pid)"
+        
+        # Esperar a que los workers estén listos
+        sleep 2
+        if grep -q "Worker process is ready" "$DRAMATIQ_LOG" 2>/dev/null; then
+            success "Workers de Dramatiq listos"
+        else
+            warn "Dramatiq inició pero workers pueden no estar listos todavía"
+        fi
+        
+        return 0
+    else
+        error "Dramatiq falló al iniciar. Ver log: $DRAMATIQ_LOG"
+        return 1
+    fi
+}
 
-echo ""
-echo "╔════════════════════════════════════════════════════════╗"
-echo "║  ✅ Analizavet V2 corriendo en http://localhost:8000   ║"
-echo "║                                                         ║"
-echo "║  Para detener:                                         ║"
-echo "║    - Presiona Ctrl+C para detener todo                  ║"
-echo "║    - O ejecuta: kill $SERVER_PID $DRAMATIQ_PID          ║"
-echo "╚════════════════════════════════════════════════════════╝"
-echo ""
+# ═════════════════════════════════════════════════════════════════════════════
+# INICIAR SERVIDOR FASTAPI
+# ═════════════════════════════════════════════════════════════════════════════
 
-# Mantener script vivo
-trap "echo ''; echo '🛑 Deteniendo servicios...'; rm -f /tmp/analizavet-session-start; kill $SERVER_PID $DRAMATIQ_PID 2>/dev/null || true; exit 0" SIGINT SIGTERM
-wait $SERVER_PID
+start_server() {
+    log "🌐 Iniciando servidor FastAPI..."
+    
+    # Verificar que el puerto esté libre
+    if ! is_port_free "$PORT_UVICORN"; then
+        error "Puerto $PORT_UVICORN sigue ocupado después de limpieza"
+        return 1
+    fi
+    
+    # Iniciar con nohup para que sobreviva a la terminal
+    nohup bash -c "cd '${APP_DIR}' && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT_UVICORN} --log-level info" \
+        > "$UVICORN_LOG" 2>&1 &
+    local pid=$!
+    
+    # Esperar a que el proceso esté vivo
+    local waited=0
+    while ! kill -0 "$pid" 2>/dev/null && [ "$waited" -lt 5 ]; do
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+    
+    if ! kill -0 "$pid" 2>/dev/null; then
+        error "Uvicorn falló al iniciar. Ver log: $UVICORN_LOG"
+        return 1
+    fi
+    
+    save_pid "uvicorn" "$pid"
+    log "   Uvicorn iniciado (PID: $pid), esperando health check..."
+    
+    # Esperar health check
+    waited=0
+    while ! server_health && [ "$waited" -lt "$TIMEOUT_HEALTH" ]; do
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+    
+    if server_health; then
+        success "Servidor FastAPI corriendo en http://localhost:${PORT_UVICORN}"
+        return 0
+    else
+        error "Servidor no respondió al health check después de ${TIMEOUT_HEALTH}s"
+        error "Ver log: $UVICORN_LOG"
+        return 1
+    fi
+}
+
+# ═════════════════════════════════════════════════════════════════════════════
+# VERIFICACIÓN FINAL
+# ═════════════════════════════════════════════════════════════════════════════
+
+verify_all() {
+    log "🔍 Verificación final..."
+    local all_ok=true
+    
+    # Verificar Redis
+    if redis_ping; then
+        success "Redis OK"
+    else
+        error "Redis NO responde"
+        all_ok=false
+    fi
+    
+    # Verificar Dramatiq (por PID)
+    local dramatiq_pid
+    dramatiq_pid=$(read_pid "dramatiq")
+    if [ -n "$dramatiq_pid" ] && kill -0 "$dramatiq_pid" 2>/dev/null; then
+        success "Dramatiq OK (PID: $dramatiq_pid)"
+    else
+        error "Dramatiq NO está corriendo"
+        all_ok=false
+    fi
+    
+    # Verificar servidor
+    if server_health; then
+        success "FastAPI OK"
+        # Mostrar respuesta del health check
+        local health_response
+        health_response=$(curl -s http://localhost:${PORT_UVICORN}/health)
+        log "   Health: $health_response"
+    else
+        error "FastAPI NO responde"
+        all_ok=false
+    fi
+    
+    if [ "$all_ok" = true ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ABrir NAVEGADOR
+# ═════════════════════════════════════════════════════════════════════════════
+
+open_browser() {
+    log "🦊 Abriendo navegador..."
+    
+    local url="http://localhost:${PORT_UVICORN}"
+    
+    # Intentar varios navegadores
+    if command -v firefox &> /dev/null; then
+        nohup firefox --new-tab "$url" > /dev/null 2>&1 &
+        success "Firefox abierto"
+    elif command -v chromium-browser &> /dev/null; then
+        nohup chromium-browser --new-tab "$url" > /dev/null 2>&1 &
+        success "Chromium abierto"
+    elif command -v google-chrome &> /dev/null; then
+        nohup google-chrome --new-tab "$url" > /dev/null 2>&1 &
+        success "Chrome abierto"
+    elif command -v xdg-open &> /dev/null; then
+        nohup xdg-open "$url" > /dev/null 2>&1 &
+        success "Navegador por defecto abierto"
+    else
+        warn "No se encontró navegador. Abre manualmente: $url"
+    fi
+}
+
+# ═════════════════════════════════════════════════════════════════════════════
+# DETENER SERVICIOS (Ctrl+C)
+# ═════════════════════════════════════════════════════════════════════════════
+
+stop_all() {
+    log ""
+    log "🛑 Deteniendo servicios..."
+    
+    # Matar procesos guardados
+    if [ -f "$PIDFILE" ]; then
+        while IFS=: read -r name pid; do
+            if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+                log "   Deteniendo $name (PID: $pid)..."
+                kill -TERM "$pid" 2>/dev/null || true
+            fi
+        done < "$PIDFILE"
+        sleep 1
+        # Forzar si es necesario
+        while IFS=: read -r name pid; do
+            if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+                log "   Forzando $name (PID: $pid)..."
+                kill -KILL "$pid" 2>/dev/null || true
+            fi
+        done < "$PIDFILE"
+        rm -f "$PIDFILE"
+    fi
+    
+    # Limpiar Redis
+    podman rm -f redis-analizavet > /dev/null 2>&1 || true
+    
+    success "Servicios detenidos"
+}
+
+# ═════════════════════════════════════════════════════════════════════════════
+# MAIN
+# ═════════════════════════════════════════════════════════════════════════════
+
+main() {
+    # Si no hay terminal (doble clic en GUI), abrir en Konsole
+    if [ ! -t 0 ]; then
+        if command -v konsole &> /dev/null; then
+            konsole --noclose -e "$0" "$@"
+            exit 0
+        else
+            xterm -e "$0" "$@"
+            exit 0
+        fi
+    fi
+    
+    # Banner
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════════╗"
+    echo "║  🚀 Analizavet V2 — Iniciador Robusto                          ║"
+    echo "║  Modo: $(if command -v podman &>/dev/null; then echo "Podman"; else echo "Nativo"; fi) | Usuario: 1 | Máquinas: 2            ║"
+    echo "╚══════════════════════════════════════════════════════════════════╝"
+    echo ""
+    
+    # Trap para detener todo al salir (Ctrl+C)
+    trap 'stop_all; exit 0' SIGINT SIGTERM EXIT
+    
+    # 1. LIMPIEZA
+    cleanup
+    
+    # 2. VERIFICACIONES
+    prechecks || { error "Verificaciones fallidas"; exit 1; }
+    
+    # 3. INICIAR SERVICIOS (con rollback si algo falla)
+    start_redis || { rollback; exit 1; }
+    start_dramatiq || { rollback; exit 1; }
+    start_server || { rollback; exit 1; }
+    
+    # 4. VERIFICACIÓN FINAL
+    if ! verify_all; then
+        error "Verificación final falló"
+        rollback
+        exit 1
+    fi
+    
+    # 5. ABRIR NAVEGADOR
+    open_browser
+    
+    # 6. MARCAR INICIO DE SESIÓN (modo simple: tocar archivo jornada-session.json)
+    if [ ! -f "${APP_DIR}/data/jornada-session.json" ]; then
+        echo '[]' > "${APP_DIR}/data/jornada-session.json"
+        log "📄 Archivo de jornada inicializado"
+    fi
+    
+    # Banner final
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════════╗"
+    echo "║  ✅ SISTEMA LISTO                                               ║"
+    echo "║                                                                 ║"
+    echo "║  🌐 http://localhost:${PORT_UVICORN}                                    ║"
+    echo "║  📋 Logs: ${LOGS_DIR}/                                    ║"
+    echo "║                                                                 ║"
+    echo "║  Presiona Ctrl+C para detener todo                              ║"
+    echo "╚══════════════════════════════════════════════════════════════════╝"
+    echo ""
+    
+    # Mantener script vivo mostrando logs
+    log "📊 Mostrando logs de uvicorn (Ctrl+C para detener)..."
+    echo "─────────────────────────────────────────────────────────────────────"
+    tail -f "$UVICORN_LOG" 2>/dev/null &
+    local tail_pid=$!
+    
+    # Esperar Ctrl+C
+    wait
+}
+
+# Ejecutar
+main "$@"
