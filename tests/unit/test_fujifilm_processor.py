@@ -964,3 +964,86 @@ async def test_async_process_pipeline_no_upload_id_no_decrement(
         mock_decrement.assert_not_called()
 
 
+# ── T4/T11: SessionCodeExtractor fix tests ───────────────────────────────
+
+def test_fujifilm_session_code_extraction_uses_extractor():
+    """Fujifilm processor must use SessionCodeExtractor.extract() for
+    session_code. Verify the extractor handles common Fujifilm formats.
+    """
+    from app.services.session_code_extractor import SessionCodeExtractor
+
+    # The extractor handles various input formats correctly
+    assert SessionCodeExtractor.extract("F2ORION") == "F2"
+    assert SessionCodeExtractor.extract("F2 ORION") == "F2"
+    assert SessionCodeExtractor.extract("M5 KIARA") == "M5"
+    assert SessionCodeExtractor.extract("A105POLO") == "A105"
+    assert SessionCodeExtractor.extract("ORION") is None
+    assert SessionCodeExtractor.extract("") is None
+
+
+@pytest.mark.asyncio
+async def test_fujifilm_processor_passes_correct_session_code(
+    mock_reception_service, mock_taller_service, mock_async_session_local, mock_logfire
+):
+    """When Fujifilm processor runs, it must pass session_code from
+    SessionCodeExtractor.extract() in RawPatientInput, not from
+    _extract_name_and_code which could misparse names.
+    """
+    data = {
+        "internal_id": "908",
+        "patient_name": "F2ORION",
+        "parameter_code": "CRE",
+        "raw_value": "0.87",
+        "source": PatientSource.LIS_FUJIFILM.value,
+    }
+
+    with patch('app.tasks.fujifilm_processor.anyio.run', new_callable=MagicMock) as mock_anyio_run:
+        process_fujifilm_message(data)
+        mock_anyio_run.assert_called_once()
+
+        async_func_to_run, reception_input, *rest = mock_anyio_run.call_args.args
+        await async_func_to_run(reception_input, *rest)
+
+        # Verify session_code passed to receive() is "F2" (extracted by SessionCodeExtractor)
+        call_args = mock_reception_service.receive.await_args
+        assert call_args is not None
+        passed_input = call_args[0][0]
+        assert passed_input.session_code == "F2", (
+            f"Expected session_code='F2', got '{passed_input.session_code}'"
+        )
+
+
+# ── T7/T11: DataQuarantinedException handling ────────────────────────────
+
+@pytest.mark.asyncio
+async def test_fujifilm_quarantine_skip_taller(
+    mock_reception_service, mock_taller_service, mock_async_session_local, mock_logfire
+):
+    """When receive() raises DataQuarantinedException, the Fujifilm pipeline
+    must log a warning and return cleanly — NOT call Taller phase."""
+    from app.domains.reception.schemas import DataQuarantinedException
+
+    mock_reception_service.receive.side_effect = DataQuarantinedException(
+        session_code="F2",
+        source="LIS_FUJIFILM",
+        quarantine_id=42,
+    )
+
+    reception_input = RawPatientInput(
+        raw_string="F2 POLO",
+        session_code="F2",
+        source=PatientSource.LIS_FUJIFILM,
+        received_at=datetime.now(timezone.utc),
+    )
+
+    # Should NOT raise — pipeline must catch DataQuarantinedException
+    await _async_process_pipeline(reception_input, "908", "CRE", "0.87")
+
+    # Taller must NOT be called (quarantine skips Taller)
+    mock_taller_service.create_test_result.assert_not_called()
+    mock_taller_service.flag_and_store.assert_not_called()
+
+    # Warning must be logged
+    mock_logfire[1].assert_any_call(
+        "Data quarantined: session_code=F2, quarantine_id=42"
+    )

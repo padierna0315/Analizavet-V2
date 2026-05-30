@@ -10,6 +10,7 @@ from app.domains.exam_order.service import ExamOrderService
 from app.domains.reception.helpers import _resolve_appsheet_test_type
 from app.domains.reception.baul import _normalize_for_comparison
 from app.services.provenance_recorder import ProvenanceRecorder
+from app.shared.models.data_quarantine import DataQuarantine
 import logfire
 
 
@@ -48,6 +49,44 @@ class AppSheetSyncService:
                 _exc_info=True,
             )
 
+    async def _link_quarantined_items(
+        self,
+        session: AsyncSession,
+        session_code: str | None,
+        patient_id: int,
+    ) -> None:
+        """Link pending quarantined items that match the just-confirmed patient.
+
+        Queries DataQuarantine for items with matching session_code,
+        rejection_reason='awaiting_appsheet', and status='pending'.
+        Sets patient_id, status='forced', processed_at=now().
+        """
+        if not session_code:
+            return
+        try:
+            stmt = select(DataQuarantine).where(
+                DataQuarantine.session_code == session_code,
+                DataQuarantine.rejection_reason == "awaiting_appsheet",
+                DataQuarantine.status == "pending",
+            )
+            result = await session.execute(stmt)
+            quarantined = result.scalars().all()
+
+            for q in quarantined:
+                q.patient_id = patient_id
+                q.status = "forced"
+                q.processed_at = datetime.now(timezone.utc)
+                session.add(q)
+                logfire.info(
+                    f"Linked quarantined item {q.id} to patient {patient_id} "
+                    f"(session_code={session_code})"
+                )
+        except Exception:
+            logfire.warning(
+                f"Quarantine lazy-link failed for session_code={session_code}",
+                _exc_info=True,
+            )
+
     async def sync_from_appsheet(
         self, patients: list[AppSheetPatient], session: AsyncSession, reset: bool = False
     ) -> int:
@@ -77,6 +116,9 @@ class AppSheetSyncService:
                 appsheet_type, appsheet_code = _resolve_appsheet_test_type(ap.test_type)
                 existing_patient.appsheet_test_type = appsheet_type
                 existing_patient.appsheet_test_type_code = appsheet_code
+
+                # Set AppSheet authority flag — AppSheet is the source of truth
+                existing_patient.appsheet_confirmed = True
 
                 # Manejar edad
                 try:
@@ -118,7 +160,8 @@ class AppSheetSyncService:
                     age_value=int(ap.age_number) if ap.age_number and ap.age_number.isdigit() else None,
                     age_unit=ap.age_unit.lower() if ap.age_unit else None,
                     age_display=f"{ap.age_number} {ap.age_unit}" if ap.age_number and ap.age_unit else None,
-                    has_age=bool(ap.age_number and ap.age_unit)
+                    has_age=bool(ap.age_number and ap.age_unit),
+                    appsheet_confirmed=True,  # ← AppSheet is the source of truth
                 )
                 session.add(new_patient)
                 await session.flush()  # Get patient ID before creating ExamOrder
@@ -141,6 +184,13 @@ class AppSheetSyncService:
                     f"Error creating ExamOrder for patient {patient_id} "
                     f"(session={ap.session_code}): {e}"
                 )
+
+            # ── Lazy-link quarantined items ───────────────────────────
+            # AppSheet is the authority — link any pending quarantined
+            # machine data that was waiting for this patient confirmation.
+            await self._link_quarantined_items(
+                session, ap.session_code, patient_id
+            )
 
             count += 1
 

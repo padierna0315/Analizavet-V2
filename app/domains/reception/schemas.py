@@ -70,8 +70,21 @@ class NormalizedPatient(BaseModel):
         return self
 
 
+class DataQuarantinedException(Exception):
+    """Raised when machine data is quarantined awaiting AppSheet confirmation."""
+
+    def __init__(self, session_code: str | None, source: str, quarantine_id: int):
+        self.session_code = session_code
+        self.source = source
+        self.quarantine_id = quarantine_id
+        super().__init__(
+            f"Data quarantined: source={source}, session_code={session_code}, "
+            f"quarantine_id={quarantine_id}"
+        )
+
+
 class BaulResult(BaseModel):
     """Result of registering a patient in the Baúl."""
-    patient_id: int
+    patient_id: int | None = None
     created: bool      # True = new patient, False = already existed
     patient: "NormalizedPatient"  # The normalized data (from input)

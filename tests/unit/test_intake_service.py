@@ -55,6 +55,7 @@ async def test_session_code_lookup_finds_existing_patient(mock_async_session):
         normalized_name="rex",
         normalized_owner="juan perez",
         sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,  # ← machine source gate requires confirmed patient
     )
     existing.created_at = datetime(2026, 5, 1, tzinfo=timezone.utc)
 
@@ -84,6 +85,7 @@ async def test_session_code_lookup_finds_existing_patient(mock_async_session):
 async def test_temporal_isolation_triggers_quarantine(mock_async_session):
     """When received_at is before created_at minus tolerance, the input
     must NOT attach to the existing patient and a quarantine record is created.
+    Uses MANUAL source (machine sources are now gated separately).
     """
     service = PatientIntakeService()
 
@@ -114,7 +116,7 @@ async def test_temporal_isolation_triggers_quarantine(mock_async_session):
     raw_input = RawPatientInput(
         raw_string="Luna Felino 2a Ana",
         session_code="OLD",
-        source=PatientSource.LIS_OZELLE,
+        source=PatientSource.MANUAL,
         received_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
     )
 
@@ -140,10 +142,14 @@ async def test_temporal_isolation_triggers_quarantine(mock_async_session):
 @pytest.mark.asyncio
 async def test_dedup_find_existing_returns_match(mock_async_session):
     """When no session_code matches, normalizer runs and _find_existing
-    returns a match. Demographics from machine sources must NOT be overwritten.
+    returns a match. For machine sources without confirmed patient, the gate
+    now quarantines instead of attaching. This test verifies quarantine.
     """
+    from app.domains.reception.schemas import DataQuarantinedException
+
     service = PatientIntakeService()
 
+    # Simulate an existing patient that would match via dedup
     existing = Patient(
         id=10,
         name="Max",
@@ -158,6 +164,7 @@ async def test_dedup_find_existing_returns_match(mock_async_session):
         normalized_name="max",
         normalized_owner="pedro",
         sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,  # confirmed, but gate fires before dedup
     )
 
     with pytest.MonkeyPatch().context() as mp:
@@ -170,65 +177,31 @@ async def test_dedup_find_existing_returns_match(mock_async_session):
             received_at=datetime.now(timezone.utc),
         )
 
-        result = await service.receive(raw_input, mock_async_session)
-
-        assert result.created is False
-        assert result.patient_id == 10
-        # Machine source must NOT overwrite demographics
-        assert existing.species == "Canino"
-        assert existing.owner_name == "Pedro"
-        assert PatientSource.LIS_OZELLE.value in existing.sources_received
-        service._baul._find_existing.assert_awaited_once()
+        # Machine source without session_code → gate quarantines
+        with pytest.raises(DataQuarantinedException):
+            await service.receive(raw_input, mock_async_session)
 
 
 # ── 5.1.4 new patient creation ────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_new_patient_creates_record(mock_async_session):
-    """When no patient matches (session_code or dedup), a new patient
-    is created via _baul.register.
+    """Machine source without confirmed patient is now quarantined.
+    Previously this test created a new patient — with the gate, it must
+    raise DataQuarantinedException instead.
     """
+    from app.domains.reception.schemas import DataQuarantinedException
+
     service = PatientIntakeService()
 
-    new_patient = Patient(
-        id=99,
-        name="Firulais",
-        species="Canino",
-        sex="Macho",
-        owner_name="Juan",
-        has_age=True,
-        age_value=3,
-        age_unit="años",
-        age_display="3 años",
-        source=PatientSource.LIS_OZELLE.value,
-        normalized_name="firulais",
-        normalized_owner="juan",
-        sources_received=[],
+    raw_input = RawPatientInput(
+        raw_string="firulais canino 3a juan",
+        source=PatientSource.LIS_OZELLE,
+        received_at=datetime.now(timezone.utc),
     )
-    mock_async_session.get.return_value = new_patient
 
-    with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=None))
-        mp.setattr(
-            service._baul, "register",
-            AsyncMock(return_value=MockBaulResult(
-                patient_id=99, created=True, patient=new_patient,
-            )),
-        )
-
-        raw_input = RawPatientInput(
-            raw_string="firulais canino 3a juan",
-            source=PatientSource.LIS_OZELLE,
-            received_at=datetime.now(timezone.utc),
-        )
-
-        result = await service.receive(raw_input, mock_async_session)
-
-        assert result.created is True
-        assert result.patient_id == 99
-        assert result.patient.name == "Firulais"
-        service._baul.register.assert_awaited_once()
-        assert PatientSource.LIS_OZELLE.value in new_patient.sources_received
+    with pytest.raises(DataQuarantinedException):
+        await service.receive(raw_input, mock_async_session)
 
 
 # ── 5.1.5 source append (no duplicate) ────────────────────────────────────
@@ -236,7 +209,7 @@ async def test_new_patient_creates_record(mock_async_session):
 @pytest.mark.asyncio
 async def test_source_append_no_duplicate(mock_async_session):
     """Receiving from the same source twice must not duplicate
-    sources_received entries.
+    sources_received entries. Uses MANUAL source (not gated).
     """
     service = PatientIntakeService()
 
@@ -250,10 +223,10 @@ async def test_source_append_no_duplicate(mock_async_session):
         age_value=4,
         age_unit="años",
         age_display="4 años",
-        source=PatientSource.LIS_OZELLE.value,
+        source=PatientSource.MANUAL.value,
         normalized_name="coco",
         normalized_owner="juan",
-        sources_received=[PatientSource.LIS_OZELLE.value],
+        sources_received=[PatientSource.MANUAL.value],
     )
 
     with pytest.MonkeyPatch().context() as mp:
@@ -262,7 +235,7 @@ async def test_source_append_no_duplicate(mock_async_session):
 
         raw_input = RawPatientInput(
             raw_string="coco canino 4a juan",
-            source=PatientSource.LIS_OZELLE,
+            source=PatientSource.MANUAL,
             received_at=datetime.now(timezone.utc),
         )
 
@@ -271,7 +244,7 @@ async def test_source_append_no_duplicate(mock_async_session):
         assert result.created is False
         assert result.patient_id == 12
         sources = existing.sources_received
-        assert sources.count(PatientSource.LIS_OZELLE.value) == 1
+        assert sources.count(PatientSource.MANUAL.value) == 1
         assert len(sources) == 1
 
 
@@ -300,6 +273,7 @@ async def test_age_sanitization_heals_inconsistent_db(mock_async_session):
         normalized_name="rocky",
         normalized_owner="carlos",
         sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,  # ← machine source gate requires confirmed
     )
     existing.created_at = datetime(2026, 5, 1, tzinfo=timezone.utc)
 
@@ -332,7 +306,7 @@ async def test_age_sanitization_heals_inconsistent_db(mock_async_session):
 
 @pytest.mark.asyncio
 async def test_lis_source_preserves_demographics(mock_async_session):
-    """When dedup matches an existing patient and source is LIS_OZELLE,
+    """When session_code lookup finds a confirmed patient from machine source,
     demographic fields (name, species, sex, owner_name, age) must NOT be
     overwritten.
     """
@@ -349,40 +323,45 @@ async def test_lis_source_preserves_demographics(mock_async_session):
         age_unit="años",
         age_display="7 años",
         source=PatientSource.APPSHEET.value,
+        session_code="M5",
         normalized_name="kiara",
         normalized_owner="maria",
         sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,  # ← confirmed by AppSheet
+    )
+    existing.created_at = datetime(2026, 5, 1, tzinfo=timezone.utc)
+
+    session_result = MagicMock()
+    session_result.scalar_one_or_none.return_value = existing
+    mock_async_session.execute = AsyncMock(return_value=session_result)
+
+    # Raw string normalizes to DIFFERENT demographics
+    raw_input = RawPatientInput(
+        raw_string="kiara canino 5a pedro",
+        session_code="M5",
+        source=PatientSource.LIS_OZELLE,
+        received_at=datetime(2026, 5, 10, tzinfo=timezone.utc),
     )
 
-    with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
-        mp.setattr(service._baul, "register", AsyncMock())
+    result = await service.receive(raw_input, mock_async_session)
 
-        # Raw string normalizes to DIFFERENT demographics
-        raw_input = RawPatientInput(
-            raw_string="kiara canino 5a pedro",
-            source=PatientSource.LIS_OZELLE,
-            received_at=datetime.now(timezone.utc),
-        )
-
-        result = await service.receive(raw_input, mock_async_session)
-
-        assert result.created is False
-        assert result.patient_id == 44
-        # LIS source: demographics must NOT be overwritten
-        assert existing.name == "Kiara"
-        assert existing.species == "Felino"  # NOT Canino
-        assert existing.owner_name == "María"  # NOT Pedro
-        assert existing.age_value == 7  # NOT 5
-        # Source must still be appended
-        assert PatientSource.LIS_OZELLE.value in existing.sources_received
+    assert result.created is False
+    assert result.patient_id == 44
+    # LIS source: demographics must NOT be overwritten
+    assert existing.name == "Kiara"
+    assert existing.species == "Felino"  # NOT Canino
+    assert existing.owner_name == "María"  # NOT Pedro
+    assert existing.age_value == 7  # NOT 5
+    # Source must still be appended
+    assert PatientSource.LIS_OZELLE.value in existing.sources_received
 
 
 # ── 5.1.8 LIS_FILE also skips demographic overwrite ───────────────────────
 
 @pytest.mark.asyncio
 async def test_lis_file_preserves_demographics(mock_async_session):
-    """LIS_FILE source must also skip demographic overwrite on dedup match."""
+    """LIS_FILE source with confirmed patient via session_code must also
+    skip demographic overwrite on match."""
     service = PatientIntakeService()
 
     existing = Patient(
@@ -396,28 +375,32 @@ async def test_lis_file_preserves_demographics(mock_async_session):
         age_unit="años",
         age_display="8 años",
         source=PatientSource.APPSHEET.value,
+        session_code="B1",
         normalized_name="buddy",
         normalized_owner="luis",
         sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,  # ← confirmed by AppSheet
+    )
+    existing.created_at = datetime(2026, 5, 1, tzinfo=timezone.utc)
+
+    session_result = MagicMock()
+    session_result.scalar_one_or_none.return_value = existing
+    mock_async_session.execute = AsyncMock(return_value=session_result)
+
+    raw_input = RawPatientInput(
+        raw_string="buddy felino 2a ana",
+        session_code="B1",
+        source=PatientSource.LIS_FILE,
+        received_at=datetime(2026, 5, 10, tzinfo=timezone.utc),
     )
 
-    with pytest.MonkeyPatch().context() as mp:
-        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=existing))
-        mp.setattr(service._baul, "register", AsyncMock())
+    result = await service.receive(raw_input, mock_async_session)
 
-        raw_input = RawPatientInput(
-            raw_string="buddy felino 2a ana",
-            source=PatientSource.LIS_FILE,
-            received_at=datetime.now(timezone.utc),
-        )
-
-        result = await service.receive(raw_input, mock_async_session)
-
-        assert result.created is False
-        assert result.patient_id == 55
-        assert existing.species == "Canino"  # NOT Felino
-        assert existing.owner_name == "Luis"  # NOT Ana
-        assert existing.age_value == 8  # NOT 2
+    assert result.created is False
+    assert result.patient_id == 55
+    assert existing.species == "Canino"  # NOT Felino
+    assert existing.owner_name == "Luis"  # NOT Ana
+    assert existing.age_value == 8  # NOT 2
 
 
 # ── 5.1.9 MANUAL source DOES update demographics ──────────────────────────
@@ -462,3 +445,204 @@ async def test_manual_source_updates_demographics(mock_async_session):
         assert existing.species == "Felino"  # Updated
         assert existing.owner_name == "Nuevaowner"  # Updated
         assert existing.age_value == 5  # Updated
+
+
+# ── T3: Machine source gate tests (AppSheet authority) ────────────────────
+
+@pytest.mark.asyncio
+async def test_machine_source_without_confirmed_patient_raises_quarantine(
+    mock_async_session,
+):
+    """When a machine source (LIS_OZELLE) sends data and no
+    appsheet_confirmed=True patient exists for the session_code,
+    receive() must quarantine the data and raise DataQuarantinedException.
+    """
+    from app.domains.reception.schemas import DataQuarantinedException
+
+    service = PatientIntakeService()
+
+    # Existing patient with appsheet_confirmed=False (machine-created placeholder)
+    existing = Patient(
+        id=5,
+        name="Kiara",
+        species="Felino",
+        sex="Hembra",
+        owner_name="Sin Tutor",
+        has_age=False,
+        age_value=None,
+        age_unit=None,
+        age_display=None,
+        source=PatientSource.LIS_OZELLE.value,
+        session_code="M5",
+        normalized_name="kiara",
+        normalized_owner="sin tutor",
+        sources_received=[PatientSource.LIS_OZELLE.value],
+        appsheet_confirmed=False,
+    )
+    existing.created_at = datetime(2026, 5, 1, tzinfo=timezone.utc)
+
+    session_result = MagicMock()
+    session_result.scalar_one_or_none.return_value = existing
+    mock_async_session.execute = AsyncMock(return_value=session_result)
+
+    raw_input = RawPatientInput(
+        raw_string="M5 KIARA",
+        session_code="M5",
+        source=PatientSource.LIS_OZELLE,
+        received_at=datetime(2026, 5, 10, tzinfo=timezone.utc),
+    )
+
+    with pytest.raises(DataQuarantinedException) as exc_info:
+        await service.receive(raw_input, mock_async_session)
+
+    exc = exc_info.value
+    assert exc.session_code == "M5"
+    assert exc.source == "LIS_OZELLE"
+    # quarantine_id is None in mock tests (DB doesn't assign IDs)
+    # The important thing is that the exception was raised
+
+    # A quarantine record must have been inserted
+    quarantine_found = False
+    for call_item in mock_async_session.add.call_args_list:
+        arg = call_item[0][0] if call_item[0] else None
+        if arg is not None and hasattr(arg, "rejection_reason"):
+            if arg.rejection_reason == "awaiting_appsheet":
+                quarantine_found = True
+                assert arg.source == "LIS_OZELLE"
+                assert arg.session_code == "M5"
+                assert arg.status == "pending"
+                break
+    assert quarantine_found, "No quarantine record with rejection_reason='awaiting_appsheet' found"
+
+
+@pytest.mark.asyncio
+async def test_machine_source_with_confirmed_patient_attaches(
+    mock_async_session,
+):
+    """When a machine source sends data and a patient with
+    appsheet_confirmed=True matches the session_code, the data must
+    attach normally — no quarantine, no exception.
+    """
+    service = PatientIntakeService()
+
+    existing = Patient(
+        id=42,
+        name="Kiara",
+        species="Felino",
+        sex="Hembra",
+        owner_name="María",
+        has_age=True,
+        age_value=7,
+        age_unit="años",
+        age_display="7 años",
+        source=PatientSource.APPSHEET.value,
+        session_code="M5",
+        normalized_name="kiara",
+        normalized_owner="maria",
+        sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,  # ← confirmed by AppSheet
+    )
+    existing.created_at = datetime(2026, 5, 1, tzinfo=timezone.utc)
+
+    session_result = MagicMock()
+    session_result.scalar_one_or_none.return_value = existing
+    mock_async_session.execute = AsyncMock(return_value=session_result)
+
+    raw_input = RawPatientInput(
+        raw_string="M5 KIARA",
+        session_code="M5",
+        source=PatientSource.LIS_OZELLE,
+        received_at=datetime(2026, 5, 10, tzinfo=timezone.utc),
+    )
+
+    result = await service.receive(raw_input, mock_async_session)
+
+    assert result.created is False
+    assert result.patient_id == 42
+    assert PatientSource.LIS_OZELLE.value in existing.sources_received
+
+
+@pytest.mark.asyncio
+async def test_machine_source_no_session_code_match_quarantines(
+    mock_async_session,
+):
+    """When a machine source sends data but NO patient at all matches the
+    session_code, the data must be quarantined — no fallback to dedup/creation.
+    """
+    from app.domains.reception.schemas import DataQuarantinedException
+
+    service = PatientIntakeService()
+
+    # No patient exists at all for this session_code
+    session_result = MagicMock()
+    session_result.scalar_one_or_none.return_value = None
+    mock_async_session.execute = AsyncMock(return_value=session_result)
+
+    raw_input = RawPatientInput(
+        raw_string="M5 KIARA",
+        session_code="M5",
+        source=PatientSource.LIS_OZELLE,
+        received_at=datetime(2026, 5, 10, tzinfo=timezone.utc),
+    )
+
+    with pytest.raises(DataQuarantinedException):
+        await service.receive(raw_input, mock_async_session)
+
+    # Verify quarantine was inserted
+    quarantine_found = False
+    for call_item in mock_async_session.add.call_args_list:
+        arg = call_item[0][0] if call_item[0] else None
+        if arg is not None and hasattr(arg, "rejection_reason"):
+            if arg.rejection_reason == "awaiting_appsheet":
+                quarantine_found = True
+                break
+    assert quarantine_found, "No quarantine record with rejection_reason='awaiting_appsheet' found"
+
+
+@pytest.mark.asyncio
+async def test_non_machine_source_skips_gate(
+    mock_async_session,
+):
+    """Non-machine sources (MANUAL, APPSHEET) must NOT trigger the gate.
+    Even if no confirmed patient exists, the normal dedup path runs.
+    """
+    service = PatientIntakeService()
+
+    new_patient = Patient(
+        id=99,
+        name="Lucas",
+        species="Canino",
+        sex="Macho",
+        owner_name="Juan",
+        has_age=True,
+        age_value=3,
+        age_unit="años",
+        age_display="3 años",
+        source=PatientSource.MANUAL.value,
+        normalized_name="lucas",
+        normalized_owner="juan",
+        sources_received=[],
+    )
+    mock_async_session.get.return_value = new_patient
+
+    with pytest.MonkeyPatch().context() as mp:
+        mp.setattr(service._baul, "_find_existing", AsyncMock(return_value=None))
+        mp.setattr(
+            service._baul, "register",
+            AsyncMock(return_value=MockBaulResult(
+                patient_id=99, created=True, patient=new_patient,
+            )),
+        )
+
+        raw_input = RawPatientInput(
+            raw_string="lucas canino 3a juan",
+            source=PatientSource.MANUAL,
+            received_at=datetime.now(timezone.utc),
+        )
+
+        result = await service.receive(raw_input, mock_async_session)
+
+        # Normal dedup + creation flow should work
+        assert result.created is True
+        assert result.patient_id == 99
+        service._baul.register.assert_awaited_once()

@@ -100,6 +100,10 @@ class Patient(SQLModel, table=True):
     
     # Source tracking
     source: str                 # PatientSource value as string
+
+    # AppSheet authority flag: True ONLY when AppSheet confirms this patient.
+    # Machine sources (LIS_OZELLE, LIS_FUJIFILM, LIS_FILE) must NEVER set this.
+    appsheet_confirmed: bool = Field(default=False)
     
     # Doctor/profesional asignado (sync desde AppSheet)
     doctor_name: Optional[str] = Field(default=None)

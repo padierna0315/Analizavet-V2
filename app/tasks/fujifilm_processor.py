@@ -24,7 +24,7 @@ from app.database import AsyncSessionLocal
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from sqlmodel import Session, create_engine, select
-from app.domains.reception.schemas import RawPatientInput, PatientSource
+from app.domains.reception.schemas import RawPatientInput, PatientSource, DataQuarantinedException
 from app.domains.reception.service import ReceptionService
 from app.domains.reception.normalizer import _extract_name_and_code
 from app.services.session_code_extractor import SessionCodeExtractor
@@ -116,6 +116,8 @@ def process_fujifilm_message(data: dict):
         _parsed_name, _code = _extract_name_and_code(raw_string)
 
         # ── Gatekeeper: validate session_code before entering the pipeline ─
+        # Use SessionCodeExtractor for session_code assignment (handles "F2ORION")
+        # while _extract_name_and_code is kept for backward compat in normalizer.
         code = SessionCodeExtractor.extract(raw_string)
         if not code:
             logfire.warning(
@@ -155,7 +157,7 @@ def process_fujifilm_message(data: dict):
 
         reception_input = RawPatientInput(
             raw_string=raw_string,
-            session_code=_code,  # F2, A4, C2, etc. o None si no hay código
+            session_code=code,  # from SessionCodeExtractor.extract() — handles "F2ORION" → "F2"
             source=PatientSource(source_value),
             received_at=received_at,
         )
@@ -398,6 +400,16 @@ async def _async_process_pipeline(
             logger.info("Fujifilm pipeline completado exitosamente.")
             logfire.info("Fujifilm pipeline completado exitosamente.")
 
+    except DataQuarantinedException as e:
+        logfire.warning(
+            f"Data quarantined: session_code={e.session_code}, "
+            f"quarantine_id={e.quarantine_id}"
+        )
+        logger.info(
+            f"Fujifilm pipeline: data quarantined (session_code={e.session_code}, "
+            f"quarantine_id={e.quarantine_id}) — skipping Taller phase"
+        )
+        # Return cleanly — Dramatiq must NOT retry quarantined data
     except Exception as e:
         logger.error(f"Error crítico en pipeline Fujifilm: {e}", exc_info=True)
         logfire.error(f"Error crítico en pipeline Fujifilm: {e}", exc_info=True)

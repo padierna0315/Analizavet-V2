@@ -84,6 +84,7 @@ class TestTemporalIsolationCheck:
             normalized_name="temporal test",
             normalized_owner="owner",
             created_at=created_time,
+            appsheet_confirmed=True,
         )
         session.add(existing)
         await session.commit()
@@ -91,12 +92,13 @@ class TestTemporalIsolationCheck:
 
         service = ReceptionService()
 
-        # Data received 30 seconds ago (10s before patient was created)
+        # Use MANUAL source — temporal isolation check applies to non-machine
+        # sources. Machine sources are now gated by AppSheet authority first.
         received_time = now - timedelta(seconds=30)
         raw_input = RawPatientInput(
-            raw_string="Temporal Test Machine",
+            raw_string="Test Canino 3a Real Owner",
             session_code="T1",
-            source=PatientSource.LIS_FUJIFILM,
+            source=PatientSource.MANUAL,
             received_at=received_time,
         )
 
@@ -128,6 +130,7 @@ class TestTemporalIsolationCheck:
             normalized_name="valid temporal",
             normalized_owner="owner",
             created_at=created_time,
+            appsheet_confirmed=True,
         )
         session.add(existing)
         await session.commit()
@@ -169,6 +172,7 @@ class TestTemporalIsolationCheck:
             normalized_name="tolerance test",
             normalized_owner="owner",
             created_at=created_time,
+            appsheet_confirmed=True,
         )
         session.add(existing)
         await session.commit()
@@ -209,6 +213,7 @@ class TestTemporalIsolationCheck:
             normalized_name="same time",
             normalized_owner="owner",
             created_at=fixed_time,
+            appsheet_confirmed=True,
         )
         session.add(existing)
         await session.commit()
@@ -231,7 +236,8 @@ class TestTemporalIsolationCheck:
 
     @pytest.mark.asyncio
     async def test_temporal_check_skipped_when_no_session_code(self, session: AsyncSession):
-        """When no session_code is provided, temporal check is irrelevant — skip it."""
+        """When no session_code is provided, temporal check is irrelevant — skip it.
+        Uses MANUAL source (machine sources are now gated first)."""
         await session.execute(delete(Patient))
         await session.commit()
 
@@ -240,7 +246,7 @@ class TestTemporalIsolationCheck:
         raw_input = RawPatientInput(
             raw_string="NoCode Canino 5a Owner",
             session_code=None,
-            source=PatientSource.LIS_FUJIFILM,
+            source=PatientSource.MANUAL,
             received_at=datetime(2020, 1, 1, tzinfo=timezone.utc),
         )
 
@@ -260,7 +266,10 @@ class TestFujifilmFallbackRemoved:
 
     @pytest.mark.asyncio
     async def test_fujifilm_no_session_code_creates_new_patient(self, session: AsyncSession):
-        """Fujifilm data without session_code must create NEW patient, not match by name."""
+        """Fujifilm data without session_code is now quarantined — machine
+        sources cannot create patients without AppSheet confirmation."""
+        from app.domains.reception.schemas import DataQuarantinedException
+
         await session.execute(delete(Patient))
         await session.commit()
 
@@ -290,13 +299,9 @@ class TestFujifilmFallbackRemoved:
             received_at=datetime.now(timezone.utc),
         )
 
-        result = await service.receive(raw_input, session)
-
-        # Must NOT match the existing patient by name alone
-        assert result.patient_id != existing.id, (
-            "Fujifilm fallback removed: must not match by name alone"
-        )
-        assert result.created is True
+        # Machine source without confirmed patient → quarantine
+        with pytest.raises(DataQuarantinedException):
+            await service.receive(raw_input, session)
 
     @pytest.mark.asyncio
     async def test_fujifilm_with_code_matches_by_code(self, session: AsyncSession):
@@ -314,6 +319,7 @@ class TestFujifilmFallbackRemoved:
             sources_received=[PatientSource.LIS_FUJIFILM.value],
             normalized_name="orion",
             normalized_owner="owner",
+            appsheet_confirmed=True,  # ← AppSheet authority gate requires confirmation
         )
         session.add(existing)
         await session.commit()
@@ -346,19 +352,21 @@ class TestOzelleFallbackRemoved:
 
     @pytest.mark.asyncio
     async def test_ozelle_no_session_code_creates_new_patient(self, session: AsyncSession):
-        """Ozelle data without session_code must create NEW patient, not match by name."""
+        """Ozelle data without session_code is now quarantined — machine
+        sources cannot create patients without AppSheet confirmation."""
+        from app.domains.reception.schemas import DataQuarantinedException
+
         await session.execute(delete(Patient))
         await session.commit()
 
         # Pre-create patient with same normalized_name BUT different owner+species
-        # so the OLD name-only fallback WOULD have matched, but dedup key won't.
         existing = Patient(
             name="KIARA",
-            species="Canino",  # Different species — dedup key won't match
+            species="Canino",
             sex="Hembra",
-            owner_name="Different Owner",  # Different owner — dedup key won't match
+            owner_name="Different Owner",
             source=PatientSource.APPSHEET.value,
-            session_code="M5",  # Has code but new data won't have it
+            session_code="M5",
             sources_received=[PatientSource.APPSHEET.value],
             normalized_name="kiara",
             normalized_owner="different owner",
@@ -369,7 +377,6 @@ class TestOzelleFallbackRemoved:
 
         service = ReceptionService()
 
-        # Ozelle data WITHOUT session_code, same name "KIARA" but different owner
         raw_input = RawPatientInput(
             raw_string="KIARA Felino 2a Real Owner",
             session_code=None,
@@ -377,13 +384,9 @@ class TestOzelleFallbackRemoved:
             received_at=datetime.now(timezone.utc),
         )
 
-        result = await service.receive(raw_input, session)
-
-        # Must NOT match the existing patient by name alone (dedup also won't match)
-        assert result.patient_id != existing.id, (
-            "Ozelle fallback removed: must not match by name alone"
-        )
-        assert result.created is True
+        # Machine source without confirmed patient → quarantine
+        with pytest.raises(DataQuarantinedException):
+            await service.receive(raw_input, session)
 
     @pytest.mark.asyncio
     async def test_ozelle_with_code_matches_by_code(self, session: AsyncSession):
@@ -401,6 +404,7 @@ class TestOzelleFallbackRemoved:
             sources_received=[PatientSource.APPSHEET.value],
             normalized_name="kiara",
             normalized_owner="owner",
+            appsheet_confirmed=True,  # ← AppSheet authority gate requires confirmation
         )
         session.add(existing)
         await session.commit()

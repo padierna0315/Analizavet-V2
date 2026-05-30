@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel import select
-from app.domains.reception.schemas import RawPatientInput, BaulResult, PatientSource, NormalizedPatient
+from app.domains.reception.schemas import RawPatientInput, BaulResult, PatientSource, NormalizedPatient, DataQuarantinedException
 from app.domains.reception.normalizer import parse_patient_string
 from app.domains.reception.baul import BaulService, _normalize_for_comparison
 from app.domains.patients.models import Patient
@@ -66,6 +66,40 @@ class PatientIntakeService:
             existing_patient = result.scalar_one_or_none()
         else:
             existing_patient = None
+
+        # ── AppSheet authority gate (R2) ──────────────────────────────────
+        # Machine sources (LIS_OZELLE, LIS_FUJIFILM, LIS_FILE) must NEVER
+        # create Patient records — only attach to AppSheet-confirmed patients.
+        if raw_input.source in (
+            PatientSource.LIS_OZELLE,
+            PatientSource.LIS_FUJIFILM,
+            PatientSource.LIS_FILE,
+        ):
+            if existing_patient is None or not existing_patient.appsheet_confirmed:
+                # Quarantine the data until AppSheet confirms this patient
+                q = DataQuarantine(
+                    source=raw_input.source.value,
+                    raw_data=raw_input.raw_string,
+                    received_at=raw_input.received_at,
+                    rejection_reason="awaiting_appsheet",
+                    session_code=lookup_code,
+                )
+                session.add(q)
+                await session.commit()
+                await session.refresh(q)
+
+                logfire.warning(
+                    f"Machine data quarantined: source={raw_input.source.value}, "
+                    f"session_code={lookup_code}, quarantine_id={q.id} — "
+                    f"awaiting AppSheet confirmation"
+                )
+
+                raise DataQuarantinedException(
+                    session_code=lookup_code,
+                    source=raw_input.source.value,
+                    quarantine_id=q.id,
+                )
+        # ── end gate ──────────────────────────────────────────────────────
 
         if existing_patient:
             # ── Temporal isolation check (R7) ──────────────────────────────

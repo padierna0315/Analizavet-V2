@@ -243,3 +243,168 @@ async def test_clear_all_active_patients(session: AsyncSession):
     assert len(remaining) == 1
     assert remaining[0].session_code == "ARCH"
     assert remaining[0].waiting_room_status == "archived"
+
+
+# ── T5/T10: AppSheet authority — sync flag + quarantine lazy-link ────────
+
+@pytest.mark.asyncio
+async def test_sync_sets_appsheet_confirmed_on_create(session: AsyncSession):
+    """sync_from_appsheet must set appsheet_confirmed=True when creating
+    a new patient."""
+    from sqlmodel import delete
+    from app.domains.exam_order.models import ExamOrder
+    await session.execute(delete(ExamOrder))
+    await session.execute(delete(Patient))
+    await session.commit()
+
+    sync_svc = AppSheetSyncService()
+    appsheet_patients = [
+        AppSheetPatient(
+            Codigo_Corto="A1",
+            Doctora="Aura",
+            Categoria_Examen="Examen de sangre",
+            Examen_Especifico="Perfil Básico (PQ1)",
+            Nombre_Mascota="Lucas",
+            Especie="Felino",
+            Sexo="Macho",
+            Edad_Numero="13",
+            Edad_Unidad="Años",
+            Nombre_Tutor="Luz Bonolis Serna",
+            Raza="Mestizo",
+        )
+    ]
+
+    count = await sync_svc.sync_from_appsheet(appsheet_patients, session)
+    assert count == 1
+
+    result = await session.execute(
+        select(Patient).where(Patient.session_code == "A1")
+    )
+    patient = result.scalar_one_or_none()
+    assert patient is not None
+    assert patient.appsheet_confirmed is True, (
+        "appsheet_confirmed must be True after AppSheet sync creates patient"
+    )
+
+
+@pytest.mark.asyncio
+async def test_sync_sets_appsheet_confirmed_on_update(session: AsyncSession):
+    """sync_from_appsheet must set appsheet_confirmed=True when updating
+    an existing patient."""
+    from sqlmodel import delete
+    from app.domains.exam_order.models import ExamOrder
+    await session.execute(delete(ExamOrder))
+    await session.execute(delete(Patient))
+    await session.commit()
+
+    # Pre-create patient without appsheet_confirmed
+    p = Patient(
+        name="Lucas",
+        species="Felino",
+        sex="Macho",
+        owner_name="Luz Bonolis Serna",
+        source=PatientSource.LIS_OZELLE.value,
+        session_code="A1",
+        sources_received=[PatientSource.LIS_OZELLE.value],
+        normalized_name="lucas",
+        normalized_owner="luz bonolis serna",
+        appsheet_confirmed=False,
+    )
+    session.add(p)
+    await session.commit()
+
+    sync_svc = AppSheetSyncService()
+    appsheet_patients = [
+        AppSheetPatient(
+            Codigo_Corto="A1",
+            Doctora="Aura",
+            Categoria_Examen="Examen de sangre",
+            Examen_Especifico="Perfil Básico (PQ1)",
+            Nombre_Mascota="Lucas",
+            Especie="Felino",
+            Sexo="Macho",
+            Edad_Numero="13",
+            Edad_Unidad="Años",
+            Nombre_Tutor="Luz Bonolis Serna",
+            Raza="Mestizo",
+        )
+    ]
+
+    await sync_svc.sync_from_appsheet(appsheet_patients, session)
+
+    result = await session.execute(
+        select(Patient).where(Patient.session_code == "A1")
+    )
+    patient = result.scalar_one_or_none()
+    assert patient is not None
+    assert patient.appsheet_confirmed is True, (
+        "appsheet_confirmed must be True after AppSheet sync updates patient"
+    )
+
+
+@pytest.mark.asyncio
+async def test_sync_links_quarantined_items(session: AsyncSession):
+    """After AppSheet sync confirms a patient, pending quarantined items
+    with matching session_code must be linked (status='forced') and
+    assigned the correct patient_id."""
+    from sqlmodel import delete
+    from app.domains.exam_order.models import ExamOrder
+    from app.shared.models.data_quarantine import DataQuarantine
+    from datetime import datetime, timezone
+
+    await session.execute(delete(ExamOrder))
+    await session.execute(delete(DataQuarantine))
+    await session.execute(delete(Patient))
+    await session.commit()
+
+    # Insert a pending quarantine record with session_code "A1"
+    q = DataQuarantine(
+        source=PatientSource.LIS_OZELLE.value,
+        raw_data="A1 KIARA",
+        received_at=datetime.now(timezone.utc),
+        rejection_reason="awaiting_appsheet",
+        session_code="A1",
+        status="pending",
+    )
+    session.add(q)
+    await session.commit()
+
+    # Sync from AppSheet — should create patient + link quarantine
+    sync_svc = AppSheetSyncService()
+    appsheet_patients = [
+        AppSheetPatient(
+            Codigo_Corto="A1",
+            Doctora="Aura",
+            Categoria_Examen="Examen de sangre",
+            Examen_Especifico="Perfil Básico (PQ1)",
+            Nombre_Mascota="Kiara",
+            Especie="Felino",
+            Sexo="Hembra",
+            Edad_Numero="7",
+            Edad_Unidad="Años",
+            Nombre_Tutor="María",
+            Raza="Mestizo",
+        )
+    ]
+
+    await sync_svc.sync_from_appsheet(appsheet_patients, session)
+
+    # Verify patient is confirmed
+    patient_result = await session.execute(
+        select(Patient).where(Patient.session_code == "A1")
+    )
+    patient = patient_result.scalar_one_or_none()
+    assert patient is not None
+    assert patient.appsheet_confirmed is True
+
+    # Verify quarantine was linked
+    await session.refresh(q)
+    assert q.status == "forced", (
+        f"Quarantine status must be 'forced', got '{q.status}'"
+    )
+    assert q.patient_id == patient.id, (
+        f"Quarantine must be linked to patient {patient.id}, got {q.patient_id}"
+    )
+    assert q.processed_at is not None, (
+        "Quarantine processed_at must be set"
+    )

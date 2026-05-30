@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 from sqlmodel import Session, create_engine
 from app.database import AsyncSessionLocal
-from app.domains.reception.schemas import RawPatientInput, PatientSource
+from app.domains.reception.schemas import RawPatientInput, PatientSource, DataQuarantinedException
 from app.domains.taller.schemas import EnrichRequest, ImageUploadRequest
 from app.satellites.ozelle.hl7_parser import parse_hl7_message, HL7ParsingError, HeartbeatMessageException, ParsedOzelleMessage
 # from app.domains.reception.service import ReceptionService # Moved to inside function
@@ -233,6 +233,12 @@ async def _async_process_pipeline(parsed_msg: ParsedOzelleMessage, source: str):
 
             logfire.info("Pipeline completado exitosamente.")
 
+        except DataQuarantinedException as e:
+            logfire.warning(
+                f"Data quarantined: session_code={e.session_code}, "
+                f"quarantine_id={e.quarantine_id}"
+            )
+            # Return cleanly — Dramatiq must NOT retry quarantined data
         except Exception as e:
             logfire.error(f"Error crítico en pipeline asíncrono: {e}")
             # Re-raise so the Dramatiq actor knows it failed and can retry
