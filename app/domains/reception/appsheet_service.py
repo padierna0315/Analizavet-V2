@@ -12,6 +12,7 @@ from app.domains.reception.baul import _normalize_for_comparison
 from app.services.provenance_recorder import ProvenanceRecorder
 from app.shared.models.data_quarantine import DataQuarantine
 import logfire
+from app.tasks.quarantine_reprocess import reprocess_quarantined
 
 
 class AppSheetSyncService:
@@ -81,6 +82,14 @@ class AppSheetSyncService:
                     f"Linked quarantined item {q.id} to patient {patient_id} "
                     f"(session_code={session_code})"
                 )
+                # Trigger async reprocess via Dramatiq — fire-and-forget
+                try:
+                    reprocess_quarantined.send(q.id)
+                except Exception:
+                    logfire.error(
+                        f"Failed to enqueue reprocess for quarantine {q.id}",
+                        _exc_info=True,
+                    )
         except Exception:
             logfire.warning(
                 f"Quarantine lazy-link failed for session_code={session_code}",

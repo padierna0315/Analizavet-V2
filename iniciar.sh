@@ -510,7 +510,25 @@ main() {
         exit 1
     fi
     
-    # 5. ABRIR NAVEGADOR
+    # 4.5 ¿MODO AUTOMÁTICO? (headless console operator)
+    read -p "¿Modo automático? [s/N] " modo
+    if [[ "$modo" =~ ^[sS]$ ]]; then
+        # Headless mode: background uvicorn log, foreground auto_mode.py
+        log "🤖 Iniciando modo automático..."
+        tail -f "$UVICORN_LOG" &
+        local uvicorn_tail_pid=$!
+        uv run python app/auto_mode.py
+        kill "$uvicorn_tail_pid" 2>/dev/null || true
+        
+        # Skip open_browser, skip final tail -f, skip banner
+        log "👋 Modo automático finalizado. Servicios siguen corriendo."
+        log "   Para detener: presioná Ctrl+C en esta terminal."
+        # Keep script alive so trap catches Ctrl+C for service shutdown
+        wait
+        return 0
+    fi
+    
+    # 5. ABRIR NAVEGADOR (modo normal)
     open_browser
     
     # 6. MARCAR INICIO DE SESIÓN (modo simple: tocar archivo jornada-session.json)

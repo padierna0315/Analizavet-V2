@@ -39,3 +39,24 @@ async def jornada_resumen():
             "Content-Disposition": 'attachment; filename="resumen-jornada.txt"'
         },
     )
+
+
+@router.get("/adelanto")
+async def jornada_adelanto():
+    """Return an adelanto (preview) of today's jornada WITHOUT clearing the log.
+
+    Same format as /jornada/resumen but read-only — the log is preserved.
+    Useful for headless auto mode 'r' ADELANTO option.
+    """
+    grouped = get_jornada_results()
+    report = format_report(grouped)
+
+    # Do NOT clear the log — this is a read-only preview
+
+    return Response(
+        content=report,
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "X-Jornada-Mode": "HASTA-AHORA",
+        },
+    )
