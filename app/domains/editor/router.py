@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from typing import Optional
 
-from clinical_standards import (
+from app.shared.clinical_standards import (
     VETERINARY_STANDARDS,
     PARAMETER_GROUPS,
     JSON_PATH,

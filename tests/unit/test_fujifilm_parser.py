@@ -181,7 +181,7 @@ class TestParseFujifilmMessageChemistryCodes:
 
     def test_all_chemistry_codes_work(self):
         """Quick smoke test with each chemistry code type."""
-        from clinical_standards import CHEMISTRY_CODES
+        from app.shared.clinical_standards import CHEMISTRY_CODES
         for code in sorted(CHEMISTRY_CODES)[:5]:  # Test a subset
             line = f"R,NORMAL,30-04-2026,20:11,908,POLO,,14,9,999,01,02,{code}-PS,=,1.23,mg/dl,,,,,"
             result = parse_fujifilm_message(line)

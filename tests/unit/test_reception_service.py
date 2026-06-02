@@ -13,6 +13,7 @@ from typing import Optional
 
 class MockPatient:
     def __init__(self, **kwargs):
+        self.appsheet_confirmed = kwargs.pop("appsheet_confirmed", True)
         for k, v in kwargs.items():
             setattr(self, k, v)
         self._sources_received_list = [] # Internal list
@@ -76,10 +77,11 @@ async def test_receive_new_patient_creates_record(mock_async_session):
         age_unit="años",
         age_display="3 años",
         owner_name="Juan Pérez",
-        source=PatientSource.LIS_OZELLE.value,
+        source=PatientSource.APPSHEET.value,
         normalized_name="firulais",
         normalized_owner="juan perez",
-        sources_received=[]
+        sources_received=[],
+        appsheet_confirmed=True,
     )
 
     # Mock session.get to return our mock patient
@@ -101,7 +103,7 @@ async def test_receive_new_patient_creates_record(mock_async_session):
         # Execute
         raw_input = RawPatientInput(
             raw_string="firulais canino 3a Juan Pérez",
-            source=PatientSource.LIS_OZELLE,
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc)
         )
 
@@ -239,10 +241,11 @@ async def test_receive_same_source_twice_does_not_duplicate_sources(mock_async_s
         age_value=3,
         age_unit="años",
         age_display="3 años",
-        source=PatientSource.LIS_OZELLE.value,
+        source=PatientSource.APPSHEET.value,
         normalized_name="firulais",
         normalized_owner="juan perez",
-        sources_received=[PatientSource.LIS_OZELLE.value]
+        sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,
     )
     
     # Mock the _find_existing method to return our existing patient
@@ -250,10 +253,10 @@ async def test_receive_same_source_twice_does_not_duplicate_sources(mock_async_s
         mp.setattr(service._intake._baul, '_find_existing', AsyncMock(return_value=existing_patient))
         mp.setattr(service._intake._baul, 'register', AsyncMock())  # Should not be called
         
-        # Execute - receive Ozelle data twice
+        # Execute - receive APPSHEET data twice
         raw_input = RawPatientInput(
             raw_string="firulais canino 3a Juan Pérez",
-            source=PatientSource.LIS_OZELLE,
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc)
         )
         
@@ -263,9 +266,9 @@ async def test_receive_same_source_twice_does_not_duplicate_sources(mock_async_s
         assert result.created is False
         assert result.patient_id == 1
         
-        # Verify sources_received still only contains one entry for LIS_OZELLE
+        # Verify sources_received still only contains one entry for APPSHEET
         sources_received = existing_patient.sources_received
-        assert sources_received.count(PatientSource.LIS_OZELLE.value) == 1
+        assert sources_received.count(PatientSource.APPSHEET.value) == 1
         assert len(sources_received) == 1
 
 
@@ -274,10 +277,10 @@ async def test_receive_same_source_twice_does_not_duplicate_sources(mock_async_s
 
 @pytest.mark.asyncio
 async def test_ozelle_match_finds_existing_patient_by_name(mock_async_session):
-    """Ozelle data without session_code matches via dedup key (name+owner+species)."""
+    """Ozelle data with session_code matches confirmed AppSheet patient."""
     service = ReceptionService()
 
-    # Create an existing patient from AppSheet
+    # Create an existing patient from AppSheet (confirmed)
     existing_patient = Patient(
         id=1,
         name="Rex",
@@ -292,7 +295,12 @@ async def test_ozelle_match_finds_existing_patient_by_name(mock_async_session):
         normalized_name="rex",
         normalized_owner="juan perez",
         sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,
+        session_code="MATCH-001",
     )
+
+    # Set up session_code lookup to return the confirmed patient
+    setup_mock_session_execute(mock_async_session, return_value=existing_patient)
 
     # Mock _find_existing (dedup) to return the existing patient
     mp = pytest.MonkeyPatch()
@@ -305,6 +313,7 @@ async def test_ozelle_match_finds_existing_patient_by_name(mock_async_session):
         raw_input = RawPatientInput(
             raw_string="rex canino 3a Juan Pérez",
             source=PatientSource.LIS_OZELLE,
+            session_code="MATCH-001",
             received_at=datetime.now(timezone.utc),
         )
 
@@ -323,8 +332,8 @@ async def test_ozelle_match_finds_existing_patient_by_name(mock_async_session):
         assert PatientSource.LIS_OZELLE.value in existing_patient.sources_received
         assert PatientSource.APPSHEET.value in existing_patient.sources_received
 
-        # _find_existing MUST have been called (name-only fallback removed)
-        service._intake._baul._find_existing.assert_called_once()
+        # _find_existing should NOT be called — session_code match finds patient directly
+        service._intake._baul._find_existing.assert_not_called()
         # register must NOT be called
         service._intake._baul.register.assert_not_called()
     finally:
@@ -352,7 +361,11 @@ async def test_ozelle_match_does_not_overwrite_demographics(mock_async_session):
         normalized_name="luna",
         normalized_owner="maria garcia",
         sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,
+        session_code="MATCH-002",
     )
+
+    setup_mock_session_execute(mock_async_session, return_value=existing_patient)
 
     # Mock _find_existing (dedup) to return the existing patient
     mp = pytest.MonkeyPatch()
@@ -364,6 +377,7 @@ async def test_ozelle_match_does_not_overwrite_demographics(mock_async_session):
         raw_input = RawPatientInput(
             raw_string="luna canino 5a Pedro",
             source=PatientSource.LIS_FILE,
+            session_code="MATCH-002",
             received_at=datetime.now(timezone.utc),
         )
 
@@ -377,16 +391,15 @@ async def test_ozelle_match_does_not_overwrite_demographics(mock_async_session):
         assert existing_patient.age_value == 5
         assert existing_patient.age_display == "5 años"
 
-        # Returned NormalizedPatient carries normalized data (not DB data for machine sources)
-        # The merge guard prevents DB overwrite, but result.patient shows what was parsed
+        # Returned NormalizedPatient carries DB demographics (session_code path)
         assert result.patient.name == "Luna"
-        assert result.patient.owner_name == "Pedro"  # Normalized from raw_string
+        assert result.patient.owner_name == "María García"  # DB value, NOT normalized
 
         # LIS_FILE source should have been added
         assert PatientSource.LIS_FILE.value in existing_patient.sources_received
 
-        # _find_existing MUST have been called (no name-only shortcut)
-        service._intake._baul._find_existing.assert_called_once()
+        # _find_existing NOT called — session_code match finds patient directly
+        service._intake._baul._find_existing.assert_not_called()
         # register must NOT be called
         service._intake._baul.register.assert_not_called()
     finally:
@@ -398,7 +411,7 @@ async def test_ozelle_match_fallthrough_when_name_does_not_match(mock_async_sess
     """Ozelle source with no name match should fall through to _find_existing."""
     service = ReceptionService()
 
-    # Create an existing patient that _find_existing will return
+    # Create an existing patient that session_code lookup will return
     existing_patient = Patient(
         id=1,
         name="Rex",
@@ -413,14 +426,12 @@ async def test_ozelle_match_fallthrough_when_name_does_not_match(mock_async_sess
         normalized_name="rex",
         normalized_owner="juan perez",
         sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,
+        session_code="MATCH-003",
     )
 
-    # After fix: session_code is None → lookup skipped.
-    # Only Ozelle name query runs → set up .all() returning [] (no match).
-    ozelle_no_match = MagicMock()
-    ozelle_no_match.scalars.return_value.all.return_value = []
-
-    mock_async_session.execute = AsyncMock(side_effect=[ozelle_no_match])
+    # Set up session_code lookup to return the confirmed patient
+    setup_mock_session_execute(mock_async_session, return_value=existing_patient)
 
     with pytest.MonkeyPatch().context() as mp:
         mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=existing_patient))
@@ -429,17 +440,15 @@ async def test_ozelle_match_fallthrough_when_name_does_not_match(mock_async_sess
         raw_input = RawPatientInput(
             raw_string="rex canino 3a Juan Pérez",
             source=PatientSource.LIS_OZELLE,
+            session_code="MATCH-003",
             received_at=datetime.now(timezone.utc),
         )
 
         result = await service.receive(raw_input, mock_async_session)
 
-        # Should have found patient via _find_existing
+        # Should have found patient via session_code match
         assert result.created is False
         assert result.patient_id == 1
-
-        # _find_existing MUST have been called (Ozelle match didn't find by name)
-        service._intake._baul._find_existing.assert_awaited_once()
 
         # Merge guard should protect demographics for LIS_OZELLE
         assert existing_patient.species == "Canino"
@@ -465,14 +474,11 @@ async def test_fujifilm_merge_guard_protects_demographics(mock_async_session):
         normalized_name="rex",
         normalized_owner="juan perez",
         sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,
+        session_code="MATCH-004",
     )
 
-    # After fix: session_code is None → lookup skipped.
-    # Fujifilm name query → .all() returns [] (no name match) → falls through.
-    fuji_no_match = MagicMock()
-    fuji_no_match.scalars.return_value.all.return_value = []
-
-    mock_async_session.execute = AsyncMock(side_effect=[fuji_no_match])
+    setup_mock_session_execute(mock_async_session, return_value=existing_patient)
 
     with pytest.MonkeyPatch().context() as mp:
         mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=existing_patient))
@@ -482,6 +488,7 @@ async def test_fujifilm_merge_guard_protects_demographics(mock_async_session):
         raw_input = RawPatientInput(
             raw_string="rex felino 5a María",
             source=PatientSource.LIS_FUJIFILM,
+            session_code="MATCH-004",
             received_at=datetime.now(timezone.utc),
         )
 
@@ -498,10 +505,9 @@ async def test_fujifilm_merge_guard_protects_demographics(mock_async_session):
         assert existing_patient.age_value == 3  # Original value preserved
         assert existing_patient.age_display == "3 años"  # Original value preserved
 
-        # The returned NormalizedPatient carries the normalized data,
-        # but the actual DB record (existing_patient) is protected by the merge guard
-        assert result.patient.species == "Desconocida"  # Fujifilm normalizer output
-        assert result.patient.owner_name == "Sin Tutor"  # Fujifilm normalizer output
+        # The returned NormalizedPatient carries DB demographics (session_code path)
+        assert result.patient.species == "Canino"  # DB value, NOT Fujifilm normalizer output
+        assert result.patient.owner_name == "Juan Pérez"  # DB value
 
 
 # ── _sanitize_patient_age tests ────────────────────────────────────────────────
@@ -550,18 +556,14 @@ async def test_raw_string_not_used_as_session_code_fallback(mock_async_session):
     WHEN session_code is None
     THEN the system skips session_code lookup entirely
     AND proceeds to dedup-based matching (name-only fallbacks removed).
+
+    With the AppSheet authority gatekeeper, machine sources without session_code
+    are quarantined. The test verifies that LIS_OZELLE without session_code
+    raises DataQuarantinedException.
     """
+    from app.domains.reception.schemas import DataQuarantinedException
+
     service = ReceptionService()
-
-    # Count how many times session.execute is called
-    call_count = 0
-
-    async def counting_execute(stmt):
-        nonlocal call_count
-        call_count += 1
-        return _make_no_match_execute_result()
-
-    mock_async_session.execute = AsyncMock(side_effect=counting_execute)
 
     with pytest.MonkeyPatch().context() as mp:
         mp.setattr(service._intake._baul, "_find_existing", AsyncMock(return_value=None))
@@ -573,24 +575,15 @@ async def test_raw_string_not_used_as_session_code_fallback(mock_async_session):
 
         raw_input = RawPatientInput(
             raw_string="M5 Test Name Canino 3a Owner",
-            session_code=None,  # No session code — must NOT fall back to raw_string
+            session_code=None,  # No session code — gatekeeper blocks machine sources
             source=PatientSource.LIS_OZELLE,
             received_at=datetime.now(timezone.utc),
         )
 
-        result = await service.receive(raw_input, mock_async_session)
+        with pytest.raises(DataQuarantinedException) as exc_info:
+            await service.receive(raw_input, mock_async_session)
 
-        # Must create a NEW patient — not match by raw_string "M5"
-        assert result.created is True
-        assert result.patient_id == 99
-
-        # After fallback removal: execute called 0 times.
-        # session_code lookup skipped (code is None).
-        # Name-only fallback queries removed.
-        assert call_count == 0, (
-            f"Expected 0 execute calls (no session_code lookup, no name fallback), "
-            f"got {call_count}. raw_string is being used as session_code fallback!"
-        )
+        assert exc_info.value.source == "LIS_OZELLE"
 
 
 # ── Task 2.2: Fujifilm name fallback — 0, 1, 2+ matches ────────────────────
@@ -619,8 +612,8 @@ async def test_fujifilm_name_match_zero_patients_creates_new(mock_async_session)
         )))
 
         raw_input = RawPatientInput(
-            raw_string="Fuji Zero",
-            source=PatientSource.LIS_FUJIFILM,
+            raw_string="Fuji canino 3a Owner Zero",
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc),
         )
 
@@ -645,10 +638,11 @@ async def test_fujifilm_name_match_one_patient_reuses(mock_async_session):
         age_value=2,
         age_unit="años",
         age_display="2 años",
-        source=PatientSource.LIS_FUJIFILM.value,
+        source=PatientSource.APPSHEET.value,
         normalized_name="kiara",
         normalized_owner="owner",
-        sources_received=[PatientSource.LIS_FUJIFILM.value],
+        sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,
     )
 
     # No more fujifilm name-only query — go straight to _find_existing (dedup)
@@ -657,8 +651,8 @@ async def test_fujifilm_name_match_one_patient_reuses(mock_async_session):
         mp.setattr(service._intake._baul, "register", AsyncMock())
 
         raw_input = RawPatientInput(
-            raw_string="Kiara",
-            source=PatientSource.LIS_FUJIFILM,
+            raw_string="Kiara canino 2a Owner",
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc),
         )
 
@@ -704,8 +698,8 @@ async def test_fujifilm_name_match_two_plus_patients_creates_new(mock_async_sess
         )))
 
         raw_input = RawPatientInput(
-            raw_string="Kiara",
-            source=PatientSource.LIS_FUJIFILM,
+            raw_string="Kiara canino 3a Owner",
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc),
         )
 
@@ -747,7 +741,7 @@ async def test_ozelle_name_match_zero_patients_creates_new(mock_async_session):
 
         raw_input = RawPatientInput(
             raw_string="Rex Canino 3a Owner",
-            source=PatientSource.LIS_OZELLE,
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc),
         )
 
@@ -785,7 +779,7 @@ async def test_ozelle_name_match_one_patient_reuses(mock_async_session):
 
         raw_input = RawPatientInput(
             raw_string="Rocky Canino 4a Carlos",
-            source=PatientSource.LIS_OZELLE,
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc),
         )
 
@@ -831,7 +825,7 @@ async def test_ozelle_name_match_two_plus_patients_creates_new(mock_async_sessio
 
         raw_input = RawPatientInput(
             raw_string="Luna Canino 2a Owner A",
-            source=PatientSource.LIS_OZELLE,
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc),
         )
 
@@ -929,6 +923,7 @@ async def test_link_to_patient_called_after_session_code_existing(mock_async_ses
         normalized_name="firulais", normalized_owner="owner",
         session_code=FAKE_SESSION_CODE,
         sources_received=[PatientSource.APPSHEET.value],
+        appsheet_confirmed=True,
     )
 
     session_result = MagicMock()
@@ -1066,7 +1061,7 @@ async def test_file_name_match_zero_patients_creates_new(mock_async_session):
 
         raw_input = RawPatientInput(
             raw_string="Max Canino 3a Pedro",
-            source=PatientSource.LIS_FILE,
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc),
         )
 
@@ -1104,7 +1099,7 @@ async def test_file_name_match_one_patient_reuses(mock_async_session):
 
         raw_input = RawPatientInput(
             raw_string="Max Canino 6a Pedro",
-            source=PatientSource.LIS_FILE,
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc),
         )
 
@@ -1150,7 +1145,7 @@ async def test_file_name_match_two_plus_patients_creates_new(mock_async_session)
 
         raw_input = RawPatientInput(
             raw_string="Coco Canino 1a Owner X",
-            source=PatientSource.LIS_FILE,
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc),
         )
 

@@ -1365,7 +1365,8 @@ _DEFAULT_VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
 
 # Dynamic standards storage
 VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {}
-JSON_PATH = Path("data/clinical_standards.json")
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent  # project root (from app/shared/)
+JSON_PATH = _BASE_DIR / "data" / "clinical_standards.json"
 
 # Mapping of alternative abbreviations to standard keys
 STANDARDS_MAPPING: Dict[str, str] = {

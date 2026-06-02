@@ -1,6 +1,6 @@
 import logfire
 from app.domains.taller.schemas_flagging import FlagResult
-from clinical_standards import evaluate_flag, get_species_key
+from app.shared.clinical_standards import evaluate_flag, get_species_key
 
 class ClinicalFlaggingService:
 

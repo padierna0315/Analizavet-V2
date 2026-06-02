@@ -2,13 +2,21 @@ import pytest
 import os
 import json
 from pathlib import Path
-from clinical_standards import (
+from app.shared.clinical_standards import (
     VETERINARY_STANDARDS, 
     _DEFAULT_VETERINARY_STANDARDS, 
     JSON_PATH,
     load_standards_from_json,
     reset_to_defaults
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_standards():
+    """Ensure VETERINARY_STANDARDS is reset before each test."""
+    reset_to_defaults()
+    yield
+    reset_to_defaults()
 
 def test_load_standards_from_json_creates_file_if_missing(tmp_path):
     # Setup: point JSON_PATH to a temporary location

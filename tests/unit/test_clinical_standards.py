@@ -3,7 +3,7 @@
 Covers: SPECIES_MAP, get_species_key(), get_reference_range(), evaluate_flag().
 """
 import pytest
-from clinical_standards import (
+from app.shared.clinical_standards import (
     SPECIES_MAP,
     get_species_key,
     get_reference_range,

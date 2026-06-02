@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import List
 import logging
 
-from clinical_standards import CHEMISTRY_CODES
+from app.shared.clinical_standards import CHEMISTRY_CODES
 
 logger = logging.getLogger(__name__)
 

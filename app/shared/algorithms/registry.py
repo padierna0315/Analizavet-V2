@@ -15,7 +15,7 @@ REFERENCE RANGES and FLAGS are sourced from clinical_standards.py (single source
 from app.shared.models.lab_value import LabValue
 from app.shared.algorithms.unit_validation import get_validated_value
 from app.shared.algorithms.interpretations import INTERPRETATIONS
-from clinical_standards import evaluate_flag, get_reference_range
+from app.shared.clinical_standards import evaluate_flag, get_reference_range
 from dataclasses import dataclass
 
 

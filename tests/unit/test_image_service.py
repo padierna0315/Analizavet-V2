@@ -11,7 +11,7 @@ from app.domains.patients.models import Patient
 from app.shared.models.test_result import TestResult
 from app.shared.models.patient_image import PatientImage
 from app.domains.taller.schemas import ImageUploadRequest, ImageUploadItem
-from clinical_standards import get_parameter_name
+from app.shared.clinical_standards import get_parameter_name
 from app.domains.taller.images import (
     ImageHandlingService,
     _parse_obs_identifier,

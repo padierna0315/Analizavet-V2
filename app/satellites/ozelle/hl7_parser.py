@@ -13,7 +13,7 @@ import logfire
 
 from app.domains.taller.schemas import RawLabValueInput, ImageUploadItem
 from app.domains.taller.images import _parse_obs_identifier
-from clinical_standards import get_parameter_name
+from app.shared.clinical_standards import get_parameter_name
 
 
 # ── Exceptions ────────────────────────────────────────────────────────────────

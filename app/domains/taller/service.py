@@ -17,8 +17,8 @@ from app.domains.taller.schemas import (
 from app.domains.taller.engine import TallerFlaggingEngine
 from app.domains.taller.images import ImageHandlingService
 from app.domains.taller.flagging import ClinicalFlaggingService
-from clinical_standards import get_reference_range
-from clinical_standards import (
+from app.shared.clinical_standards import get_reference_range
+from app.shared.clinical_standards import (
     get_parameter_group, get_parameter_name, PARAMETER_GROUPS, PARAMETER_GROUPS_ORDER, STANDARDS_MAPPING
 )
 from app.shared.algorithms.registry import AlgorithmRegistry

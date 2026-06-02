@@ -40,7 +40,7 @@ async def register_patient(client: AsyncClient) -> int:
     """Helper: register a patient and return patient_id."""
     r = await client.post("/reception/receive", json={
         "raw_string": "kitty felina 2a Laura Cepeda",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
     })
     assert r.status_code == 200
@@ -57,7 +57,7 @@ async def test_enrich_creates_test_result(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -78,7 +78,7 @@ async def test_enrich_invalid_patient_raises(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -97,7 +97,7 @@ async def test_get_result_returns_full_data(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -134,7 +134,7 @@ async def test_preview_returns_html(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -170,7 +170,7 @@ async def test_upload_images(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -201,7 +201,7 @@ async def test_taller_page_renders_html(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -234,7 +234,7 @@ async def test_htmx_preview_returns_html_fragment(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -271,7 +271,7 @@ async def test_htmx_preview_updates_flag(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": [
             {
@@ -308,7 +308,7 @@ async def test_htmx_indicator_shows_in_page(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -336,7 +336,7 @@ async def test_apply_algorithms_creates_new_lab_values(client: AsyncClient):
         "species": "Canino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": [
             {"parameter_code": "NA", "parameter_name_es": "Sodio",
@@ -368,7 +368,7 @@ async def test_apply_algorithms_returns_htmx_oob_swap(client: AsyncClient):
         "species": "Canino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": [
             {"parameter_code": "NA", "parameter_name_es": "Sodio",
@@ -407,7 +407,7 @@ async def test_toggle_image_includes_in_report(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -475,7 +475,7 @@ async def test_taller_page_shows_image_gallery(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -514,7 +514,7 @@ async def test_taller_page_shows_aplicar_algoritmos_button(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -568,7 +568,7 @@ async def register_patient(client: AsyncClient) -> int:
     """Helper: register a patient and return patient_id."""
     r = await client.post("/reception/receive", json={
         "raw_string": "kitty felina 2a Laura Cepeda",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
     })
     assert r.status_code == 200
@@ -586,7 +586,7 @@ async def test_pending_patients_endpoint_returns_html_fragment(client: AsyncClie
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })
@@ -659,7 +659,7 @@ async def test_translated_image_names(client: AsyncClient):
         "species": "Felino",
         "test_type": "Hemograma",
         "test_type_code": "CBC",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
         "values": make_lab_values(),
     })

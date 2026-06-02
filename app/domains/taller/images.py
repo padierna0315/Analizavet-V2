@@ -14,7 +14,7 @@ from app.config import settings
 from app.domains.taller.triage import seleccionar_mejores_imagenes
 
 
-from clinical_standards import get_parameter_name
+from app.shared.clinical_standards import get_parameter_name
 from app.domains.taller._constants import KNOWN_SUFFIXES, PART_PATTERN
 
 

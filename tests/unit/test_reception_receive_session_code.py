@@ -26,7 +26,8 @@ async def test_receive_merges_by_session_code(session: AsyncSession):
         has_age=True,
         age_value=13,
         age_unit="años",
-        age_display="13 años"
+        age_display="13 años",
+        appsheet_confirmed=True,
     )
     session.add(p)
     await session.commit()

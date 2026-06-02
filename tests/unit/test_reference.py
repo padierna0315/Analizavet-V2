@@ -2,7 +2,7 @@
 Tests for clinical_standards.get_reference_range — alias resolution
 """
 import pytest
-from clinical_standards import get_reference_range
+from app.shared.clinical_standards import get_reference_range
 
 
 def test_get_reference_range_alias_ret_canino():

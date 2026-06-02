@@ -336,7 +336,7 @@ async def test_get_test_result_full_urea_injected_when_bun_present(session):
             'short_name': 'Urea',
         },
     }
-    from clinical_standards import VETERINARY_STANDARDS
+    from app.shared.clinical_standards import VETERINARY_STANDARDS
     with patch.dict(VETERINARY_STANDARDS, urea_entry):
         service = TallerService()
         result = await service.get_test_result_full(tr.id, session)
@@ -499,7 +499,7 @@ async def test_get_test_result_full_urea_flagged_high(session):
             'short_name': 'Urea',
         },
     }
-    from clinical_standards import VETERINARY_STANDARDS
+    from app.shared.clinical_standards import VETERINARY_STANDARDS
     with patch.dict(VETERINARY_STANDARDS, urea_entry):
         service = TallerService()
         result = await service.get_test_result_full(tr.id, session)

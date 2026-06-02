@@ -106,7 +106,7 @@ async def test_patient_sources_received_tracking(session):
 
     raw_input = RawPatientInput(
         raw_string="ichigo canino 5a Fernanda Hernandez",
-        source=PatientSource.LIS_OZELLE,
+        source=PatientSource.APPSHEET,
         received_at=datetime.now(timezone.utc),
     )
     result1 = await service.receive(raw_input, session)
@@ -117,9 +117,9 @@ async def test_patient_sources_received_tracking(session):
     db_result = await session.execute(stmt)
     patient = db_result.scalar_one()
 
-    # Check that sources_received contains LIS_OZELLE — now a Python list
+    # Check that sources_received contains APPSHEET — now a Python list
     sources = patient.sources_received
-    assert "LIS_OZELLE" in sources
+    assert "APPSHEET" in sources
     assert len(sources) == 1
 
 
@@ -128,17 +128,17 @@ async def test_patient_baptism_updates_sources_received(session):
     """Test that registering an existing patient from a new source updates sources_received."""
     reception_service = ReceptionService()
 
-    # 1. Register a patient from Ozelle
-    ozelle_raw_input = make_raw_ozelle_input(raw_string="ichigo canino 5a fernanda hernandez")
-    result1 = await reception_service.receive(ozelle_raw_input, session)
+    # 1. Register a patient from AppSheet
+    appsheet_raw_input = make_raw_ozelle_input(raw_string="ichigo canino 5a fernanda hernandez", source=PatientSource.APPSHEET)
+    result1 = await reception_service.receive(appsheet_raw_input, session)
     assert result1.created is True
     patient_id = result1.patient_id
 
-    # Verify initial state: sources_received should contain LIS_OZELLE
+    # Verify initial state: sources_received should contain APPSHEET
     stmt = select(Patient).where(Patient.id == patient_id)
     db_result = await session.execute(stmt)
     patient = db_result.scalar_one()
-    assert patient.sources_received == ["LIS_OZELLE"]
+    assert patient.sources_received == ["APPSHEET"]
     assert patient.name == "Ichigo"
     assert patient.owner_name == "Fernanda Hernandez"
 
@@ -152,21 +152,21 @@ async def test_patient_baptism_updates_sources_received(session):
     assert result2.created is False  # Should be an update, not a new creation
     assert result2.patient_id == patient_id
 
-    # Verify updated state: sources_received should contain both LIS_OZELLE and MANUAL
+    # Verify updated state: sources_received should contain both APPSHEET and MANUAL
     await session.refresh(patient) # Refresh patient object to get latest data
-    assert patient.sources_received == ["LIS_OZELLE", "MANUAL"]
+    assert patient.sources_received == ["APPSHEET", "MANUAL"]
     
     # Verify patient data was updated by the MANUAL source (if there were differences in normalized values)
     # In this specific case, raw_string was the same, so demographic data should remain unchanged.
     assert patient.name == "Ichigo"
     assert patient.owner_name == "Fernanda Hernandez"
 
-    # 3. Register the same patient from LIS_OZELLE again - should not add duplicate source
-    result3 = await reception_service.receive(ozelle_raw_input, session)
+    # 3. Register the same patient from APPSHEET again - should not add duplicate source
+    result3 = await reception_service.receive(appsheet_raw_input, session)
     assert result3.created is False
     assert result3.patient_id == patient_id
     await session.refresh(patient)
-    assert patient.sources_received == ["LIS_OZELLE", "MANUAL"] # Still two unique sources
+    assert patient.sources_received == ["APPSHEET", "MANUAL"] # Still two unique sources
 
 
 @pytest.mark.asyncio
@@ -182,7 +182,7 @@ async def test_sala_espera_endpoint_returns_patients_with_sources(session):
     await reception.receive(
         RawPatientInput(
             raw_string="ichigo canino 5a Fernanda Hernandez",
-            source=PatientSource.LIS_OZELLE,
+            source=PatientSource.APPSHEET,
             received_at=datetime.now(timezone.utc),
         ),
         session,
@@ -219,7 +219,7 @@ async def test_sala_espera_endpoint_returns_patients_with_sources(session):
 async def test_delete_waiting_room_patient_deletes_record(session):
     """Test that deleting a patient via the endpoint physically removes them."""
     from app.main import app
-    from httpx import AsyncClient
+    from httpx import AsyncClient, ASGITransport
     from app.database import get_session
     
     service = BaulService()
@@ -241,7 +241,7 @@ async def test_delete_waiting_room_patient_deletes_record(session):
     app.dependency_overrides[get_session] = get_test_session
     
     # Test the delete endpoint
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.delete(f"/reception/patient/{patient_id}")
         assert response.status_code == 200
     

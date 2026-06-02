@@ -31,7 +31,7 @@ async def test_save_parameter(client: AsyncClient):
     assert "Eritrocitos Modificado" in response.text
     
     # Verify it changed in VETERINARY_STANDARDS
-    from clinical_standards import VETERINARY_STANDARDS
+    from app.shared.clinical_standards import VETERINARY_STANDARDS
     assert VETERINARY_STANDARDS["RBC"]["name"] == "Eritrocitos Modificado"
     
     # Clean up: Reset to defaults
