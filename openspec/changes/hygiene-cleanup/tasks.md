@@ -78,7 +78,7 @@ Chain strategy: stacked-to-main
 
 ## Phase 4: Final Verification
 
-- [ ] 4.1 **Full test suite** — Run `pytest -v --cov=app --cov-report=term-missing -p pytest_playwright`. Verify 0 quarantine failures, coverage not regressed.
+- [x] 4.1 **Full test suite** — Run `pytest -v --cov=app --cov-report=term-missing -p pytest_playwright`. Verify 0 quarantine failures, coverage not regressed.
   - Files: None (verification only)
-  - Test: Full suite green (for our scope: 0 new failures introduced)
+  - Test: 786 passed, 30 failed (all pre-existing), 8 errors (pre-existing). Zero quarantine failures. Zero new failures.
   - Est: 0 lines (verification pass)
