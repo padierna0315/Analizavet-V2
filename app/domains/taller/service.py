@@ -1,4 +1,3 @@
-import re
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -24,9 +23,7 @@ from clinical_standards import (
 )
 from app.shared.algorithms.registry import AlgorithmRegistry
 from app.shared.algorithms.interpretations import INTERPRETATIONS
-
-_PART_PATTERN = re.compile(r"_Part\d+$")
-_KNOWN_SUFFIXES = {"Main", "Histo", "Distribution"}
+from app.domains.taller._constants import KNOWN_SUFFIXES, PART_PATTERN
 
 
 def _clean_parameter_code(raw_code: str) -> str:
@@ -41,13 +38,13 @@ def _clean_parameter_code(raw_code: str) -> str:
     code = raw_code
 
     # Strip known suffixes
-    for suffix in _KNOWN_SUFFIXES:
+    for suffix in KNOWN_SUFFIXES:
         if code.endswith(f"_{suffix}"):
             code = code[:-(len(suffix) + 1)]
             break
 
     # Strip _PartN suffix
-    part_match = _PART_PATTERN.search(code)
+    part_match = PART_PATTERN.search(code)
     if part_match:
         code = code[:part_match.start()]
 

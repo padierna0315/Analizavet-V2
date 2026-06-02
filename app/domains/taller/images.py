@@ -1,5 +1,4 @@
 import base64
-import re
 import unicodedata
 from datetime import datetime
 from pathlib import Path
@@ -16,10 +15,7 @@ from app.domains.taller.triage import seleccionar_mejores_imagenes
 
 
 from clinical_standards import get_parameter_name
-
-# Suffixes used by Ozelle in OBX identifiers (confirmed from real log)
-_KNOWN_SUFFIXES = {"Main", "Histo", "Distribution"}
-_PART_PATTERN = re.compile(r"_Part(\d+)$")
+from app.domains.taller._constants import KNOWN_SUFFIXES, PART_PATTERN
 
 
 def _parse_obs_identifier(obs_id: str) -> tuple[str, str]:
@@ -34,14 +30,14 @@ def _parse_obs_identifier(obs_id: str) -> tuple[str, str]:
         "FECES_Distribution"   → ("FECES", "Distribution")
     """
     # Check for _PartN suffix first
-    part_match = _PART_PATTERN.search(obs_id)
+    part_match = PART_PATTERN.search(obs_id)
     if part_match:
         suffix = f"Part{part_match.group(1)}"
         base = obs_id[:part_match.start()]
         return base, suffix
 
     # Check for known word suffixes (_Main, _Histo, _Distribution)
-    for suffix in _KNOWN_SUFFIXES:
+    for suffix in KNOWN_SUFFIXES:
         if obs_id.endswith(f"_{suffix}"):
             base = obs_id[:-(len(suffix) + 1)]
             return base, suffix

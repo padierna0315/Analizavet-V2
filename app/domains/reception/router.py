@@ -33,8 +33,9 @@ async def check_sync_appsheet(
     if patient_count == 0:
         # Si no hay pacientes, sincronizar directamente (paso 1 de 1)
         # Usamos hx-post para disparar el proceso real
-        return HTMLResponse(
-            content=f'<div hx-post="/reception/appsheet/sync" hx-trigger="load">Sincronizando...</div>'
+        return templates.TemplateResponse(
+            "reception/partials/auto_sync_trigger.html",
+            {"request": request}
         )
     
     # Si hay pacientes, mostrar el modal de confirmación
