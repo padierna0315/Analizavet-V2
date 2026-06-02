@@ -39,7 +39,7 @@ async def test_upload_json_baptism_file(client: AsyncClient, stub_broker):
 async def test_receive_new_patient(client: AsyncClient):
     response = await client.post("/reception/receive", json={
         "raw_string": "luka felina 3a Ana Gomez",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
     })
     assert response.status_code == 200
@@ -55,7 +55,7 @@ async def test_receive_new_patient(client: AsyncClient):
 async def test_receive_duplicate_patient(client: AsyncClient):
     payload = {
         "raw_string": "rocky canino 3a Juan Pérez",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
     }
     r1 = await client.post("/reception/receive", json=payload)
@@ -70,7 +70,7 @@ async def test_receive_duplicate_patient(client: AsyncClient):
 async def test_receive_invalid_species_returns_422(client: AsyncClient):
     response = await client.post("/reception/receive", json={
         "raw_string": "rocky perro 2a Juan",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
     })
     assert response.status_code == 422
@@ -79,7 +79,7 @@ async def test_receive_invalid_species_returns_422(client: AsyncClient):
 async def test_receive_coproscopic_no_age(client: AsyncClient):
     response = await client.post("/reception/receive", json={
         "raw_string": "princesa felina Laura García",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
     })
     assert response.status_code == 200
@@ -91,11 +91,11 @@ async def test_receive_coproscopic_no_age(client: AsyncClient):
 async def test_receive_lis_file_source(client: AsyncClient):
     response = await client.post("/reception/receive", json={
         "raw_string": "max canino 5a Pedro Gómez",
-        "source": "LIS_FILE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
     })
     assert response.status_code == 200
-    assert response.json()["patient"]["source"] == "LIS_FILE"
+    assert response.json()["patient"]["source"] == "APPSHEET"
 
 
 # ── GET /reception/patients ───────────────────────────────────────────────────
@@ -113,7 +113,7 @@ async def test_list_patients_empty(client: AsyncClient):
 async def test_list_patients_after_register(client: AsyncClient):
     await client.post("/reception/receive", json={
         "raw_string": "nala canina 1a Sofia Ruiz",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
     })
     response = await client.get("/reception/patients")
