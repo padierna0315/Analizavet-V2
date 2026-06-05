@@ -227,7 +227,7 @@ async def get_upload_status_endpoint(upload_id: str, request: Request):
 
 
 
-@router.post("/reception/procesar/{test_result_id}")
+@router.post("/procesar/{test_result_id}")
 async def process_test_result(
     test_result_id: int,
     session: AsyncSession = Depends(get_session),

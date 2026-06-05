@@ -12,7 +12,7 @@ async def register_unique_patient(client: AsyncClient, name: str) -> int:
     """Helper: register a patient with a unique name to avoid dedup."""
     r = await client.post("/reception/receive", json={
         "raw_string": f"{name} felina 2a {name}Owner",
-        "source": "LIS_OZELLE",
+        "source": "APPSHEET",
         "received_at": datetime.now(timezone.utc).isoformat(),
     })
     assert r.status_code == 200

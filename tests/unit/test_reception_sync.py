@@ -17,9 +17,9 @@ class TestUploadCounter:
 
     @pytest.fixture(autouse=True)
     def mock_redis(self):
-        """Mock redis.from_url for all tests."""
+        """Mock _get_redis for all tests."""
         self.mock_conn = MagicMock()
-        with patch('app.tasks.hl7_processor.redis.from_url', return_value=self.mock_conn):
+        with patch('app.tasks.hl7_processor._get_redis', return_value=self.mock_conn):
             yield
 
     def test_init_upload_counter_sets_pending(self):
@@ -29,37 +29,34 @@ class TestUploadCounter:
         self.mock_conn.setex.assert_called_once_with("upload:test-upload-1:pending", 300, 5)
 
     def test_decrement_upload_counter_reaches_zero(self):
-        """decrement_upload_counter: when DECR returns 0, sets complete status."""
-        from app.tasks.hl7_processor import decrement_upload_counter, set_upload_status
-        self.mock_conn.decr.return_value = 0
+        """decrement_upload_counter: when Lua returns 0, logs completion."""
+        from app.tasks.hl7_processor import decrement_upload_counter
+        self.mock_conn.eval.return_value = 0
 
-        with patch('app.tasks.hl7_processor.set_upload_status') as mock_set_status:
+        with patch('app.tasks.hl7_processor.logfire.info') as mock_log:
             decrement_upload_counter("test-upload-1")
-            self.mock_conn.decr.assert_called_once_with("upload:test-upload-1:pending")
-            self.mock_conn.delete.assert_called_once_with("upload:test-upload-1:pending")
-            mock_set_status.assert_called_once_with("test-upload-1", "complete:")
+            self.mock_conn.eval.assert_called_once()
+            mock_log.assert_called_once()
 
     def test_decrement_upload_counter_negative_becomes_zero(self):
-        """decrement_upload_counter: when DECR returns negative, also completes."""
+        """decrement_upload_counter: when Lua returns negative, also logs completion."""
         from app.tasks.hl7_processor import decrement_upload_counter
-        self.mock_conn.decr.return_value = -2
+        self.mock_conn.eval.return_value = -2
 
-        with patch('app.tasks.hl7_processor.set_upload_status') as mock_set_status:
+        with patch('app.tasks.hl7_processor.logfire.info') as mock_log:
             decrement_upload_counter("test-upload-1")
-            self.mock_conn.decr.assert_called_once_with("upload:test-upload-1:pending")
-            self.mock_conn.delete.assert_called_once_with("upload:test-upload-1:pending")
-            mock_set_status.assert_called_once_with("test-upload-1", "complete:")
+            self.mock_conn.eval.assert_called_once()
+            mock_log.assert_called_once()
 
     def test_decrement_upload_counter_still_processing(self):
-        """decrement_upload_counter: when DECR returns >0, no completion."""
+        """decrement_upload_counter: when Lua returns >0, no completion."""
         from app.tasks.hl7_processor import decrement_upload_counter
-        self.mock_conn.decr.return_value = 3
+        self.mock_conn.eval.return_value = 3
 
-        with patch('app.tasks.hl7_processor.set_upload_status') as mock_set_status:
+        with patch('app.tasks.hl7_processor.logfire.info') as mock_log:
             decrement_upload_counter("test-upload-1")
-            self.mock_conn.decr.assert_called_once_with("upload:test-upload-1:pending")
-            self.mock_conn.delete.assert_not_called()
-            mock_set_status.assert_not_called()
+            self.mock_conn.eval.assert_called_once()
+            mock_log.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_sync_from_appsheet_new_patient(session: AsyncSession):

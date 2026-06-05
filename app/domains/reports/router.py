@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,8 @@ from app.domains.exam_order.models import ExamOrder
 from app.domains.jornada.service import append_to_jornada_log
 from app.shared.models.patient_archive import PatientArchive
 from app.shared.models.raw_data_log import RawDataLog
+from app.shared.models.patient_image import PatientImage
+from app.shared.models.test_result import TestResult
 
 router = APIRouter(prefix="/reports", tags=["Reportes"])
 _report_service = ReportService()
@@ -114,10 +117,25 @@ async def download_pdf(
         session.add(archive)
         await session.flush()  # Ensure archive gets an ID, catch constraint errors early
 
-        # Phase 2: Delete ExamOrders (no cascade from Patient→ExamOrder)
+        # Phase 2: Cleanup image files from disk before DB cascade
+        img_stmt = (
+            select(PatientImage)
+            .join(TestResult)
+            .where(TestResult.patient_id == patient_id)
+        )
+        img_result = await session.execute(img_stmt)
+        images = img_result.scalars().all()
+        for img in images:
+            if img.file_path:
+                try:
+                    Path(img.file_path).unlink(missing_ok=True)
+                except Exception as e:
+                    logfire.warning(f"Failed to delete image file {img.file_path}: {e}")
+
+        # Phase 3: Delete ExamOrders (no cascade from Patient→ExamOrder)
         await session.execute(delete(ExamOrder).where(ExamOrder.patient_id == patient_id))
 
-        # Phase 3: Delete Patient (ORM cascade deletes TestResults → LabValues + Images)
+        # Phase 4: Delete Patient (ORM cascade deletes TestResults → LabValues + Images)
         patient = await session.get(Patient, patient_id)
         if patient:
             await session.delete(patient)

@@ -21,7 +21,7 @@ from pathlib import Path
 
 import httpx
 
-from app.domains.auto.router import set_last_sync_at, set_last_reprocess_at
+from app.domains.auto.router import set_last_sync_at
 
 
 # Default polling interval in seconds
@@ -58,8 +58,8 @@ def _restore_stdin(saved: tuple | None) -> None:
     try:
         fd = sys.stdin.fileno()
         termios.tcsetattr(fd, termios.TCSADRAIN, saved)
-    except Exception:
-        pass
+    except Exception as e:
+        logfire.warning(f"Failed to restore terminal attributes: {e}")
 
 
 # ── Keypress detection ────────────────────────────────────────────────────────
@@ -195,11 +195,17 @@ def main() -> None:
                 key = _check_keypress()
                 if key == "r":
                     print("\n📄 Reporte de jornada")
-                    mode = input("¿ADELANTO o FINAL? ").strip().upper()
-                    if mode in ("ADELANTO", "FINAL"):
-                        _handle_report(client, mode)
-                    else:
-                        print("⚠️  Opción no válida. Usá ADELANTO o FINAL.")
+                    # Restore terminal to cooked mode before input()
+                    _restore_stdin(saved_attrs)
+                    try:
+                        mode = input("¿ADELANTO o FINAL? ").strip().upper()
+                        if mode in ("ADELANTO", "FINAL"):
+                            _handle_report(client, mode)
+                        else:
+                            print("⚠️  Opción no válida. Usá ADELANTO o FINAL.")
+                    finally:
+                        # Re-enter raw mode for key detection
+                        saved_attrs = _setup_stdin()
                     break  # Restart tick after report
                 time.sleep(0.1)
                 elapsed += 0.1

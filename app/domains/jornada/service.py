@@ -6,6 +6,7 @@ SIMPLE MODE: All jornada data lives in a flat JSON file (data/jornada-session.js
 No DB queries, no session markers, no complexity.
 """
 
+import fcntl
 import json
 from pathlib import Path
 from datetime import datetime, timezone
@@ -17,7 +18,9 @@ from sqlalchemy.orm import selectinload
 from app.shared.models.test_result import TestResult
 
 # Simple jornada log — flat JSON file, independent from DB
-JORNADA_LOG_PATH = Path("data/jornada-session.json")
+BASE_DIR = Path(__file__).parent.parent.parent
+JORNADA_LOG_PATH = BASE_DIR / "data" / "jornada-session.json"
+JORNADA_LOCK_PATH = BASE_DIR / "data" / "jornada-session.lock"
 
 # Category definitions: (key, icon_and_name, test_type_code_filter)
 _CATEGORIES = [
@@ -42,37 +45,59 @@ def append_to_jornada_log(entry: dict) -> None:
     """
     _ensure_jornada_log_dir()
     log_data: list[dict] = []
-    if JORNADA_LOG_PATH.exists():
+
+    # Acquire exclusive lock for atomic read-modify-write
+    with open(JORNADA_LOCK_PATH, "w") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
         try:
-            with open(JORNADA_LOG_PATH, "r", encoding="utf-8") as f:
-                log_data = json.load(f)
-        except (json.JSONDecodeError, OSError):
-            log_data = []
+            if JORNADA_LOG_PATH.exists():
+                try:
+                    with open(JORNADA_LOG_PATH, "r", encoding="utf-8") as f:
+                        log_data = json.load(f)
+                except (json.JSONDecodeError, OSError):
+                    log_data = []
 
-    # Enrich with timestamp
-    entry["downloaded_at"] = datetime.now(timezone.utc).isoformat()
-    entry["date"] = datetime.now(timezone.utc).date().isoformat()
-    log_data.append(entry)
+            # Enrich with timestamp
+            entry["downloaded_at"] = datetime.now(timezone.utc).isoformat()
+            entry["date"] = datetime.now(timezone.utc).date().isoformat()
+            log_data.append(entry)
 
-    with open(JORNADA_LOG_PATH, "w", encoding="utf-8") as f:
-        json.dump(log_data, f, ensure_ascii=False, indent=2)
+            with open(JORNADA_LOG_PATH, "w", encoding="utf-8") as f:
+                json.dump(log_data, f, ensure_ascii=False, indent=2)
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def read_jornada_log() -> list[dict]:
     """Read all entries from the jornada log file."""
+    _ensure_jornada_log_dir()
     if not JORNADA_LOG_PATH.exists():
         return []
     try:
-        with open(JORNADA_LOG_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+        # Acquire shared lock for safe reading (use "a" to avoid truncating lock file)
+        with open(JORNADA_LOCK_PATH, "a") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_SH)
+            try:
+                with open(JORNADA_LOG_PATH, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
     except (json.JSONDecodeError, OSError):
         return []
 
 
 def clear_jornada_log() -> None:
     """Remove the jornada log file after the resumen has been generated."""
+    _ensure_jornada_log_dir()
     if JORNADA_LOG_PATH.exists():
-        JORNADA_LOG_PATH.unlink()
+        # Acquire exclusive lock before clearing (use "a" to avoid truncating lock file)
+        with open(JORNADA_LOCK_PATH, "a") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                if JORNADA_LOG_PATH.exists():
+                    JORNADA_LOG_PATH.unlink()
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _group_results(results: list[dict]) -> dict[str, list[dict]]:

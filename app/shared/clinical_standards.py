@@ -8,9 +8,13 @@ import json
 import os
 from pathlib import Path
 from copy import deepcopy
+import threading
 
 import unicodedata
 import re
+
+# Thread-safe lock for VETERINARY_STANDARDS mutations
+_STANDARDS_LOCK = threading.Lock()
 
 # Master Registry of Veterinary Standards (Factory Defaults)
 _DEFAULT_VETERINARY_STANDARDS: Dict[str, Dict[str, Any]] = {
@@ -1658,12 +1662,15 @@ def load_standards_from_json():
     try:
         with open(JSON_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
-            VETERINARY_STANDARDS.clear()
-            VETERINARY_STANDARDS.update(data)
+            with _STANDARDS_LOCK:
+                # Atomic mutation: clear then update in-place under lock
+                VETERINARY_STANDARDS.clear()
+                VETERINARY_STANDARDS.update(deepcopy(data))
     except (json.JSONDecodeError, IOError):
         # Fallback to defaults if file is corrupted
-        VETERINARY_STANDARDS.clear()
-        VETERINARY_STANDARDS.update(deepcopy(_DEFAULT_VETERINARY_STANDARDS))
+        with _STANDARDS_LOCK:
+            VETERINARY_STANDARDS.clear()
+            VETERINARY_STANDARDS.update(deepcopy(_DEFAULT_VETERINARY_STANDARDS))
 
 
 def reset_to_defaults():

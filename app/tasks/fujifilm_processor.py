@@ -56,8 +56,8 @@ def _taller_service() -> TallerService:
     return TallerService()
 
 
-# Synchronous engine for gatekeeper quarantine writes
-sync_engine = create_engine(settings.DATABASE_URL, echo=False)
+# ── Shared sync engine for Dramatiq actors ─────────────────────────────────────
+from app.tasks.shared_db import sync_engine
 
 
 # ── Dramatiq Actor ───────────────────────────────────────────────────────────

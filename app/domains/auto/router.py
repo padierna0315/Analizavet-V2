@@ -24,12 +24,6 @@ def set_last_sync_at(iso_timestamp: str) -> None:
     _last_sync_at = iso_timestamp
 
 
-def set_last_reprocess_at(iso_timestamp: str) -> None:
-    """Record the last successful quarantine reprocess timestamp."""
-    global _last_reprocess_at
-    _last_reprocess_at = iso_timestamp
-
-
 @router.get("/status")
 async def auto_status(session: AsyncSession = Depends(get_session)):
     """Return headless operator status counts.

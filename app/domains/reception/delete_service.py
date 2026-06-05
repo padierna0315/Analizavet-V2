@@ -1,3 +1,4 @@
+from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select as sa_select
 from sqlalchemy.orm import selectinload
@@ -37,6 +38,8 @@ class PatientDeleteService:
         patient = result.scalar_one_or_none()
 
         if patient:
+            # Cleanup image files from disk before deleting DB records
+            self._cleanup_patient_images(patient)
             await session.delete(patient)
             await session.commit()
             logfire.info(f"Successfully deleted patient with id={patient_id}")
@@ -44,3 +47,14 @@ class PatientDeleteService:
         else:
             logfire.warning(f"Patient with id={patient_id} not found for deletion.")
             return False
+
+    def _cleanup_patient_images(self, patient: Patient) -> None:
+        """Delete image files from disk for a patient and all its test results."""
+        for test_result in patient.test_results:
+            for image in test_result.images:
+                if image.file_path:
+                    try:
+                        Path(image.file_path).unlink(missing_ok=True)
+                        logfire.info(f"Deleted image file: {image.file_path}")
+                    except Exception as e:
+                        logfire.warning(f"Failed to delete image file {image.file_path}: {e}")

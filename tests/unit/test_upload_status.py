@@ -5,9 +5,9 @@ from app.config import settings
 
 @pytest.fixture
 def mock_redis():
-    with patch("redis.from_url") as mock_from_url:
+    with patch("app.tasks.hl7_processor._get_redis") as mock_get_redis:
         mock_redis_instance = MagicMock()
-        mock_from_url.return_value = mock_redis_instance
+        mock_get_redis.return_value = mock_redis_instance
         yield mock_redis_instance
 
 def test_set_upload_status_processing(mock_redis):

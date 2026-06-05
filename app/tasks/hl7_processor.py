@@ -38,15 +38,24 @@ def _taller_service() -> "TallerService":
     from app.domains.taller.service import TallerService # Local import to break circular dependency
     return TallerService()
 
-# Synchronous engine for Dramatiq actor's DB operations
-sync_engine = create_engine(settings.DATABASE_URL, echo=False)
+# ── Shared Redis connection pool ───────────────────────────────────────────────
+_redis_pool = redis.ConnectionPool.from_url(settings.REDIS_URL, max_connections=10)
+
+
+def _get_redis() -> redis.Redis:
+    """Return a Redis client using the shared connection pool."""
+    return redis.Redis(connection_pool=_redis_pool)
+
+
+# ── Shared sync engine for Dramatiq actors ─────────────────────────────────────
+from app.tasks.shared_db import sync_engine
 
 
 # ── Dramatiq Actor ─────────────────────────────────────────────────────────────
 
 def set_upload_status(upload_id: str, status: str, count: int = 0) -> None:
     """Write upload status to Redis. Status: 'processing', 'complete:{n}', 'error:{msg}'"""
-    r = redis.from_url(settings.REDIS_URL)
+    r = _get_redis()
     if status == "processing":
         r.setex(f"upload:{upload_id}:status", 300, status)  # 5 minutes TTL
     elif status.startswith("complete:"):
@@ -57,7 +66,7 @@ def set_upload_status(upload_id: str, status: str, count: int = 0) -> None:
 
 def get_upload_status(upload_id: str) -> str | None:
     """Read upload status from Redis. Returns None if not found."""
-    r = redis.from_url(settings.REDIS_URL)
+    r = _get_redis()
     status = r.get(f"upload:{upload_id}:status")
     if status:
         return status.decode('utf-8')
@@ -73,17 +82,30 @@ def init_upload_counter(upload_id: str, total: int) -> None:
     Sets the pending counter with a 5-minute TTL so that if all workers
     fail, the counter auto-expires instead of hanging indefinitely.
     """
-    r = redis.from_url(settings.REDIS_URL)
+    r = _get_redis()
     r.setex(f"upload:{upload_id}:pending", 300, total)
 
 
 def decrement_upload_counter(upload_id: str) -> None:
-    """Decrement the pending counter. When it reaches ≤0, mark as complete."""
-    r = redis.from_url(settings.REDIS_URL)
-    remaining = r.decr(f"upload:{upload_id}:pending")
+    """Decrement the pending counter. When it reaches 0, mark as complete."""
+    r = _get_redis()
+    # Use atomic Lua script: decrement, refresh TTL, and set status when reaching 0
+    lua_script = """
+        local key = KEYS[1]
+        local ttl = tonumber(ARGV[1])
+        local upload_id = ARGV[2]
+        local remaining = redis.call('decr', key)
+        if remaining > 0 then
+            redis.call('expire', key, ttl)
+        elseif remaining == 0 then
+            redis.call('del', key)
+            redis.call('setex', 'upload:' .. upload_id .. ':status', ttl, 'complete:0')
+        end
+        return remaining
+    """
+    remaining = r.eval(lua_script, 1, f"upload:{upload_id}:pending", 300, upload_id)
     if remaining <= 0:
-        r.delete(f"upload:{upload_id}:pending")
-        set_upload_status(upload_id, "complete:")
+        logfire.info(f"Upload {upload_id} complete — all messages processed")
 
 
 @dramatiq.actor(max_retries=3, time_limit=60000)
@@ -246,8 +268,8 @@ async def _async_process_pipeline(parsed_msg: ParsedOzelleMessage, source: str):
 
 
 def split_hl7_batch(batch_content: str) -> list[str]:
-    # Find all occurrences of "MSH|"
-    starts = [m.start() for m in re.finditer(r'MSH\|', batch_content)]
+    # Find all occurrences of "MSH|" at start of line (segment start)
+    starts = [m.start() for m in re.finditer(r'^MSH\|', batch_content, re.MULTILINE)]
     
     messages = []
     for i in range(len(starts)):
@@ -310,7 +332,8 @@ def process_uploaded_batch(file_content: str, file_type: str, upload_id: str) ->
                     # without fully parsing it.
                     # A quick regex check for MSH-9 segment for heartbeat.
                     # MSH|^~\&|...|...|...|...|...|...|ZHB^H00...
-                    if "MSH|" in msg_str and "ZHB^H00" in msg_str.split("|")[8 if len(msg_str.split("|")) > 8 else 0]:
+                    msh_fields = msg_str.split("|")
+                    if len(msh_fields) > 8 and "ZHB^H00" in msh_fields[8]:
                         logfire.info(f"Skipping heartbeat message {i+1}/{len(messages)} for upload_id: {upload_id}")
                         continue
 
@@ -319,12 +342,19 @@ def process_uploaded_batch(file_content: str, file_type: str, upload_id: str) ->
                     parsed_message_count += 1
                     
                 elif file_type == "fujifilm":
-                    # Call appropriate fujifilm parser (placeholder for now)
-                    # For now, if fujifilm is selected, it will just send it to the existing fujifilm processor
-                    # which expects a single message.
-                    from app.tasks.fujifilm_processor import process_fujifilm_message
-                    process_fujifilm_message.send(msg_str) # Assuming fujifilm can handle single HL7 message.
-                    parsed_message_count += 1
+                    # Parse Fujifilm HL7 message and send as dict
+                    from app.satellites.fujifilm.parser import parse_fujifilm_message
+                    parsed_fuji = parse_fujifilm_message(msg_str)
+                    if parsed_fuji:
+                        process_fujifilm_message.send({
+                            "internal_id": parsed_fuji.get("internal_id", ""),
+                            "patient_name": parsed_fuji.get("patient_name", ""),
+                            "parameter_code": parsed_fuji.get("parameter_code", ""),
+                            "raw_value": parsed_fuji.get("raw_value", ""),
+                            "source": PatientSource.LIS_FUJIFILM.value,
+                            "upload_id": upload_id,
+                        })
+                        parsed_message_count += 1
                 else:
                     logfire.warning(f"Unsupported file_type '{file_type}' for message {i+1}/{len(messages)} in upload_id: {upload_id}")
                     continue
