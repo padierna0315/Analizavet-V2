@@ -76,7 +76,11 @@ kill_by_name() {
 # Verificar si un puerto está libre
 is_port_free() {
     local port="$1"
-    ! lsof -ti :"$port" > /dev/null 2>&1
+    if command -v lsof > /dev/null 2>&1; then
+        ! lsof -ti :"$port" > /dev/null 2>&1
+    else
+        ! ss -tlnp 2>/dev/null | grep -q ":${port} "
+    fi
 }
 
 # Esperar a que un puerto esté libre
@@ -85,7 +89,7 @@ wait_for_port_free() {
     local timeout="${2:-5}"
     local waited=0
     while ! is_port_free "$port" && [ "$waited" -lt "$timeout" ]; do
-        sleep 0.5
+        sleep 1
         waited=$((waited + 1))
     done
     is_port_free "$port"
@@ -93,12 +97,12 @@ wait_for_port_free() {
 
 # Verificar si Redis responde
 redis_ping() {
-    python3 -c "import redis; print(redis.Redis(host='localhost', port=${PORT_REDIS}).ping())" 2>/dev/null | grep -q "True"
+    .venv/bin/python -c "import redis; print(redis.Redis(host='localhost', port=${PORT_REDIS}, socket_connect_timeout=3, socket_timeout=3).ping())" 2>/dev/null | grep -q "True"
 }
 
 # Verificar health del servidor
 server_health() {
-    curl -sf http://localhost:${PORT_UVICORN}/health > /dev/null 2>&1
+    curl -sf --connect-timeout 5 --max-time 10 http://localhost:${PORT_UVICORN}/health > /dev/null 2>&1
 }
 
 # Guardar PIDs
@@ -144,15 +148,19 @@ cleanup() {
     rm -f "$PIDFILE"
     
     # Matar procesos por nombre (con variaciones posibles)
-    kill_by_name "uvicorn.*app.main"
-    kill_by_name "dramatiq.*broker"
+    kill_by_name "uvicorn.*app\.main:app"
+    kill_by_name "dramatiq.*app\.tasks\.broker:broker"
     kill_by_name "dramatiq.*WorkerProcess"
     
     # Liberar puertos específicos
     for port in "$PORT_UVICORN" "$PORT_REDIS" "$PORT_OZELLE" "$PORT_FUJIFILM" 9191 9200; do
         if ! is_port_free "$port"; then
             local pids
-            pids=$(lsof -ti tcp:"$port" 2>/dev/null || true)
+            if command -v lsof > /dev/null 2>&1; then
+                pids=$(lsof -ti tcp:"$port" 2>/dev/null || true)
+            else
+                pids=$(ss -tlnp 2>/dev/null | grep ":${port} " | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' || true)
+            fi
             if [ -n "$pids" ]; then
                 log "   Liberando puerto $port (PIDs: $pids)..."
                 echo "$pids" | xargs kill -KILL 2>/dev/null || true
@@ -235,31 +243,30 @@ prechecks() {
 start_redis() {
     log "🟥 Iniciando Redis..."
     
-    if command -v redis-server &> /dev/null && redis-cli ping &> /dev/null; then
-        success "Redis nativo ya está corriendo"
-        return 0
-    fi
-    
     if command -v podman &> /dev/null; then
         # Usar Podman
         podman run -d --replace --name redis-analizavet \
             -p "${PORT_REDIS}:${PORT_REDIS}" \
-            docker.io/redis:7-alpine > /dev/null 2>&1
-        
-        # Esperar a que Redis responda
-        local waited=0
-        while ! redis_ping && [ "$waited" -lt "$TIMEOUT_REDIS" ]; do
-            sleep 0.5
-            waited=$((waited + 1))
-        done
-        
-        if redis_ping; then
-            success "Redis corriendo (Podman)"
-            return 0
-        else
-            error "Redis no respondió después de ${TIMEOUT_REDIS}s"
-            return 1
-        fi
+            docker.io/redis:7-alpine > /dev/null 2>&1 && {
+            # Esperar a que Redis responda
+            local waited=0
+            while ! redis_ping && [ "$waited" -lt "$TIMEOUT_REDIS" ]; do
+                sleep 1
+                waited=$((waited + 1))
+            done
+            
+            if redis_ping; then
+                success "Redis corriendo (Podman)"
+                return 0
+            fi
+        }
+        warn "Redis (Podman) no disponible. Intentando Redis nativo..."
+    fi
+    
+    # Redis nativo (ya corriendo)
+    if redis_ping; then
+        success "Redis corriendo (nativo)"
+        return 0
     fi
     
     error "No se pudo iniciar Redis"
@@ -287,7 +294,7 @@ start_dramatiq() {
     # Esperar a que el proceso esté realmente vivo
     local waited=0
     while ! kill -0 "$pid" 2>/dev/null && [ "$waited" -lt 5 ]; do
-        sleep 0.5
+        sleep 1
         waited=$((waited + 1))
     done
     
@@ -331,7 +338,7 @@ start_server() {
     # Esperar a que el proceso esté vivo
     local waited=0
     while ! kill -0 "$pid" 2>/dev/null && [ "$waited" -lt 5 ]; do
-        sleep 0.5
+        sleep 1
         waited=$((waited + 1))
     done
     
@@ -346,7 +353,7 @@ start_server() {
     # Esperar health check
     waited=0
     while ! server_health && [ "$waited" -lt "$TIMEOUT_HEALTH" ]; do
-        sleep 0.5
+        sleep 1
         waited=$((waited + 1))
     done
     
@@ -391,7 +398,7 @@ verify_all() {
         success "FastAPI OK"
         # Mostrar respuesta del health check
         local health_response
-        health_response=$(curl -s http://localhost:${PORT_UVICORN}/health)
+        health_response=$(curl -s --connect-timeout 5 --max-time 10 http://localhost:${PORT_UVICORN}/health)
         log "   Health: $health_response"
     else
         error "FastAPI NO responde"
@@ -490,7 +497,7 @@ main() {
     echo ""
     
     # Trap para detener todo al salir (Ctrl+C)
-    trap 'stop_all; exit 0' SIGINT SIGTERM EXIT
+    trap 'stop_all; exit 0' SIGINT SIGTERM
     
     # 1. LIMPIEZA
     cleanup
@@ -511,20 +518,21 @@ main() {
     fi
     
     # 4.5 ¿MODO AUTOMÁTICO? (headless console operator)
-    read -p "¿Modo automático? [s/N] " modo
+    read -p "¿Modo automático? [s/N] " modo || modo=""
     if [[ "$modo" =~ ^[sS]$ ]]; then
         # Headless mode: background uvicorn log, foreground auto_mode.py
         log "🤖 Iniciando modo automático..."
         tail -f "$UVICORN_LOG" &
         local uvicorn_tail_pid=$!
-        uv run python app/auto_mode.py
+        save_pid "tail-uvicorn-log" "$uvicorn_tail_pid"
+        uv run python -m app.auto_mode || warn "auto_mode.py exited with code $?"
         kill "$uvicorn_tail_pid" 2>/dev/null || true
         
         # Skip open_browser, skip final tail -f, skip banner
         log "👋 Modo automático finalizado. Servicios siguen corriendo."
         log "   Para detener: presioná Ctrl+C en esta terminal."
         # Keep script alive so trap catches Ctrl+C for service shutdown
-        wait
+        tail -f /dev/null
         return 0
     fi
     
@@ -532,8 +540,8 @@ main() {
     open_browser
     
     # 6. MARCAR INICIO DE SESIÓN (modo simple: tocar archivo jornada-session.json)
-    if [ ! -f "${APP_DIR}/data/jornada-session.json" ]; then
-        echo '[]' > "${APP_DIR}/data/jornada-session.json"
+    if [ ! -f "${APP_DIR}/app/data/jornada-session.json" ]; then
+        echo '[]' > "${APP_DIR}/app/data/jornada-session.json"
         log "📄 Archivo de jornada inicializado"
     fi
     
@@ -554,9 +562,10 @@ main() {
     echo "─────────────────────────────────────────────────────────────────────"
     tail -f "$UVICORN_LOG" 2>/dev/null &
     local tail_pid=$!
+    save_pid "tail-uvicorn-log" "$tail_pid"
     
     # Esperar Ctrl+C
-    wait
+    wait $tail_pid 2>/dev/null || true
 }
 
 # Ejecutar
