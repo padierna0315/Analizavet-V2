@@ -24,9 +24,10 @@ def test_fetch_sync_posts_to_appsheet():
     mock_response.text = "✅ 3 paciente(s) sincronizado(s)"
     mock_client.post.return_value = mock_response
 
-    count = _fetch_sync(mock_client)
+    count, ok = _fetch_sync(mock_client)
 
     assert count == 3
+    assert ok is True
     mock_client.post.assert_called_once_with("/reception/appsheet/sync")
 
 
@@ -37,9 +38,10 @@ def test_fetch_sync_handles_http_error():
     mock_client = MagicMock()
     mock_client.post.side_effect = Exception("Connection refused")
 
-    count = _fetch_sync(mock_client)
+    count, ok = _fetch_sync(mock_client)
 
     assert count == 0
+    assert ok is False
 
 
 def test_fetch_sync_handles_non_200():
@@ -51,9 +53,10 @@ def test_fetch_sync_handles_non_200():
     mock_response.status_code = 500
     mock_client.post.return_value = mock_response
 
-    count = _fetch_sync(mock_client)
+    count, ok = _fetch_sync(mock_client)
 
     assert count == 0
+    assert ok is False
 
 
 def test_fetch_sync_parse_zero():
@@ -66,9 +69,10 @@ def test_fetch_sync_parse_zero():
     mock_response.text = "✅ 0 paciente(s) sincronizado(s)"
     mock_client.post.return_value = mock_response
 
-    count = _fetch_sync(mock_client)
+    count, ok = _fetch_sync(mock_client)
 
     assert count == 0
+    assert ok is True
 
 
 # ── _fetch_status ─────────────────────────────────────────────────────────────
@@ -85,7 +89,6 @@ def test_fetch_status_returns_dict():
         "patients_waiting_count": 5,
         "jornada_entries": 3,
         "last_sync_at": None,
-        "last_reprocess_at": None,
     }
     mock_client.get.return_value = mock_response
 

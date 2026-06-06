@@ -60,7 +60,6 @@ async def test_auto_status_with_data(client: AsyncClient, session):
     assert data["patients_waiting_count"] == 1
     assert data["jornada_entries"] == 1
     assert data["last_sync_at"] is None
-    assert data["last_reprocess_at"] is None
 
 
 @pytest.mark.asyncio
@@ -75,4 +74,3 @@ async def test_auto_status_empty(client: AsyncClient):
     assert data["patients_waiting_count"] == 0
     assert data["jornada_entries"] == 0
     assert data["last_sync_at"] is None
-    assert data["last_reprocess_at"] is None
